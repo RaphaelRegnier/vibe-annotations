@@ -72,11 +72,6 @@ class ClaudeAnnotations {
           sendResponse({ success: true, message: 'Annotation highlighted' });
           break;
           
-        case 'scrollToAnnotation':
-          this.scrollToAndHighlightPin(request.annotation);
-          sendResponse({ success: true, message: 'Scrolled to annotation' });
-          break;
-          
           
         default:
           sendResponse({ success: false, error: 'Unknown action' });
@@ -1371,7 +1366,8 @@ class ClaudeAnnotations {
     document.body.appendChild(badge);
     
     // Store reference to original element
-    badge.dataset.originalElementId = this.generateElementId(element);
+    const elementId = this.generateElementId(element);
+    badge.dataset.originalElementId = elementId;
     
     // Update position on scroll/resize
     const updatePosition = () => {
@@ -1446,56 +1442,6 @@ class ClaudeAnnotations {
     }
   }
 
-  scrollToAndHighlightPin(annotation) {
-    try {
-      // Find the badge for this annotation
-      const badges = document.querySelectorAll('.claude-annotation-badge');
-      let targetBadge = null;
-      
-      // Find the badge by checking which element it belongs to
-      for (const badge of badges) {
-        const element = this.findElementBySelector(annotation);
-        if (element) {
-          // Check if this badge is positioned near this element
-          const elementRect = element.getBoundingClientRect();
-          const badgeRect = badge.getBoundingClientRect();
-          
-          // If badge is positioned at the top-center of the element (within a reasonable margin)
-          if (Math.abs(badgeRect.left - (elementRect.left + elementRect.width / 2)) < 20 &&
-              Math.abs(badgeRect.top - (elementRect.top - 10)) < 20) {
-            targetBadge = badge;
-            break;
-          }
-        }
-      }
-      
-      if (targetBadge) {
-        // Scroll to the badge with some padding
-        const badgeRect = targetBadge.getBoundingClientRect();
-        const scrollTop = window.pageYOffset + badgeRect.top - (window.innerHeight / 2);
-        
-        window.scrollTo({
-          top: scrollTop,
-          behavior: 'smooth'
-        });
-        
-        // Add highlight animation to the badge
-        targetBadge.classList.add('highlight');
-        
-        // Remove highlight after animation completes
-        setTimeout(() => {
-          targetBadge.classList.remove('highlight');
-        }, 2000);
-      } else {
-        // Fallback: highlight the element itself
-        this.highlightAnnotation(annotation);
-      }
-    } catch (error) {
-      console.error('Error scrolling to annotation pin:', error);
-      // Fallback: highlight the element itself
-      this.highlightAnnotation(annotation);
-    }
-  }
 
   generateId() {
     return 'claude_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);

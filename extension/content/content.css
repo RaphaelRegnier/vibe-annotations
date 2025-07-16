@@ -53,24 +53,6 @@
   z-index: 999999 !important;
   pointer-events: auto !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  transition: all 0.3s ease !important;
-}
-
-/* Highlight animation for badges */
-.claude-annotation-badge.highlight {
-  animation: pulseHighlight 2s ease-out !important;
-}
-
-@keyframes pulseHighlight {
-  0% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8), 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  }
-  50% {
-    box-shadow: 0 0 0 12px rgba(37, 99, 235, 0), 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0), 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  }
 }
 
 /* Pin tooltip - child of badge */
