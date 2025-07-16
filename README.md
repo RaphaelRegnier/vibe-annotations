@@ -4,10 +4,10 @@ AI-powered development annotations for localhost projects. Drop comments on your
 
 ## Features
 
-- <� **Localhost-focused**: Works on your development projects
-- > **AI-powered**: Integrates with Claude Code via MCP
-- � **Instant feedback**: Click, comment, bulk-fix
-- =' **Developer-friendly**: Built for modern web development
+- 🏠 **Localhost-focused**: Works on your development projects
+- 🤖 **AI-powered**: Integrates with Claude Code via MCP
+- ⚡ **Instant feedback**: Click, comment, bulk-fix
+- 👨‍💻 **Developer-friendly**: Built for modern web development
 
 ## Quick Start
 
