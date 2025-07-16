@@ -106,7 +106,6 @@ class LocalAnnotationsServer {
         }
         
         await this.saveAnnotations(annotations);
-        console.log(`Saved annotation ${annotation.id} for ${annotation.url}`);
         res.json({ success: true, annotation });
       } catch (error) {
         console.error('Error saving annotation:', error);
@@ -125,7 +124,10 @@ class LocalAnnotationsServer {
 
         // Replace all annotations with the new set
         await this.saveAnnotations(annotations);
-        console.log(`Synced ${annotations.length} annotations (full replacement)`);
+        // Only log significant sync operations
+        if (annotations.length > 0) {
+          console.log(`Synced ${annotations.length} annotations`);
+        }
         res.json({ success: true, count: annotations.length });
       } catch (error) {
         console.error('Error syncing annotations:', error);
@@ -174,7 +176,6 @@ class LocalAnnotationsServer {
         annotations.splice(index, 1);
         
         await this.saveAnnotations(annotations);
-        console.log(`Deleted annotation ${id}`);
         res.json({ 
           success: true, 
           deleted: true,

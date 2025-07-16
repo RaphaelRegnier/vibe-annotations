@@ -10,7 +10,7 @@ class ClaudeAnnotations {
   }
 
   async init() {
-    console.log('Claude Annotations content script initialized on:', window.location.href);
+    console.log('Claude Annotations initialized on:', window.location.href);
     
     // Load existing annotations
     await this.loadAnnotations();
@@ -27,7 +27,6 @@ class ClaudeAnnotations {
     // Set up DOM observer for dynamic content
     this.setupDOMObserver();
     
-    console.log('Claude Annotations content script setup complete');
   }
 
   async loadAnnotations() {
@@ -40,7 +39,9 @@ class ClaudeAnnotations {
         annotation.url === window.location.href
       );
       
-      console.log(`Loaded ${this.annotations.length} annotations for current page`);
+      if (this.annotations.length > 0) {
+        console.log(`Loaded ${this.annotations.length} annotations`);
+      }
     } catch (error) {
       console.error('Error loading annotations:', error);
       this.annotations = [];
@@ -48,38 +49,31 @@ class ClaudeAnnotations {
   }
 
   setupMessageListener() {
-    console.log('Setting up message listener for content script');
     
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Content script received message:', request);
       
       switch (request.action) {
         case 'startAnnotationMode':
-          console.log('Starting annotation mode from message');
           this.startAnnotationMode();
           sendResponse({ success: true, message: 'Annotation mode started' });
           break;
 
         case 'stopAnnotationMode':
-          console.log('Stopping annotation mode from message');
           this.stopAnnotationMode();
           sendResponse({ success: true, message: 'Annotation mode stopped' });
           break;
 
         case 'getAnnotationModeStatus':
-          console.log('Getting annotation mode status');
           sendResponse({ success: true, isAnnotationMode: this.isAnnotationMode });
           break;
           
         case 'highlightAnnotation':
-          console.log('Highlighting annotation from message');
           this.highlightAnnotation(request.annotation);
           sendResponse({ success: true, message: 'Annotation highlighted' });
           break;
           
           
         default:
-          console.log('Unknown action received:', request.action);
           sendResponse({ success: false, error: 'Unknown action' });
       }
       
@@ -106,16 +100,13 @@ class ClaudeAnnotations {
   }
 
   startAnnotationMode() {
-    console.log('Starting annotation mode');
     this.isAnnotationMode = true;
     
     // Add visual indicator
     document.body.classList.add('claude-annotation-mode-active');
-    console.log('Added annotation mode class to body');
     
     // Set up event listeners
     this.setupAnnotationListeners();
-    console.log('Annotation listeners set up');
     
     // Show instruction overlay
     this.showInspectionModeOverlay();
@@ -152,7 +143,6 @@ class ClaudeAnnotations {
   }
 
   stopAnnotationMode() {
-    console.log('Stopping annotation mode');
     this.isAnnotationMode = false;
     
     // Remove visual indicators
@@ -170,7 +160,6 @@ class ClaudeAnnotations {
   }
 
   tempDisableAnnotationMode() {
-    console.log('Temporarily disabling annotation mode for modal');
     
     // Remove visual indicators but keep isAnnotationMode true
     document.body.classList.remove('claude-annotation-mode-active');
@@ -183,7 +172,6 @@ class ClaudeAnnotations {
   }
 
   reEnableAnnotationMode() {
-    console.log('Re-enabling annotation mode after modal close');
     
     if (this.isAnnotationMode) {
       // Re-add visual indicators
@@ -245,24 +233,20 @@ class ClaudeAnnotations {
   }
 
   handleClick(e) {
-    console.log('Click detected, annotation mode:', this.isAnnotationMode);
     
     if (!this.isAnnotationMode) return;
     
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('Click prevented, target:', e.target);
     
     // Skip Claude annotation elements and modal buttons
     if (e.target.closest('.claude-comment-modal') || 
         e.target.classList.contains('claude-btn') ||
         e.target.closest('.claude-btn')) {
-      console.log('Skipping click on modal element or button');
       return;
     }
     
-    console.log('Creating annotation for element:', e.target);
     this.createAnnotation(e.target);
   }
 
@@ -1122,7 +1106,6 @@ class ClaudeAnnotations {
         
         if (matches.length === 1) {
           element = matches[0];
-          console.log(`Found element by text content: "${textSanitized}"`);
           return element;
         }
         
@@ -1136,7 +1119,6 @@ class ClaudeAnnotations {
             });
             if (bestMatch) {
               element = bestMatch;
-              console.log(`Found element by text + class context: "${textSanitized}"`);
               return element;
             }
           }
@@ -1159,7 +1141,6 @@ class ClaudeAnnotations {
             
             if (bestMatch) {
               element = bestMatch;
-              console.log(`Found element by text + position context: "${textSanitized}"`);
               return element;
             }
           }
@@ -1217,7 +1198,6 @@ class ClaudeAnnotations {
       
       // 1. Check if document is fully loaded
       if (document.readyState === 'complete') {
-        console.log('Document complete, waiting for framework stability...');
         this.waitForDOMStability();
         return;
       }
@@ -1233,7 +1213,6 @@ class ClaudeAnnotations {
     
     // Fallback timeout for edge cases
     setTimeout(() => {
-      console.log('Fallback: showing annotations after extended timeout');
       this.showExistingAnnotationsWithRetry();
     }, 8000);
   }
@@ -1253,7 +1232,6 @@ class ClaudeAnnotations {
       
       // If too many mutations, just proceed (heavily dynamic page)
       if (mutationCount > maxMutations) {
-        console.log('High mutation count detected, proceeding with annotations...');
         observer.disconnect();
         setTimeout(() => this.showExistingAnnotationsWithRetry(), 500);
         return;
@@ -1261,7 +1239,6 @@ class ClaudeAnnotations {
       
       // Set new stability timer
       stabilityTimer = setTimeout(() => {
-        console.log('DOM stable, showing annotations...');
         observer.disconnect();
         this.showExistingAnnotationsWithRetry();
       }, stabilityDelay);
@@ -1276,7 +1253,6 @@ class ClaudeAnnotations {
     
     // Trigger initial timer
     stabilityTimer = setTimeout(() => {
-      console.log('Initial DOM stability timeout, showing annotations...');
       observer.disconnect();
       this.showExistingAnnotationsWithRetry();
     }, stabilityDelay);
@@ -1287,17 +1263,14 @@ class ClaudeAnnotations {
     
     const tryShowAnnotations = () => {
       attempts++;
-      console.log(`Attempting to show annotations (attempt ${attempts}/${maxAttempts})`);
       
       const foundElements = this.showExistingAnnotations();
       const expectedCount = this.annotations.length;
       const foundCount = foundElements;
       
-      console.log(`Found ${foundCount}/${expectedCount} annotation elements`);
       
       // If we found all elements or reached max attempts, stop
       if (foundCount === expectedCount || attempts >= maxAttempts) {
-        console.log(`Finished showing annotations after ${attempts} attempts`);
         return;
       }
       
@@ -1335,7 +1308,6 @@ class ClaudeAnnotations {
           // Only update if we have missing annotations
           const missingCount = this.annotations.length - document.querySelectorAll('.claude-annotation-badge').length;
           if (missingCount > 0) {
-            console.log(`DOM changed, ${missingCount} annotations missing - re-showing annotations`);
             this.showExistingAnnotations();
           }
         }, 2000); // Increased debounce delay
@@ -1366,7 +1338,6 @@ class ClaudeAnnotations {
     // Add click handler to open edit modal
     badge.addEventListener('click', (e) => {
       e.stopPropagation();
-      console.log('Annotation marker clicked, opening edit modal for annotation:', annotation.id);
       this.openEditModal(element, annotation);
     });
     

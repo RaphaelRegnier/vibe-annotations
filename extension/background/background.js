@@ -8,7 +8,6 @@ class ClaudeAnnotationsBackground {
   }
 
   init() {
-    console.log('Claude Annotations background service worker initialized');
     
     // Set up event listeners
     this.setupInstallListener();
@@ -22,8 +21,7 @@ class ClaudeAnnotationsBackground {
 
   setupInstallListener() {
     chrome.runtime.onInstalled.addListener((details) => {
-      console.log('Claude Annotations installed:', details.reason);
-      
+        
       if (details.reason === 'install') {
         this.handleFirstInstall();
       } else if (details.reason === 'update') {
@@ -33,7 +31,6 @@ class ClaudeAnnotationsBackground {
   }
 
   async handleFirstInstall() {
-    console.log('First time installation');
     
     // Initialize storage with empty annotations array
     try {
@@ -46,14 +43,12 @@ class ClaudeAnnotationsBackground {
         }
       });
       
-      console.log('Initial storage set up successfully');
     } catch (error) {
       console.error('Error setting up initial storage:', error);
     }
   }
 
   async handleUpdate(previousVersion) {
-    console.log(`Updated from version ${previousVersion} to current version`);
     
     // Handle any migration logic here
     try {
@@ -65,7 +60,6 @@ class ClaudeAnnotationsBackground {
       
       await chrome.storage.local.set({ settings });
       
-      console.log('Update migration completed');
     } catch (error) {
       console.error('Error during update migration:', error);
     }
@@ -73,7 +67,6 @@ class ClaudeAnnotationsBackground {
 
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Background received message:', request);
       
       switch (request.action) {
         case 'getAnnotations':
@@ -163,7 +156,6 @@ class ClaudeAnnotationsBackground {
     // Listen for storage changes to sync data
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (namespace === 'local' && changes.annotations) {
-        console.log('Annotations storage changed');
         this.onAnnotationsChanged(changes.annotations.newValue || []);
       }
     });
@@ -172,7 +164,6 @@ class ClaudeAnnotationsBackground {
   async onAnnotationsChanged(annotations) {
     // Update badges for all localhost tabs
     try {
-      console.log('[Background] Annotations changed, updating badges...');
       
       const tabs = await chrome.tabs.query({});
       const localhostTabs = tabs.filter(tab => this.isLocalhostUrl(tab.url));
@@ -187,7 +178,6 @@ class ClaudeAnnotationsBackground {
         console.error('Background sync failed:', error);
       });
       
-      console.log('[Background] Badge updates completed');
       
     } catch (error) {
       console.error('Error updating badges after storage change:', error);
@@ -196,7 +186,6 @@ class ClaudeAnnotationsBackground {
 
   async syncAnnotationsToAPI(annotations) {
     try {
-      console.log('Syncing annotations to API server:', annotations.length);
       
       // Use the new sync endpoint to replace all annotations
       const response = await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
@@ -223,7 +212,6 @@ class ClaudeAnnotationsBackground {
         apiSyncCount: annotations.length
       });
       
-      console.log('Annotations synced to API server (full replacement):', annotations.length);
       
     } catch (error) {
       console.error('Error syncing annotations to API:', error);
@@ -246,7 +234,6 @@ class ClaudeAnnotationsBackground {
         apiUrl += `?url=${encodeURIComponent(url)}`;
       }
       
-      console.log(`[Background] Fetching annotations from API: ${apiUrl}`);
       
       const response = await fetch(apiUrl);
       
@@ -257,7 +244,6 @@ class ClaudeAnnotationsBackground {
       const result = await response.json();
       const annotations = result.annotations || [];
       
-      console.log(`[Background] API returned ${annotations.length} annotations for ${url || 'all URLs'}`);
       
       return annotations;
     } catch (error) {
@@ -266,15 +252,12 @@ class ClaudeAnnotationsBackground {
       const result = await chrome.storage.local.get(['annotations']);
       const annotations = result.annotations || [];
       
-      console.log(`[Background] Using local storage fallback: ${annotations.length} total annotations`);
       
       if (url) {
         const filtered = annotations.filter(annotation => {
           const match = annotation.url === url;
-          console.log(`[Background] Annotation ${annotation.id}: ${annotation.url} ${match ? 'MATCHES' : 'does not match'} ${url}`);
           return match;
         });
-        console.log(`[Background] Local storage filtered to ${filtered.length} for ${url}`);
         return filtered;
       }
       
@@ -300,7 +283,6 @@ class ClaudeAnnotationsBackground {
       // Also save to API server
       await this.saveAnnotationToAPI(annotation);
       
-      console.log('Annotation saved:', annotation.id);
       
       // Force badge update for all tabs with this URL
       await this.updateBadgeForUrl(annotation.url);
@@ -331,7 +313,6 @@ class ClaudeAnnotationsBackground {
         throw new Error(result.error || 'Failed to save annotation to API');
       }
       
-      console.log('Annotation saved to API server:', annotation.id);
       
     } catch (error) {
       console.warn('Failed to save to API server, annotation saved locally:', error.message);
@@ -348,7 +329,6 @@ class ClaudeAnnotationsBackground {
       
       await chrome.storage.local.set({ annotations: filteredAnnotations });
       
-      console.log('Annotation deleted in background:', id);
       
       // Find the deleted annotation's URL to update badge
       const deletedAnnotation = annotations.find(a => a.id === id);
@@ -384,7 +364,6 @@ class ClaudeAnnotationsBackground {
       
       await chrome.storage.local.set({ annotations });
       
-      console.log('Annotation updated in background:', id);
       
       // Force badge update for this annotation's URL
       await this.updateBadgeForUrl(annotations[annotationIndex].url);
@@ -452,7 +431,6 @@ class ClaudeAnnotationsBackground {
       const annotations = await this.getAnnotations(url);
       const pendingCount = annotations.filter(a => a.status === 'pending').length;
       
-      console.log(`Badge update for ${url}: ${pendingCount} pending annotations out of ${annotations.length} total`);
       
       if (pendingCount > 0) {
         await chrome.action.setBadgeText({
@@ -487,7 +465,6 @@ class ClaudeAnnotationsBackground {
       const urlAnnotations = annotations.filter(a => a.url === url);
       const pendingCount = urlAnnotations.filter(a => a.status === 'pending').length;
       
-      console.log(`[Direct] Badge update for ${url}: ${pendingCount} pending annotations out of ${urlAnnotations.length} total`);
       
       if (pendingCount > 0) {
         await chrome.action.setBadgeText({
@@ -533,7 +510,6 @@ class ClaudeAnnotationsBackground {
         // Use direct local storage update for immediate response
         await this.updateBadgeFromLocalStorage(tab.id, url);
       }
-      console.log(`[Background] Badge updated for URL: ${url}`);
     } catch (error) {
       console.error('Error updating badge for URL:', url, error);
     }
@@ -697,7 +673,6 @@ class ClaudeAnnotationsBackground {
       // Force sync to API
       await this.syncAnnotationsToAPI(annotations);
       
-      console.log('Forced API sync completed:', annotations.length, 'annotations');
       
       return {
         count: annotations.length,
