@@ -212,9 +212,11 @@ class ClaudeAnnotations {
     e.preventDefault();
     e.stopPropagation();
     
-    // Skip Claude annotation elements
+    // Skip Claude annotation elements and badges
     if (e.target.closest('.claude-comment-modal') || 
-        e.target.classList.contains('claude-annotation-highlight')) {
+        e.target.classList.contains('claude-annotation-highlight') ||
+        e.target.classList.contains('claude-annotation-badge') ||
+        e.target.closest('.claude-annotation-badge')) {
       return;
     }
     
@@ -240,10 +242,12 @@ class ClaudeAnnotations {
     e.stopPropagation();
     
     
-    // Skip Claude annotation elements and modal buttons
+    // Skip Claude annotation elements, modal buttons, and annotation badges
     if (e.target.closest('.claude-comment-modal') || 
         e.target.classList.contains('claude-btn') ||
-        e.target.closest('.claude-btn')) {
+        e.target.closest('.claude-btn') ||
+        e.target.classList.contains('claude-annotation-badge') ||
+        e.target.closest('.claude-annotation-badge')) {
       return;
     }
     
