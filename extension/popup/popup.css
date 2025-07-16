@@ -247,6 +247,16 @@ body {
   color: var(--claude-gray-600);
 }
 
+/* Ensure target buttons are clickable */
+.target-btn {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.target-btn svg {
+  pointer-events: none !important;
+}
+
 
 /* Footer */
 .footer {

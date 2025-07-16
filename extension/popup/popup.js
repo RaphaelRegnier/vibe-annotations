@@ -7,8 +7,6 @@ class AnnotationsPopup {
   }
 
   async init() {
-    console.log('Initializing Claude Annotations popup...');
-    
     // Set current route subtitle
     await this.setCurrentRoute();
     
@@ -61,8 +59,6 @@ class AnnotationsPopup {
       this.annotations = allAnnotations.filter(annotation => 
         annotation.url === currentUrl
       );
-      
-      console.log(`Loaded ${this.annotations.length} annotations for current page`);
     } catch (error) {
       console.error('Error loading annotations:', error);
       this.annotations = [];
@@ -72,7 +68,6 @@ class AnnotationsPopup {
   async saveAnnotations() {
     try {
       await chrome.storage.local.set({ annotations: this.annotations });
-      console.log('Annotations saved to storage');
     } catch (error) {
       console.error('Error saving annotations:', error);
     }
@@ -132,6 +127,13 @@ class AnnotationsPopup {
         <div class="annotation-meta">
           <span class="annotation-timestamp">${timeAgo}</span>
           <div class="annotation-actions">
+            <button class="action-btn target-btn" data-id="${annotation.id}" title="Go to element">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+              </svg>
+            </button>
             <button class="action-btn edit-btn" data-id="${annotation.id}" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -173,8 +175,6 @@ class AnnotationsPopup {
       const focusedAnnotationId = result.focusedAnnotationId;
       
       if (focusedAnnotationId) {
-        console.log('Focusing on annotation:', focusedAnnotationId);
-        
         // Clear the stored focused annotation ID
         await chrome.storage.local.remove(['focusedAnnotationId']);
         
@@ -204,14 +204,50 @@ class AnnotationsPopup {
       setTimeout(() => {
         annotationElement.style.animation = '';
       }, 2000);
-      
-      console.log('Scrolled to annotation:', annotationId);
     } else {
       console.warn('Annotation element not found for ID:', annotationId);
     }
   }
 
   setupAnnotationListeners() {
+    // Target buttons
+    document.querySelectorAll('.target-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const id = btn.dataset.id;
+        this.targetAnnotation(id);
+      });
+    });
+    
+    // Add event delegation as backup for SVG clicks
+    const annotationsList = document.getElementById('annotations-list');
+    if (annotationsList) {
+      annotationsList.addEventListener('click', (e) => {
+        // Handle clicks on target button or its SVG children
+        const targetBtn = e.target.closest('.target-btn');
+        if (targetBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = targetBtn.dataset.id;
+          this.targetAnnotation(id);
+          return;
+        }
+        
+        // Handle SVG elements specifically
+        if (e.target.tagName === 'svg' || e.target.tagName === 'circle') {
+          const parentBtn = e.target.closest('.target-btn');
+          if (parentBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = parentBtn.dataset.id;
+            this.targetAnnotation(id);
+            return;
+          }
+        }
+      });
+    }
+
     // Edit buttons
     document.querySelectorAll('.edit-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -244,22 +280,16 @@ class AnnotationsPopup {
       // Get current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
-      console.log('Current tab:', tab.url);
-      
       // Check if it's a localhost URL
       if (!this.isLocalhostUrl(tab.url)) {
         alert('Claude Annotations only works on localhost URLs for security reasons.');
         return;
       }
 
-      console.log('Sending startAnnotationMode message to tab:', tab.id);
-
       // Send message to content script to start annotation mode
       const response = await chrome.tabs.sendMessage(tab.id, { 
         action: 'startAnnotationMode' 
       });
-
-      console.log('Response from content script:', response);
 
       // Close popup
       window.close();
@@ -280,19 +310,45 @@ class AnnotationsPopup {
       // Get current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
-      console.log('Sending stopAnnotationMode message to tab:', tab.id);
-
       // Send message to content script to stop annotation mode
       const response = await chrome.tabs.sendMessage(tab.id, { 
         action: 'stopAnnotationMode' 
       });
 
-      console.log('Response from content script:', response);
-
       // Close popup
       window.close();
     } catch (error) {
       console.error('Error stopping annotation mode:', error);
+    }
+  }
+
+  async targetAnnotation(id) {
+    const annotation = this.annotations.find(a => a.id === id);
+    if (!annotation) return;
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (tab.url !== annotation.url) {
+        await chrome.tabs.update(tab.id, { url: annotation.url });
+      }
+
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            action: 'targetAnnotationElement',
+            annotation: annotation
+          });
+          // Close popup after message is sent
+          setTimeout(() => window.close(), 100);
+        } catch (error) {
+          console.error('Error targeting annotation element:', error);
+          // Close popup even on error
+          setTimeout(() => window.close(), 100);
+        }
+      }, tab.url !== annotation.url ? 2000 : 100);
+    } catch (error) {
+      console.error('Error targeting annotation:', error);
     }
   }
 
@@ -407,6 +463,14 @@ class AnnotationsPopup {
   }
 
   updateAnnotationButtons() {
+    // Target buttons should always work (they just scroll to elements)
+    document.querySelectorAll('.target-btn').forEach(btn => {
+      btn.disabled = false;
+      btn.title = 'Go to element';
+      btn.style.opacity = '';
+      btn.style.cursor = '';
+    });
+    
     // Disable/enable edit and delete buttons based on server status
     document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
       btn.disabled = !this.serverOnline;
@@ -415,7 +479,11 @@ class AnnotationsPopup {
         btn.style.opacity = '0.5';
         btn.style.cursor = 'not-allowed';
       } else {
-        btn.title = btn.classList.contains('edit-btn') ? 'Edit' : 'Delete';
+        if (btn.classList.contains('edit-btn')) {
+          btn.title = 'Edit';
+        } else {
+          btn.title = 'Delete';
+        }
         btn.style.opacity = '';
         btn.style.cursor = '';
       }
