@@ -1419,38 +1419,6 @@ class ClaudeAnnotations {
     });
   }
 
-  showPopupPrompt() {
-    // Show a temporary prompt to click the extension icon
-    const prompt = document.createElement('div');
-    prompt.className = 'claude-popup-prompt';
-    prompt.innerHTML = `
-      <div class="claude-popup-prompt-content">
-        <div class="claude-popup-prompt-icon">💬</div>
-        <div class="claude-popup-prompt-text">Click the Claude Annotations extension to view this annotation</div>
-      </div>
-    `;
-    
-    document.body.appendChild(prompt);
-    
-    // Remove after 4 seconds
-    setTimeout(() => {
-      if (prompt.parentNode) {
-        prompt.remove();
-      }
-    }, 4000);
-    
-    // Remove on click anywhere
-    const removePrompt = () => {
-      if (prompt.parentNode) {
-        prompt.remove();
-      }
-      document.removeEventListener('click', removePrompt);
-    };
-    
-    setTimeout(() => {
-      document.addEventListener('click', removePrompt);
-    }, 100);
-  }
 
   highlightAnnotation(annotation) {
     try {
