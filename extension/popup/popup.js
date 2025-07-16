@@ -67,7 +67,20 @@ class AnnotationsPopup {
 
   async saveAnnotations() {
     try {
-      await chrome.storage.local.set({ annotations: this.annotations });
+      // Get all annotations from storage first
+      const result = await chrome.storage.local.get(['annotations']);
+      const allAnnotations = result.annotations || [];
+      
+      // Update the complete annotations array with our local changes
+      this.annotations.forEach(updatedAnnotation => {
+        const index = allAnnotations.findIndex(a => a.id === updatedAnnotation.id);
+        if (index >= 0) {
+          allAnnotations[index] = updatedAnnotation;
+        }
+      });
+      
+      // Save the complete updated array back to storage
+      await chrome.storage.local.set({ annotations: allAnnotations });
     } catch (error) {
       console.error('Error saving annotations:', error);
     }
@@ -123,7 +136,7 @@ class AnnotationsPopup {
 
     return `
       <div class="annotation-item" data-id="${annotation.id}">
-        <div class="annotation-comment">${this.escapeHtml(truncatedComment)}</div>
+        <div class="annotation-comment" data-full-comment="${this.escapeHtml(annotation.comment)}" title="Click to edit">${this.escapeHtml(truncatedComment)}</div>
         <div class="annotation-meta">
           <span class="annotation-timestamp">${timeAgo}</span>
           <div class="annotation-actions">
@@ -132,12 +145,6 @@ class AnnotationsPopup {
                 <circle cx="12" cy="12" r="10"></circle>
                 <circle cx="12" cy="12" r="6"></circle>
                 <circle cx="12" cy="12" r="2"></circle>
-              </svg>
-            </button>
-            <button class="action-btn edit-btn" data-id="${annotation.id}" title="Edit">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"></path>
               </svg>
             </button>
             <button class="action-btn delete-btn" data-id="${annotation.id}" title="Delete">
@@ -248,16 +255,7 @@ class AnnotationsPopup {
       });
     }
 
-    // Edit buttons
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        this.editAnnotation(id);
-      });
-    });
-
-    // Delete buttons
+    // Delete buttons (high priority - stop propagation)
     document.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -266,11 +264,31 @@ class AnnotationsPopup {
       });
     });
 
-    // Annotation items (click to view/navigate)
+    // Annotation items (click anywhere to edit)
     document.querySelectorAll('.annotation-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        // Skip if clicking on action buttons (they handle their own clicks with stopPropagation)
+        if (e.target.closest('.annotation-actions') || 
+            e.target.closest('.action-btn') ||
+            e.target.classList.contains('action-btn')) {
+          return;
+        }
+        
+        // Check if server is online before allowing edit
+        if (!this.serverOnline) {
+          return;
+        }
+        
+        // Don't start editing if already in edit mode
+        const commentDiv = item.querySelector('.annotation-comment');
+        if (commentDiv && commentDiv.classList.contains('editing')) {
+          return;
+        }
+        
         const id = item.dataset.id;
-        this.viewAnnotation(id);
+        if (commentDiv) {
+          this.startInlineEdit(id, commentDiv);
+        }
       });
     });
   }
@@ -352,18 +370,157 @@ class AnnotationsPopup {
     }
   }
 
-  async editAnnotation(id) {
+  startInlineEdit(id, commentDiv) {
     const annotation = this.annotations.find(a => a.id === id);
     if (!annotation) return;
 
-    const newComment = prompt('Edit comment:', annotation.comment);
-    if (newComment !== null && newComment.trim() !== '') {
-      annotation.comment = newComment.trim();
-      annotation.updated_at = new Date().toISOString();
-      
-      await this.saveAnnotations();
-      this.render();
+    // Don't start editing if already in edit mode
+    if (commentDiv.classList.contains('editing')) return;
+
+    // Get the annotation item to find the action buttons
+    const annotationItem = commentDiv.closest('.annotation-item');
+    const actionsDiv = annotationItem.querySelector('.annotation-actions');
+    
+    // Store original buttons HTML
+    const originalActionsHTML = actionsDiv.innerHTML;
+    annotationItem.setAttribute('data-original-actions', originalActionsHTML);
+
+    // Create textarea for editing
+    const textarea = document.createElement('textarea');
+    textarea.className = 'annotation-edit-textarea';
+    textarea.value = annotation.comment;
+    textarea.setAttribute('data-original-value', annotation.comment);
+    
+    // Store reference to original content
+    const originalContent = commentDiv.innerHTML;
+    commentDiv.setAttribute('data-original-content', originalContent);
+    
+    // Replace action buttons with save/cancel
+    actionsDiv.innerHTML = `
+      <button class="action-btn cancel-edit-btn" data-id="${id}" title="Cancel editing">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <button class="action-btn save-edit-btn" data-id="${id}" title="Save changes">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20,6 9,17 4,12"></polyline>
+        </svg>
+      </button>
+    `;
+    
+    // Replace content with textarea
+    commentDiv.innerHTML = '';
+    commentDiv.appendChild(textarea);
+    commentDiv.classList.add('editing');
+    
+    // Focus and select text
+    textarea.focus();
+    textarea.select();
+    
+    // Set up event listeners for save/cancel buttons
+    this.setupEditControls(id, textarea, commentDiv, annotationItem);
+    
+    // Handle escape and enter keys
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.cancelInlineEdit(commentDiv, annotationItem);
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.finishInlineEdit(id, textarea, commentDiv, annotationItem);
+      }
+    });
+    
+    // Handle blur to save (when clicking outside)
+    textarea.addEventListener('blur', (e) => {
+      // Small delay to allow button clicks to register first
+      setTimeout(() => {
+        // Check if we're still in editing mode (button clicks might have cancelled/saved already)
+        if (commentDiv.classList.contains('editing')) {
+          this.finishInlineEdit(id, textarea, commentDiv, annotationItem);
+        }
+      }, 150);
+    });
+  }
+
+  setupEditControls(id, textarea, commentDiv, annotationItem) {
+    // Set up cancel button
+    const cancelBtn = annotationItem.querySelector('.cancel-edit-btn');
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.cancelInlineEdit(commentDiv, annotationItem);
+    });
+    
+    // Set up save button
+    const saveBtn = annotationItem.querySelector('.save-edit-btn');
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.finishInlineEdit(id, textarea, commentDiv, annotationItem);
+    });
+  }
+
+  async saveInlineEdit(id, newComment) {
+    const annotation = this.annotations.find(a => a.id === id);
+    if (!annotation) {
+      console.error('Annotation not found for inline edit:', id);
+      return;
     }
+
+    annotation.comment = newComment;
+    annotation.updated_at = new Date().toISOString();
+    
+    await this.saveAnnotations();
+    // Don't re-render while editing to avoid losing focus
+  }
+
+  finishInlineEdit(id, textarea, commentDiv, annotationItem) {
+    const newValue = textarea.value.trim();
+    
+    if (newValue === '') {
+      // Don't allow empty comments, revert to original
+      this.cancelInlineEdit(commentDiv, annotationItem);
+      return;
+    }
+    
+    // Save final changes
+    this.saveInlineEdit(id, newValue).then(() => {
+      // Update the display and restore buttons
+      this.exitInlineEdit(commentDiv, annotationItem, newValue);
+    });
+  }
+
+  cancelInlineEdit(commentDiv, annotationItem) {
+    // Restore original content
+    const originalContent = commentDiv.getAttribute('data-original-content');
+    this.exitInlineEdit(commentDiv, annotationItem, null, originalContent);
+  }
+
+  exitInlineEdit(commentDiv, annotationItem, newComment = null, originalContent = null) {
+    commentDiv.classList.remove('editing');
+    
+    // Restore original action buttons
+    const actionsDiv = annotationItem.querySelector('.annotation-actions');
+    const originalActionsHTML = annotationItem.getAttribute('data-original-actions');
+    if (originalActionsHTML) {
+      actionsDiv.innerHTML = originalActionsHTML;
+      // Re-setup event listeners for the restored buttons
+      this.setupAnnotationListeners();
+    }
+    
+    if (newComment !== null) {
+      // Update with new content (truncated if needed)
+      const truncated = newComment.length > 100 ? newComment.substring(0, 100) + '...' : newComment;
+      commentDiv.innerHTML = this.escapeHtml(truncated);
+      commentDiv.setAttribute('data-full-comment', this.escapeHtml(newComment));
+    } else if (originalContent !== null) {
+      // Restore original content
+      commentDiv.innerHTML = originalContent;
+    }
+    
+    // Clean up attributes
+    commentDiv.removeAttribute('data-original-content');
+    annotationItem.removeAttribute('data-original-actions');
   }
 
   async deleteAnnotation(id) {
@@ -471,21 +628,30 @@ class AnnotationsPopup {
       btn.style.cursor = '';
     });
     
-    // Disable/enable edit and delete buttons based on server status
-    document.querySelectorAll('.edit-btn, .delete-btn').forEach(btn => {
+    // Disable/enable delete buttons and inline editing based on server status
+    document.querySelectorAll('.delete-btn').forEach(btn => {
       btn.disabled = !this.serverOnline;
       if (!this.serverOnline) {
         btn.title = 'MCP server is offline';
         btn.style.opacity = '0.5';
         btn.style.cursor = 'not-allowed';
       } else {
-        if (btn.classList.contains('edit-btn')) {
-          btn.title = 'Edit';
-        } else {
-          btn.title = 'Delete';
-        }
+        btn.title = 'Delete';
         btn.style.opacity = '';
         btn.style.cursor = '';
+      }
+    });
+    
+    // Enable/disable inline editing based on server status
+    document.querySelectorAll('.annotation-item').forEach(annotationItem => {
+      if (!this.serverOnline) {
+        annotationItem.style.cursor = 'not-allowed';
+        annotationItem.title = 'MCP server is offline - cannot edit';
+        annotationItem.classList.add('disabled');
+      } else {
+        annotationItem.style.cursor = 'pointer';
+        annotationItem.title = 'Click to edit';
+        annotationItem.classList.remove('disabled');
       }
     });
   }
@@ -587,7 +753,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Listen for storage changes to update UI in real-time
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local' && changes.annotations) {
-    // Reload and re-render annotations
-    window.location.reload();
+    // Don't reload if we're currently editing an annotation
+    const isCurrentlyEditing = document.querySelector('.annotation-comment.editing');
+    if (!isCurrentlyEditing) {
+      // Reload and re-render annotations
+      window.location.reload();
+    }
   }
 });
