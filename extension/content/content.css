@@ -389,6 +389,15 @@
 }
 
 
+/* Targeted element focus state */
+.claude-targeted-element {
+  outline: 3px solid var(--claude-blue) !important;
+  outline-offset: 2px !important;
+  transition: outline 0.2s ease !important;
+  /* Fallback for when CSS variables don't work */
+  outline-color: #2563eb !important;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .claude-comment-modal-content {

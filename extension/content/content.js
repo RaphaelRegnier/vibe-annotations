@@ -10,8 +10,6 @@ class ClaudeAnnotations {
   }
 
   async init() {
-    console.log('Claude Annotations initialized on:', window.location.href);
-    
     // Load existing annotations
     await this.loadAnnotations();
     
@@ -39,9 +37,6 @@ class ClaudeAnnotations {
         annotation.url === window.location.href
       );
       
-      if (this.annotations.length > 0) {
-        console.log(`Loaded ${this.annotations.length} annotations`);
-      }
     } catch (error) {
       console.error('Error loading annotations:', error);
       this.annotations = [];
@@ -70,6 +65,11 @@ class ClaudeAnnotations {
         case 'highlightAnnotation':
           this.highlightAnnotation(request.annotation);
           sendResponse({ success: true, message: 'Annotation highlighted' });
+          break;
+          
+        case 'targetAnnotationElement':
+          this.targetAnnotationElement(request.annotation);
+          sendResponse({ success: true, message: 'Element targeted' });
           break;
           
           
@@ -155,8 +155,8 @@ class ClaudeAnnotations {
     // Clear highlights
     this.clearHighlights();
     
-    // Clean up any body-positioned badges
-    this.clearAllBadges();
+    // Show existing annotations again to ensure they remain visible
+    this.showExistingAnnotations();
   }
 
   tempDisableAnnotationMode() {
@@ -298,8 +298,6 @@ class ClaudeAnnotations {
   }
 
   async createAnnotation(element) {
-    console.log('Creating annotation for element:', element);
-    
     // Temporarily disable annotation mode while modal is open
     this.tempDisableAnnotationMode();
     
@@ -840,14 +838,12 @@ class ClaudeAnnotations {
         
         if (!apiStatus.connected) {
           // Server is offline, still save but show warning
-          console.log('Server offline, saving annotation edit locally only');
         }
         
         await this.updateAnnotation(annotation, newComment);
         closeModal();
         
         // Re-enable annotation mode for continuous inspection
-        console.log('Annotation updated, re-enabling inspection mode');
       }
     });
   }
@@ -915,7 +911,6 @@ class ClaudeAnnotations {
         
         if (!apiStatus.connected) {
           // Server is offline, still save but show warning
-          console.log('Server offline, saving annotation locally only');
         }
         
         await this.saveAnnotation(element, context, comment);
@@ -923,7 +918,6 @@ class ClaudeAnnotations {
         
         // Re-enable annotation mode for continuous inspection
         // User stays in inspection mode until ESC or extension button
-        console.log('Annotation saved, re-enabling inspection mode');
       }
     });
   }
@@ -942,8 +936,6 @@ class ClaudeAnnotations {
         
         // Save back to storage
         await chrome.storage.local.set({ annotations: allAnnotations });
-        
-        console.log('Annotation updated:', allAnnotations[index]);
         
         // Update local array
         const localIndex = this.annotations.findIndex(a => a.id === annotation.id);
@@ -981,7 +973,6 @@ class ClaudeAnnotations {
         // Regenerate selector and update context
         const newSelector = this.generateSelector(element);
         context.selector = newSelector;
-        console.log('Regenerated selector:', newSelector);
         
         // Test again
         const newTestElement = document.querySelector(newSelector);
@@ -1022,8 +1013,6 @@ class ClaudeAnnotations {
       // Save back to storage
       await chrome.storage.local.set({ annotations: allAnnotations });
       
-      console.log('Annotation saved:', annotation);
-      
       // Add to local array
       this.annotations.push(annotation);
       
@@ -1041,6 +1030,15 @@ class ClaudeAnnotations {
   }
 
   showExistingAnnotations() {
+    // Add a counter to detect infinite loops
+    if (!this.showAnnotationsCallCount) this.showAnnotationsCallCount = 0;
+    this.showAnnotationsCallCount++;
+    
+    if (this.showAnnotationsCallCount > 10) {
+      console.error('INFINITE LOOP DETECTED - showExistingAnnotations called', this.showAnnotationsCallCount, 'times. Aborting.');
+      return 0;
+    }
+    
     // Clear existing badges and their cleanup functions
     this.clearAllBadges();
     
@@ -1058,20 +1056,25 @@ class ClaudeAnnotations {
         if (element) {
           this.addAnnotationBadge(element, annotation, index + 1);
           foundCount++;
-        } else {
-          console.warn('Could not find element for annotation:', annotation.selector);
         }
       } catch (error) {
-        console.warn('Error finding element for annotation:', annotation.selector, error);
+        console.warn(`Error with annotation ${annotation.id}:`, error);
       }
     });
+    
+    // Reset counter after successful completion
+    setTimeout(() => {
+      this.showAnnotationsCallCount = 0;
+    }, 1000);
     
     return foundCount;
   }
 
   clearAllBadges() {
+    const existingBadges = document.querySelectorAll('.claude-annotation-badge');
+    
     // Clear badges from both elements and body
-    document.querySelectorAll('.claude-annotation-badge').forEach(badge => {
+    existingBadges.forEach((badge) => {
       // Call cleanup function if it exists (for badges positioned in body)
       if (badge.cleanup) {
         badge.cleanup();
@@ -1086,7 +1089,9 @@ class ClaudeAnnotations {
     let element = null;
     try {
       element = document.querySelector(annotation.selector);
-      if (element) return element;
+      if (element) {
+        return element;
+      }
     } catch (error) {
       // Selector might be invalid, continue with fallbacks
     }
@@ -1164,7 +1169,6 @@ class ClaudeAnnotations {
             const candidates = Array.from(document.querySelectorAll(selector));
             if (candidates.length === 1) {
               element = candidates[0];
-              console.log(`Found element by stable classes: ${selector}`);
               return element;
             }
           } catch (error) {
@@ -1180,7 +1184,6 @@ class ClaudeAnnotations {
       if (dataIdMatch) {
         element = document.querySelector(`[data-claude-id="${dataIdMatch[1]}"]`);
         if (element) {
-          console.log(`Found element by data attribute: ${dataIdMatch[1]}`);
           return element;
         }
       }
@@ -1204,7 +1207,6 @@ class ClaudeAnnotations {
       
       // 2. Wait for load event if not complete
       window.addEventListener('load', () => {
-        console.log('Window loaded, waiting for framework stability...');
         this.waitForDOMStability();
       }, { once: true });
     };
@@ -1282,6 +1284,9 @@ class ClaudeAnnotations {
   }
 
   setupDOMObserver() {
+    // DISABLED - causing infinite loops
+    return;
+    
     // Observe DOM changes to re-show annotations when content changes
     const observer = new MutationObserver((mutations) => {
       let shouldUpdate = false;
@@ -1369,7 +1374,7 @@ class ClaudeAnnotations {
     const elementId = this.generateElementId(element);
     badge.dataset.originalElementId = elementId;
     
-    // Update position on scroll/resize
+    // Re-enable scroll/resize listeners for proper positioning
     const updatePosition = () => {
       const newRect = element.getBoundingClientRect();
       badge.style.top = `${newRect.top - 10}px`;
@@ -1439,6 +1444,54 @@ class ClaudeAnnotations {
       }
     } catch (error) {
       console.error('Error highlighting annotation:', error);
+    }
+  }
+
+  targetAnnotationElement(annotation) {
+    try {
+      // First, find the original element to scroll to its area
+      const element = this.findElementBySelector(annotation);
+      if (!element) {
+        console.warn('Element not found for annotation:', annotation.selector);
+        return;
+      }
+      
+      // Scroll to the element area first
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Now find the corresponding pin/badge to apply focus state
+      const allBadges = document.querySelectorAll('.claude-annotation-badge');
+      let targetBadge = null;
+      
+      // Find the badge that corresponds to this annotation
+      for (const badge of allBadges) {
+        const elementId = badge.dataset.originalElementId;
+        if (elementId) {
+          const originalElement = document.querySelector(`[data-claude-annotation-id="${elementId}"]`);
+          if (originalElement === element) {
+            targetBadge = badge;
+            break;
+          }
+        }
+      }
+      
+      if (targetBadge) {
+        // Add blue focus state to the pin
+        targetBadge.classList.add('claude-targeted-element');
+        
+        // Remove focus state after 3 seconds
+        setTimeout(() => {
+          targetBadge.classList.remove('claude-targeted-element');
+        }, 3000);
+      } else {
+        // Fallback: apply focus to the original element if pin not found
+        element.classList.add('claude-targeted-element');
+        setTimeout(() => {
+          element.classList.remove('claude-targeted-element');
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error targeting annotation element:', error);
     }
   }
 
