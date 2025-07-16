@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-content">
+        <div class="title-section">
+          <h1 class="title">Claude Annotations</h1>
+          <p class="subtitle" id="current-route"></p>
+        </div>
+      </div>
+    </header>
+    
+    <main class="main">
+      <div id="annotations-list" class="annotations-list">
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <p class="empty-text">No annotations yet</p>
+          <p class="empty-subtext">Click on elements to add comments!</p>
+        </div>
+      </div>
+    </main>
+    
+    <footer class="footer">
+      <div class="footer-content">
+        <button id="new-annotation-btn" class="primary-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Start Annotating
+        </button>
+        <div id="mcp-status" class="mcp-status" title="MCP Connection Status">
+          <div class="status-indicator offline"></div>
+          <span class="status-text">MCP</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Extension build artifacts
+extension/dist/
+extension/*.zip
+
+# MCP Server
+mcp-server/data/annotations.json
+mcp-server/logs/
+
+# Development
+.env
+.DS_Store
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp

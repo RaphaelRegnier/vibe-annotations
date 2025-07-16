@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Annotations",
+  "version": "0.1.0",
+  "description": "AI-powered development annotations for localhost projects",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://0.0.0.0/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Claude Annotations"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*", 
+        "http://0.0.0.0/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background/background.js"
+  }
+}

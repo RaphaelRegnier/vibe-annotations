@@ -1,0 +1,19 @@
+{
+  "name": "claude-annotations-local-server",
+  "version": "0.1.0",
+  "description": "Local HTTP server with SSE endpoint for Claude Annotations",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["mcp", "claude", "annotations", "sse", "http"],
+  "author": "Raphaël Régnier",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

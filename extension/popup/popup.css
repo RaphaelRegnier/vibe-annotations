@@ -1,0 +1,369 @@
+/* Claude Annotations Popup Styles */
+:root {
+  --claude-orange: #FF7A00;
+  --claude-blue: #2563eb;
+  --claude-blue-light: #3b82f6;
+  --claude-gray-50: #f9fafb;
+  --claude-gray-100: #f3f4f6;
+  --claude-gray-200: #e5e7eb;
+  --claude-gray-300: #d1d5db;
+  --claude-gray-400: #9ca3af;
+  --claude-gray-500: #6b7280;
+  --claude-gray-600: #4b5563;
+  --claude-gray-700: #374151;
+  --claude-gray-800: #1f2937;
+  --claude-gray-900: #111827;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--claude-gray-900);
+  background: white;
+  width: 380px;
+  height: 500px;
+  overflow: hidden;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Header */
+.header {
+  background: var(--claude-gray-50);
+  border-bottom: 1px solid var(--claude-gray-200);
+  padding: 16px;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title-section {
+  flex: 1;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--claude-gray-900);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--claude-gray-500);
+  margin: 2px 0 0 0;
+  font-weight: 400;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--claude-gray-500);
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: var(--claude-gray-100);
+  color: var(--claude-gray-700);
+}
+
+/* Main Content */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.annotations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-indicator-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--claude-gray-600);
+}
+
+.status-dot-header {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--claude-orange);
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  height: 100%;
+}
+
+.empty-icon {
+  color: var(--claude-gray-300);
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--claude-gray-600);
+  margin-bottom: 8px;
+}
+
+.empty-subtext {
+  font-size: 14px;
+  color: var(--claude-gray-400);
+}
+
+/* Annotation Item */
+.annotation-item {
+  background: white;
+  border: 1px solid var(--claude-gray-200);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.annotation-item:hover {
+  border-color: var(--claude-blue);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.annotation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.annotation-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--claude-gray-500);
+}
+
+.url-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+}
+
+.annotation-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-pending .status-dot {
+  background: var(--claude-orange);
+}
+
+.status-completed .status-dot {
+  background: #10b981;
+}
+
+.status-archived .status-dot {
+  background: var(--claude-gray-400);
+}
+
+.annotation-comment {
+  font-size: 14px;
+  color: var(--claude-gray-700);
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.annotation-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--claude-gray-400);
+}
+
+.annotation-timestamp {
+  font-size: 11px;
+}
+
+.annotation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--claude-gray-400);
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: var(--claude-gray-100);
+  color: var(--claude-gray-600);
+}
+
+/* Footer */
+.footer {
+  background: var(--claude-gray-50);
+  border-top: 1px solid var(--claude-gray-200);
+  padding: 16px;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.primary-btn {
+  background: var(--claude-blue);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background: var(--claude-blue-light);
+}
+
+.primary-btn:active {
+  transform: translateY(1px);
+}
+
+.primary-btn:disabled {
+  background: var(--claude-gray-300);
+  color: var(--claude-gray-500);
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.primary-btn:disabled:hover {
+  background: var(--claude-gray-300);
+}
+
+/* MCP Status */
+.mcp-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--claude-gray-500);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.status-indicator.online {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.status-indicator.offline {
+  background: var(--claude-gray-400);
+}
+
+.status-indicator.connecting {
+  background: var(--claude-orange);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scrollbar */
+.main::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main::-webkit-scrollbar-thumb {
+  background: var(--claude-gray-300);
+  border-radius: 3px;
+}
+
+.main::-webkit-scrollbar-thumb:hover {
+  background: var(--claude-gray-400);
+}
+
+/* Highlight animation for focused annotations */
+@keyframes claude-highlight {
+  0% {
+    background-color: var(--claude-orange);
+    transform: scale(1.02);
+  }
+  50% {
+    background-color: rgba(255, 122, 0, 0.3);
+    transform: scale(1.01);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}

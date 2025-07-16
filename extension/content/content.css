@@ -1,0 +1,462 @@
+/* Claude Annotations Content Script Styles */
+:root {
+  --claude-orange: #FF7A00;
+  --claude-blue: #2563eb;
+  --claude-blue-light: #3b82f6;
+  --claude-gray-50: #f9fafb;
+  --claude-gray-100: #f3f4f6;
+  --claude-gray-200: #e5e7eb;
+  --claude-gray-300: #d1d5db;
+  --claude-gray-400: #9ca3af;
+  --claude-gray-500: #6b7280;
+  --claude-gray-600: #4b5563;
+  --claude-gray-700: #374151;
+  --claude-gray-800: #1f2937;
+  --claude-gray-900: #111827;
+}
+
+/* Ensure variables are available everywhere */
+* {
+  --claude-orange: #FF7A00;
+  --claude-blue: #2563eb;
+}
+
+/* Element highlighting */
+.claude-annotation-highlight {
+  outline: 2px solid var(--claude-blue) !important;
+  outline-offset: 2px !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.claude-annotation-highlight:hover {
+  outline-color: var(--claude-blue-light) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Annotation badge for existing annotations */
+.claude-annotation-badge {
+  position: fixed !important;
+  background: var(--claude-gray-600) !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  cursor: pointer !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Pin tooltip - child of badge */
+.claude-pin-tooltip {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: var(--claude-gray-900) !important;
+  color: white !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  max-width: 250px !important;
+  word-wrap: break-word !important;
+  z-index: 1000000 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Show tooltip on badge hover */
+.claude-annotation-badge:hover .claude-pin-tooltip {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Tooltip arrow */
+.claude-pin-tooltip::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -5px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border-left: 5px solid transparent !important;
+  border-right: 5px solid transparent !important;
+  border-bottom: 5px solid var(--claude-gray-900) !important;
+}
+
+/* Annotation tooltip */
+.claude-annotation-tooltip {
+  position: absolute !important;
+  background: var(--claude-gray-900) !important;
+  color: white !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  max-width: 250px !important;
+  word-wrap: break-word !important;
+  z-index: 1000000 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  transform: translateY(10px) !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* API Status Warning */
+.claude-api-status-warning {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px !important;
+  background: rgba(255, 193, 7, 0.1) !important;
+  border: 1px solid rgba(255, 193, 7, 0.3) !important;
+  border-radius: 6px !important;
+  color: #856404 !important;
+  font-size: 13px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  margin-bottom: 16px !important;
+}
+
+.claude-api-status-warning svg {
+  flex-shrink: 0 !important;
+  stroke: #856404 !important;
+}
+
+/* Inspection Mode Overlay */
+.claude-inspection-overlay {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  background: var(--claude-blue) !important;
+  color: white !important;
+  padding: 16px 20px !important;
+  border-radius: 8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  z-index: 1000000 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  transition: all 0.3s ease !important;
+}
+
+.claude-inspection-overlay-fade {
+  opacity: 0 !important;
+  transform: translateX(20px) !important;
+}
+
+.claude-inspection-content h3 {
+  margin: 0 0 8px 0 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.claude-inspection-content p {
+  margin: 4px 0 !important;
+  font-size: 12px !important;
+  opacity: 0.9 !important;
+}
+
+.claude-inspection-content strong {
+  font-weight: 600 !important;
+}
+
+.claude-annotation-tooltip.show {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.claude-annotation-tooltip::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -5px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  border-left: 5px solid transparent !important;
+  border-right: 5px solid transparent !important;
+  border-bottom: 5px solid var(--claude-gray-900) !important;
+}
+
+/* Comment modal */
+.claude-comment-modal {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483647 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.claude-comment-modal-content {
+  background: white !important;
+  border-radius: 12px !important;
+  padding: 24px !important;
+  max-width: 500px !important;
+  width: 90% !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.claude-comment-modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 20px !important;
+}
+
+.claude-comment-modal-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: var(--claude-gray-900) !important;
+  margin: 0 !important;
+}
+
+.claude-comment-modal-close {
+  background: none !important;
+  border: none !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  color: var(--claude-gray-400) !important;
+  transition: all 0.2s ease !important;
+}
+
+.claude-comment-modal-close:hover {
+  background: var(--claude-gray-100) !important;
+  color: var(--claude-gray-600) !important;
+}
+
+.claude-element-preview {
+  background: var(--claude-gray-50) !important;
+  border: 1px solid var(--claude-gray-200) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.claude-element-info {
+  font-size: 12px !important;
+  color: var(--claude-gray-600) !important;
+  margin-bottom: 8px !important;
+}
+
+.claude-element-selector {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+  font-size: 11px !important;
+  background: var(--claude-gray-800) !important;
+  color: var(--claude-gray-100) !important;
+  padding: 8px !important;
+  border-radius: 4px !important;
+  word-break: break-all !important;
+}
+
+.claude-viewport-info {
+  display: flex !important;
+  gap: 16px !important;
+  font-size: 12px !important;
+  color: var(--claude-gray-500) !important;
+  margin-bottom: 16px !important;
+}
+
+.claude-comment-textarea {
+  width: 100% !important;
+  min-height: 120px !important;
+  padding: 12px !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  resize: vertical !important;
+  margin-bottom: 16px !important;
+  transition: border-color 0.2s ease !important;
+  color: #374151 !important;
+  background-color: white !important;
+}
+
+.claude-comment-textarea:focus {
+  outline: none !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+.claude-comment-textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+.claude-comment-actions {
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: flex-end !important;
+}
+
+.claude-btn {
+  padding: 10px 16px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.claude-btn-primary {
+  background: var(--claude-blue) !important;
+  color: white !important;
+}
+
+.claude-btn-primary:hover {
+  background: var(--claude-blue-light) !important;
+}
+
+.claude-btn-primary:disabled {
+  background: var(--claude-gray-300) !important;
+  cursor: not-allowed !important;
+}
+
+.claude-btn-secondary {
+  background: var(--claude-gray-100) !important;
+  color: var(--claude-gray-700) !important;
+}
+
+.claude-btn-secondary:hover {
+  background: var(--claude-gray-200) !important;
+}
+
+/* Animation modes */
+.claude-annotation-mode-active {
+  cursor: crosshair !important;
+}
+
+.claude-annotation-mode-active * {
+  cursor: crosshair !important;
+}
+
+/* Annotation existing elements */
+.claude-annotated-element {
+  position: relative !important;
+}
+
+.claude-annotated-element::after {
+  content: '' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: -2px !important;
+  right: -2px !important;
+  bottom: -2px !important;
+  border: 2px solid var(--claude-orange) !important;
+  border-radius: 4px !important;
+  pointer-events: none !important;
+  opacity: 0.6 !important;
+}
+
+/* Fade animations */
+@keyframes claude-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.claude-comment-modal {
+  animation: claude-fade-in 0.2s ease !important;
+}
+
+/* Popup prompt styles */
+.claude-popup-prompt {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 2147483647 !important;
+  animation: slideInFromRight 0.3s ease-out !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.claude-popup-prompt-content {
+  background: var(--claude-orange) !important;
+  color: white !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 280px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.claude-popup-prompt-icon {
+  font-size: 16px !important;
+}
+
+.claude-popup-prompt-text {
+  flex: 1 !important;
+}
+
+.claude-popup-prompt-arrow {
+  font-size: 16px !important;
+  animation: bounce 1s infinite !important;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%) !important;
+    opacity: 0 !important;
+  }
+  to {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0) !important;
+  }
+  40% {
+    transform: translateY(-3px) !important;
+  }
+  60% {
+    transform: translateY(-2px) !important;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .claude-comment-modal-content {
+    width: 95% !important;
+    padding: 20px !important;
+  }
+  
+  .claude-viewport-info {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+}
