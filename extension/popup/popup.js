@@ -297,17 +297,107 @@ class AnnotationsPopup {
   }
 
   async editAnnotation(id) {
+    const annotationItem = document.querySelector(`.annotation-item[data-id="${id}"]`);
+    if (!annotationItem) return;
+
     const annotation = this.annotations.find(a => a.id === id);
     if (!annotation) return;
 
-    const newComment = prompt('Edit comment:', annotation.comment);
-    if (newComment !== null && newComment.trim() !== '') {
-      annotation.comment = newComment.trim();
-      annotation.updated_at = new Date().toISOString();
-      
-      await this.saveAnnotations();
-      this.render();
-    }
+    // Add editing class
+    annotationItem.classList.add('editing');
+
+    // Create and insert textarea
+    const textarea = document.createElement('textarea');
+    textarea.className = 'annotation-edit-input';
+    textarea.value = annotation.comment;
+    
+    const commentDiv = annotationItem.querySelector('.annotation-comment');
+    commentDiv.parentNode.insertBefore(textarea, commentDiv.nextSibling);
+
+    // Update buttons
+    const actionsDiv = annotationItem.querySelector('.annotation-actions');
+    
+    // Create save button
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'action-btn annotation-save-btn';
+    saveBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="14 2 6 10 2 6"></polyline>
+      </svg>
+    `;
+    saveBtn.title = 'Save changes';
+    
+    // Create cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'action-btn annotation-cancel-btn';
+    cancelBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="3" x2="13" y2="13"></line>
+        <line x1="13" y1="3" x2="3" y2="13"></line>
+      </svg>
+    `;
+    cancelBtn.title = 'Cancel';
+    
+    actionsDiv.appendChild(saveBtn);
+    actionsDiv.appendChild(cancelBtn);
+
+    // Focus textarea and select all text
+    textarea.focus();
+    textarea.select();
+
+    // Save function
+    const saveChanges = async () => {
+      const newComment = textarea.value.trim();
+      if (newComment && newComment !== annotation.comment) {
+        annotation.comment = newComment;
+        annotation.updated_at = new Date().toISOString();
+        
+        await this.saveAnnotations();
+        this.render();
+      } else {
+        cancelEdit();
+      }
+    };
+
+    // Cancel function
+    const cancelEdit = () => {
+      annotationItem.classList.remove('editing');
+      textarea.remove();
+      saveBtn.remove();
+      cancelBtn.remove();
+    };
+
+    // Event listeners
+    saveBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveChanges();
+    });
+
+    cancelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      cancelEdit();
+    });
+
+    // Save on blur (when clicking another item)
+    textarea.addEventListener('blur', (e) => {
+      // Delay to allow button clicks to register
+      setTimeout(() => {
+        if (document.activeElement !== saveBtn && document.activeElement !== cancelBtn) {
+          saveChanges();
+        }
+      }, 200);
+    });
+
+    // Handle Enter (save) and Escape (cancel)
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveChanges();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+    });
   }
 
   async deleteAnnotation(id) {
@@ -342,17 +432,17 @@ class AnnotationsPopup {
         await chrome.tabs.update(tab.id, { url: annotation.url });
       }
 
-      // Send message to highlight the annotation
+      // Send message to scroll to and highlight the annotation pin
       setTimeout(async () => {
         try {
           await chrome.tabs.sendMessage(tab.id, {
-            action: 'highlightAnnotation',
+            action: 'scrollToAnnotation',
             annotation: annotation
           });
         } catch (error) {
-          console.error('Error highlighting annotation:', error);
+          console.error('Error scrolling to annotation:', error);
         }
-      }, 1000);
+      }, tab.url !== annotation.url ? 2000 : 100);
 
       // Close popup
       window.close();
