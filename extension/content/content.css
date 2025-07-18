@@ -378,6 +378,7 @@
   display: flex !important;
   gap: var(--spacing-md) !important;
   justify-content: flex-end !important;
+  margin-top: var(--spacing-lg) !important;
 }
 
 .claude-btn {
@@ -471,6 +472,24 @@
   transition: outline 0.2s ease !important;
   /* Fallback for when CSS variables don't work */
   outline-color: #2563eb !important;
+}
+
+/* Comment input wrapper and helper text */
+.claude-comment-input-wrapper {
+  position: relative !important;
+  width: 100% !important;
+}
+
+.claude-comment-helper {
+  position: absolute !important;
+  bottom: 4px !important;
+  right: 4px !important;
+  font-size: 11px !important;
+  color: var(--theme-text-secondary) !important;
+  opacity: 0.8 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
 }
 
 /* Mobile responsiveness */

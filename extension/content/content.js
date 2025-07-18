@@ -705,11 +705,14 @@ class ClaudeAnnotations {
           <span><strong>Size:</strong> ${Math.round(context.position.width)}x${Math.round(context.position.height)}</span>
         </div>
         
-        <textarea 
-          class="claude-comment-textarea" 
-          placeholder="Describe what needs to be changed or improved..."
-          maxlength="1000"
-        >${annotation.comment}</textarea>
+        <div class="claude-comment-input-wrapper">
+          <textarea 
+            class="claude-comment-textarea" 
+            placeholder="Describe what needs to be changed or improved..."
+            maxlength="1000"
+          >${annotation.comment}</textarea>
+          <div class="claude-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
+        </div>
         
         <div class="claude-comment-actions">
           <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
@@ -773,11 +776,14 @@ class ClaudeAnnotations {
           <span><strong>Size:</strong> ${Math.round(context.position.width)}x${Math.round(context.position.height)}</span>
         </div>
         
-        <textarea 
-          class="claude-comment-textarea" 
-          placeholder="Describe what needs to be changed or improved..."
-          maxlength="1000"
-        ></textarea>
+        <div class="claude-comment-input-wrapper">
+          <textarea 
+            class="claude-comment-textarea" 
+            placeholder="Describe what needs to be changed or improved..."
+            maxlength="1000"
+          ></textarea>
+          <div class="claude-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
+        </div>
         
         <div class="claude-comment-actions">
           <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
@@ -860,11 +866,17 @@ class ClaudeAnnotations {
       }
     });
     
-    // ESC to close
+    // ESC to close and Cmd+Enter to save
     document.addEventListener('keydown', function escHandler(e) {
       if (e.key === 'Escape') {
         closeModal();
         document.removeEventListener('keydown', escHandler);
+      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        // Check if we're focused on the textarea and save button is enabled
+        if (document.activeElement === textarea && !saveBtn.disabled) {
+          e.preventDefault();
+          saveBtn.click();
+        }
       }
     });
     
@@ -933,11 +945,17 @@ class ClaudeAnnotations {
       }
     });
     
-    // ESC to close
+    // ESC to close and Cmd+Enter to save
     document.addEventListener('keydown', function escHandler(e) {
       if (e.key === 'Escape') {
         closeModal();
         document.removeEventListener('keydown', escHandler);
+      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        // Check if we're focused on the textarea and save button is enabled
+        if (document.activeElement === textarea && !saveBtn.disabled) {
+          e.preventDefault();
+          saveBtn.click();
+        }
       }
     });
     
@@ -1537,6 +1555,10 @@ class ClaudeAnnotations {
 
   generateId() {
     return 'claude_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  isMac() {
+    return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   }
 }
 

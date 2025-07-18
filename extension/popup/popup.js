@@ -132,12 +132,13 @@ class AnnotationsPopup {
 
   renderAnnotationItem(annotation) {
     const timeAgo = this.getTimeAgo(annotation.created_at);
+    const viewportWidth = annotation.viewport?.width || 'unknown';
 
     return `
       <div class="annotation-item" data-id="${annotation.id}">
         <div class="annotation-comment" data-full-comment="${this.escapeHtml(annotation.comment)}" title="Click to edit">${this.escapeHtml(annotation.comment)}</div>
         <div class="annotation-meta">
-          <span class="annotation-timestamp">${timeAgo}</span>
+          <span class="annotation-timestamp">${timeAgo} • ${viewportWidth}w</span>
           <div class="annotation-actions">
             <button class="action-btn target-btn" data-id="${annotation.id}" title="Go to element">
               <iconify-icon icon="heroicons-solid:cursor-arrow-ripple" width="14" height="14"></iconify-icon>
@@ -693,6 +694,7 @@ class AnnotationsPopup {
       return false;
     }
   }
+
 
   getUrlDisplay(url) {
     try {

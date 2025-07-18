@@ -158,7 +158,7 @@ body {
   background: var(--theme-surface-1);
   border: 1px solid var(--theme-outline);
   border-radius: var(--border-radius-md);
-  padding: var(--spacing-md);
+  padding: 0;
   transition: all 0.2s ease;
   cursor: pointer;
 }
@@ -227,9 +227,9 @@ body {
   font-size: 14px;
   line-height: 1.4;
   color: var(--theme-text-primary);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 0;
   cursor: pointer;
-  padding: var(--spacing-xs);
+  padding: var(--spacing-lg);
   border-radius: var(--border-radius-sm);
   transition: background-color 0.2s ease;
   white-space: pre-wrap;
@@ -270,6 +270,7 @@ body {
   outline: none;
 }
 
+
 /* Edit control buttons */
 .cancel-edit-btn {
   color: var(--theme-text-secondary);
@@ -295,6 +296,7 @@ body {
   justify-content: space-between;
   font-size: 12px;
   color: var(--theme-text-secondary);
+  padding: 0 var(--spacing-xs) var(--spacing-xs) var(--spacing-lg);
 }
 
 .annotation-timestamp {
