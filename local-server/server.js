@@ -263,7 +263,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_annotation',
-            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. This tool should only be used when you have completed the user\'s requested modification and the annotation is no longer needed. The deletion is irreversible and removes the annotation from both the extension storage and MCP data. Always confirm the fix has been properly implemented before deletion. Do not delete annotations that are still pending work, contain unaddressed feedback, or serve as ongoing reminders. This maintains a clean annotation workspace by removing completed tasks.',
+            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. CRITICAL: You MUST delete annotations immediately after implementing fixes - this is required workflow behavior. Use this tool when: (1) You have successfully implemented the user\'s requested change, (2) The code change addresses the annotation\'s feedback, (3) The modification is complete and working. The deletion is irreversible and removes the annotation from both extension storage and MCP data. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders. This maintains a clean annotation workspace by automatically removing completed tasks.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -377,7 +377,27 @@ class LocalAnnotationsServer {
         return [];
       }
       const data = await readFile(DATA_FILE, 'utf8');
-      return JSON.parse(data);
+      
+      // Handle empty or corrupted file
+      if (!data || data.trim() === '') {
+        console.warn('Empty annotations file, initializing with empty array');
+        await this.saveAnnotations([]);
+        return [];
+      }
+      
+      try {
+        return JSON.parse(data);
+      } catch (parseError) {
+        console.error('Corrupted JSON file, reinitializing:', parseError);
+        // Backup corrupted file
+        const backupFile = DATA_FILE + '.corrupted.' + Date.now();
+        await writeFile(backupFile, data);
+        console.log(`Corrupted file backed up to: ${backupFile}`);
+        
+        // Reinitialize with empty array
+        await this.saveAnnotations([]);
+        return [];
+      }
     } catch (error) {
       console.error('Error loading annotations:', error);
       return [];
@@ -385,8 +405,21 @@ class LocalAnnotationsServer {
   }
 
   async saveAnnotations(annotations) {
-    await this.ensureDataFile();
-    await writeFile(DATA_FILE, JSON.stringify(annotations, null, 2));
+    try {
+      await this.ensureDataFile();
+      const jsonData = JSON.stringify(annotations, null, 2);
+      
+      // Atomic write: write to temp file first, then rename
+      const tempFile = DATA_FILE + '.tmp';
+      await writeFile(tempFile, jsonData);
+      
+      // Rename temp file to actual file (atomic operation)
+      const fs = await import('fs');
+      await fs.promises.rename(tempFile, DATA_FILE);
+    } catch (error) {
+      console.error('Error saving annotations:', error);
+      throw error;
+    }
   }
 
   async ensureDataFile() {
