@@ -236,7 +236,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Read annotations from the Claude Annotations extension. IMPORTANT: Each annotation includes viewport width/height data. Always map these dimensions to the project\'s UI library breakpoints (Tailwind, Bootstrap, Material-UI, etc.) to ensure fixes are applied to the correct responsive breakpoint. For example, if an annotation was created at 475px width, determine which breakpoint range this falls into in the project\'s design system and apply fixes specifically for that breakpoint to respect the user\'s intent for responsive-specific changes.',
+            description: 'Retrieves user-created visual annotations from the Claude Annotations extension. Use when users want to review, implement, or address their UI feedback and comments. This tool returns annotations containing user comments, DOM element selectors, viewport dimensions, and positioning data. CRITICAL: Always filter by URL parameter (e.g., "http://localhost:3000/") to avoid mixing annotations from different localhost projects. Annotations include viewport width/height which must be mapped to responsive breakpoints (Tailwind sm/md/lg, Bootstrap xs/sm/md, etc.) to ensure fixes target the correct screen size. Returns structured data with project grouping information to help distinguish between multiple localhost applications. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -255,7 +255,7 @@ class LocalAnnotationsServer {
                 },
                 url: {
                   type: 'string',
-                  description: 'Filter by specific localhost URL'
+                  description: 'Filter by specific localhost URL. Supports exact match (e.g., "http://localhost:3000/dashboard") or pattern match with base URL (e.g., "http://localhost:3000/" or "http://localhost:3000/*" to get all annotations from that project)'
                 }
               },
               additionalProperties: false
@@ -263,7 +263,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_annotation',
-            description: 'Delete annotation after implementing the requested fix or change. Use this when the annotation has been addressed and should be removed.',
+            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. This tool should only be used when you have completed the user\'s requested modification and the annotation is no longer needed. The deletion is irreversible and removes the annotation from both the extension storage and MCP data. Always confirm the fix has been properly implemented before deletion. Do not delete annotations that are still pending work, contain unaddressed feedback, or serve as ongoing reminders. This maintains a clean annotation workspace by removing completed tasks.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -278,13 +278,13 @@ class LocalAnnotationsServer {
           },
           {
             name: 'get_project_context',
-            description: 'Get context about the project structure for a localhost URL',
+            description: 'Analyzes a localhost development URL to infer project framework and technology stack context. This tool helps understand the development environment when implementing annotation fixes by identifying likely frameworks (React, Vue, Angular, etc.) based on common port conventions. Use this tool when you need to understand what type of project you\'re working with before making code changes or when annotations reference framework-specific concerns. The tool maps common development server ports to their typical frameworks: port 3000 suggests React/Next.js, 5173 indicates Vite, 8080 points to Vue/Webpack, 4200 suggests Angular, and 3001 typically indicates Express/Node.js. This context helps you choose appropriate implementation approaches and understand the likely project structure.',
             inputSchema: {
               type: 'object',
               properties: {
                 url: {
                   type: 'string',
-                  description: 'Localhost URL to get context for'
+                  description: 'Complete localhost development URL (e.g., "http://localhost:3000/dashboard") to analyze for project context and framework inference'
                 }
               },
               required: ['url'],
@@ -302,7 +302,9 @@ class LocalAnnotationsServer {
       try {
         switch (name) {
           case 'read_annotations': {
-            const annotations = await this.readAnnotations(args || {});
+            const result = await this.readAnnotations(args || {});
+            const { annotations, projectInfo } = result;
+            
             return {
               content: [
                 {
@@ -312,6 +314,8 @@ class LocalAnnotationsServer {
                     status: 'success',
                     data: annotations,
                     count: annotations.length,
+                    projects: projectInfo,
+                    filter_applied: args?.url || 'none',
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -407,10 +411,49 @@ class LocalAnnotationsServer {
     }
     
     if (url) {
-      filtered = filtered.filter(a => a.url === url);
+      // Support both exact URL matching and base URL pattern matching
+      if (url.includes('*') || url.endsWith('/')) {
+        // Pattern matching: "http://localhost:3000/*" or "http://localhost:3000/"
+        const baseUrl = url.replace('*', '').replace(/\/$/, '');
+        filtered = filtered.filter(a => a.url.startsWith(baseUrl));
+      } else {
+        // Exact URL matching
+        filtered = filtered.filter(a => a.url === url);
+      }
     }
     
-    return filtered.slice(0, limit);
+    // Group annotations by base URL for better context
+    const groupedByProject = {};
+    filtered.forEach(annotation => {
+      try {
+        const urlObj = new URL(annotation.url);
+        const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+        if (!groupedByProject[baseUrl]) {
+          groupedByProject[baseUrl] = [];
+        }
+        groupedByProject[baseUrl].push(annotation);
+      } catch (e) {
+        // Handle invalid URLs gracefully
+      }
+    });
+    
+    // Add project context to response
+    const projectCount = Object.keys(groupedByProject).length;
+    if (projectCount > 1 && !url) {
+      console.warn(`Found annotations from ${projectCount} different projects. Consider using the 'url' parameter to filter.`);
+    }
+    
+    // Build project info for better context
+    const projectInfo = Object.entries(groupedByProject).map(([baseUrl, annotations]) => ({
+      base_url: baseUrl,
+      annotation_count: annotations.length,
+      paths: [...new Set(annotations.map(a => new URL(a.url).pathname))].slice(0, 5) // Show up to 5 unique paths
+    }));
+    
+    return {
+      annotations: filtered.slice(0, limit),
+      projectInfo: projectInfo
+    };
   }
 
   async deleteAnnotation(args) {
