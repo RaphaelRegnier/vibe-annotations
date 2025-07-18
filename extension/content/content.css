@@ -1,5 +1,31 @@
 /* Claude Annotations Content Script Styles */
 :root {
+  /* Design tokens - light theme as default */
+  --theme-surface: #f8f9fc;
+  --theme-surface-1: #fcfcfd;
+  --theme-text-primary: #0c111b;
+  --theme-text-secondary: #697586;
+  --theme-outline: #00000014;
+  --theme-outline-highlight: #00000028;
+  --theme-accent: #d97757;
+  --theme-on-accent: #ffffff;
+  --theme-surface-hover: #0d0f1c14;
+  
+  /* Spacing tokens */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  
+  /* Border radius tokens */
+  --border-radius-xs: 4px;
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  
+  /* Legacy colors for backward compatibility */
   --claude-orange: #FF7A00;
   --claude-blue: #2563eb;
   --claude-blue-light: #3b82f6;
@@ -13,6 +39,47 @@
   --claude-gray-700: #374151;
   --claude-gray-800: #1f2937;
   --claude-gray-900: #111827;
+}
+
+/* Dark theme */
+.claude-comment-modal[data-claude-theme="dark"] {
+  --theme-surface: #0d0f1c;
+  --theme-surface-1: #13162a;
+  --theme-text-primary: #fcfcfd;
+  --theme-text-secondary: #697586;
+  --theme-outline: #ffffff19;
+  --theme-outline-highlight: #ffffff32;
+  --theme-accent: #d97757;
+  --theme-on-accent: #ffffff;
+  --theme-surface-hover: #fcfcfd14;
+}
+
+/* Light theme */
+.claude-comment-modal[data-claude-theme="light"] {
+  --theme-surface: #f8f9fc;
+  --theme-surface-1: #fcfcfd;
+  --theme-text-primary: #0c111b;
+  --theme-text-secondary: #697586;
+  --theme-outline: #00000014;
+  --theme-outline-highlight: #00000028;
+  --theme-accent: #d97757;
+  --theme-on-accent: #ffffff;
+  --theme-surface-hover: #0d0f1c14;
+}
+
+/* System theme - fallback to media query for modal when theme is system */
+@media (prefers-color-scheme: dark) {
+  .claude-comment-modal:not([data-claude-theme]) {
+    --theme-surface: #0d0f1c;
+    --theme-surface-1: #13162a;
+    --theme-text-primary: #fcfcfd;
+    --theme-text-secondary: #697586;
+    --theme-outline: #ffffff19;
+    --theme-outline-highlight: #ffffff32;
+    --theme-accent: #d97757;
+    --theme-on-accent: #ffffff;
+    --theme-surface-hover: #fcfcfd14;
+  }
 }
 
 /* Ensure variables are available everywhere */
@@ -199,150 +266,158 @@
   left: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  background: rgba(0, 0, 0, 0.5) !important;
+  background: var(--theme-surface-hover) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   z-index: 2147483647 !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 .claude-comment-modal-content {
-  background: white !important;
-  border-radius: 12px !important;
-  padding: 24px !important;
+  background: var(--theme-surface-1) !important;
+  border: 1px solid var(--theme-outline) !important;
+  border-radius: var(--border-radius-md) !important;
+  padding: var(--spacing-2xl) !important;
   max-width: 500px !important;
   width: 90% !important;
   max-height: 80vh !important;
   overflow-y: auto !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 var(--spacing-xl) var(--spacing-2xl) -5px var(--theme-surface-hover), 
+              0 var(--spacing-sm) var(--spacing-sm) -5px var(--theme-outline) !important;
 }
 
 .claude-comment-modal-header {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  margin-bottom: 20px !important;
+  margin-bottom: var(--spacing-xl) !important;
 }
 
 .claude-comment-modal-title {
   font-size: 18px !important;
   font-weight: 600 !important;
-  color: var(--claude-gray-900) !important;
+  color: var(--theme-text-primary) !important;
   margin: 0 !important;
 }
 
 .claude-comment-modal-close {
   background: none !important;
   border: none !important;
-  padding: 8px !important;
-  border-radius: 6px !important;
+  padding: var(--spacing-sm) !important;
+  border-radius: var(--border-radius-sm) !important;
   cursor: pointer !important;
-  color: var(--claude-gray-400) !important;
+  color: var(--theme-text-secondary) !important;
   transition: all 0.2s ease !important;
 }
 
 .claude-comment-modal-close:hover {
-  background: var(--claude-gray-100) !important;
-  color: var(--claude-gray-600) !important;
+  background: var(--theme-surface-hover) !important;
+  color: var(--theme-text-primary) !important;
 }
 
 .claude-element-preview {
-  background: var(--claude-gray-50) !important;
-  border: 1px solid var(--claude-gray-200) !important;
-  border-radius: 8px !important;
-  padding: 12px !important;
-  margin-bottom: 16px !important;
+  background: var(--theme-surface) !important;
+  border: 1px solid var(--theme-outline) !important;
+  border-radius: var(--border-radius-sm) !important;
+  padding: var(--spacing-md) !important;
+  margin-bottom: var(--spacing-lg) !important;
 }
 
 .claude-element-info {
   font-size: 12px !important;
-  color: var(--claude-gray-600) !important;
-  margin-bottom: 8px !important;
+  color: var(--theme-text-secondary) !important;
+  margin-bottom: var(--spacing-sm) !important;
 }
 
 .claude-element-selector {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
   font-size: 11px !important;
-  background: var(--claude-gray-800) !important;
-  color: var(--claude-gray-100) !important;
-  padding: 8px !important;
-  border-radius: 4px !important;
+  background: var(--theme-text-primary) !important;
+  color: var(--theme-surface-1) !important;
+  padding: var(--spacing-sm) !important;
+  border-radius: var(--border-radius-xs) !important;
   word-break: break-all !important;
 }
 
 .claude-viewport-info {
   display: flex !important;
-  gap: 16px !important;
+  gap: var(--spacing-lg) !important;
   font-size: 12px !important;
-  color: var(--claude-gray-500) !important;
-  margin-bottom: 16px !important;
+  color: var(--theme-text-secondary) !important;
+  margin-bottom: var(--spacing-lg) !important;
 }
 
 .claude-comment-textarea {
   width: 100% !important;
   min-height: 120px !important;
-  padding: 12px !important;
-  border: 2px solid #e5e7eb !important;
-  border-radius: 8px !important;
-  font-family: inherit !important;
+  padding: var(--spacing-md) !important;
+  border: 1px solid var(--theme-outline) !important;
+  border-radius: var(--border-radius-sm) !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   font-size: 14px !important;
-  line-height: 1.5 !important;
+  line-height: 1.4 !important;
   resize: vertical !important;
-  margin-bottom: 16px !important;
+  margin-bottom: var(--spacing-lg) !important;
   transition: border-color 0.2s ease !important;
-  color: #374151 !important;
-  background-color: white !important;
+  color: var(--theme-text-primary) !important;
+  background-color: var(--theme-surface-1) !important;
 }
 
 .claude-comment-textarea:focus {
   outline: none !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+  border-color: var(--theme-outline-highlight) !important;
+  background: var(--theme-surface-hover) !important;
 }
 
 .claude-comment-textarea::placeholder {
-  color: #9ca3af !important;
+  color: var(--theme-text-secondary) !important;
 }
 
 .claude-comment-actions {
   display: flex !important;
-  gap: 12px !important;
+  gap: var(--spacing-md) !important;
   justify-content: flex-end !important;
 }
 
 .claude-btn {
-  padding: 10px 16px !important;
-  border-radius: 6px !important;
+  padding: 10px var(--spacing-lg) !important;
+  border-radius: var(--border-radius-sm) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
   border: none !important;
-  font-family: inherit !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 .claude-btn-primary {
-  background: var(--claude-blue) !important;
-  color: white !important;
+  background: var(--theme-accent) !important;
+  color: var(--theme-on-accent) !important;
 }
 
 .claude-btn-primary:hover {
-  background: var(--claude-blue-light) !important;
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
 }
 
 .claude-btn-primary:disabled {
-  background: var(--claude-gray-300) !important;
+  background: var(--theme-text-secondary) !important;
+  color: var(--theme-surface) !important;
   cursor: not-allowed !important;
+  opacity: 0.6 !important;
+  transform: none !important;
 }
 
 .claude-btn-secondary {
-  background: var(--claude-gray-100) !important;
-  color: var(--claude-gray-700) !important;
+  background: var(--theme-surface) !important;
+  color: var(--theme-text-primary) !important;
+  border: 1px solid var(--theme-outline) !important;
 }
 
 .claude-btn-secondary:hover {
-  background: var(--claude-gray-200) !important;
+  background: var(--theme-surface-hover) !important;
+  border-color: var(--theme-outline-highlight) !important;
 }
 
 /* Animation modes */

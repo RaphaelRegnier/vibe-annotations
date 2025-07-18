@@ -3,10 +3,15 @@
 class AnnotationsPopup {
   constructor() {
     this.annotations = [];
+    this.themeManager = null;
     this.init();
   }
 
   async init() {
+    // Initialize theme manager
+    this.themeManager = new ThemeManager();
+    await this.themeManager.init();
+    
     // Set current route subtitle
     await this.setCurrentRoute();
     
@@ -93,9 +98,7 @@ class AnnotationsPopup {
       annotationsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
+            <iconify-icon icon="lucide:message-square" width="48" height="48"></iconify-icon>
           </div>
           <p class="empty-text">No annotations yet</p>
           <p class="empty-subtext">Click on elements to add comments!</p>
@@ -128,30 +131,19 @@ class AnnotationsPopup {
   }
 
   renderAnnotationItem(annotation) {
-    const truncatedComment = annotation.comment.length > 100 
-      ? annotation.comment.substring(0, 100) + '...'
-      : annotation.comment;
-
     const timeAgo = this.getTimeAgo(annotation.created_at);
 
     return `
       <div class="annotation-item" data-id="${annotation.id}">
-        <div class="annotation-comment" data-full-comment="${this.escapeHtml(annotation.comment)}" title="Click to edit">${this.escapeHtml(truncatedComment)}</div>
+        <div class="annotation-comment" data-full-comment="${this.escapeHtml(annotation.comment)}" title="Click to edit">${this.escapeHtml(annotation.comment)}</div>
         <div class="annotation-meta">
           <span class="annotation-timestamp">${timeAgo}</span>
           <div class="annotation-actions">
             <button class="action-btn target-btn" data-id="${annotation.id}" title="Go to element">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="6"></circle>
-                <circle cx="12" cy="12" r="2"></circle>
-              </svg>
+              <iconify-icon icon="heroicons-solid:cursor-arrow-ripple" width="14" height="14"></iconify-icon>
             </button>
             <button class="action-btn delete-btn" data-id="${annotation.id}" title="Delete">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3,6 5,6 21,6"></polyline>
-                <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
-              </svg>
+              <iconify-icon icon="heroicons-outline:trash" width="14" height="14"></iconify-icon>
             </button>
           </div>
         </div>
@@ -173,6 +165,34 @@ class AnnotationsPopup {
       }
     });
 
+    // Settings button
+    const settingsBtn = document.getElementById('settings-btn');
+    settingsBtn.addEventListener('click', () => {
+      this.openSettings();
+    });
+
+    // Settings modal close button
+    const closeSettingsBtn = document.getElementById('close-settings');
+    closeSettingsBtn.addEventListener('click', () => {
+      this.closeSettings();
+    });
+
+    // Modal overlay click to close
+    const modalOverlay = document.getElementById('settings-modal');
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        this.closeSettings();
+      }
+    });
+
+    // Theme selector
+    const themeSelect = document.getElementById('theme-select');
+    themeSelect.addEventListener('change', (e) => {
+      this.changeTheme(e.target.value);
+    });
+
+    // Initialize theme selector with current theme
+    this.updateThemeSelector();
   }
 
   async handleFocusedAnnotation() {
@@ -391,6 +411,12 @@ class AnnotationsPopup {
     textarea.value = annotation.comment;
     textarea.setAttribute('data-original-value', annotation.comment);
     
+    // Auto-resize function
+    const autoResize = () => {
+      textarea.style.height = '0px';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    };
+    
     // Store reference to original content
     const originalContent = commentDiv.innerHTML;
     commentDiv.setAttribute('data-original-content', originalContent);
@@ -398,15 +424,10 @@ class AnnotationsPopup {
     // Replace action buttons with save/cancel
     actionsDiv.innerHTML = `
       <button class="action-btn cancel-edit-btn" data-id="${id}" title="Cancel editing">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
+        <iconify-icon icon="lucide:x" width="14" height="14"></iconify-icon>
       </button>
       <button class="action-btn save-edit-btn" data-id="${id}" title="Save changes">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20,6 9,17 4,12"></polyline>
-        </svg>
+        <iconify-icon icon="lucide:check" width="14" height="14"></iconify-icon>
       </button>
     `;
     
@@ -414,10 +435,15 @@ class AnnotationsPopup {
     commentDiv.innerHTML = '';
     commentDiv.appendChild(textarea);
     commentDiv.classList.add('editing');
+    annotationItem.classList.add('editing');
     
     // Focus and select text
     textarea.focus();
     textarea.select();
+    
+    // Initial resize and setup auto-resize
+    autoResize();
+    textarea.addEventListener('input', autoResize);
     
     // Set up event listeners for save/cancel buttons
     this.setupEditControls(id, textarea, commentDiv, annotationItem);
@@ -498,6 +524,7 @@ class AnnotationsPopup {
 
   exitInlineEdit(commentDiv, annotationItem, newComment = null, originalContent = null) {
     commentDiv.classList.remove('editing');
+    annotationItem.classList.remove('editing');
     
     // Restore original action buttons
     const actionsDiv = annotationItem.querySelector('.annotation-actions');
@@ -509,9 +536,8 @@ class AnnotationsPopup {
     }
     
     if (newComment !== null) {
-      // Update with new content (truncated if needed)
-      const truncated = newComment.length > 100 ? newComment.substring(0, 100) + '...' : newComment;
-      commentDiv.innerHTML = this.escapeHtml(truncated);
+      // Update with new content (full content, no truncation)
+      commentDiv.innerHTML = this.escapeHtml(newComment);
       commentDiv.setAttribute('data-full-comment', this.escapeHtml(newComment));
     } else if (originalContent !== null) {
       // Restore original content
@@ -720,18 +746,13 @@ class AnnotationsPopup {
     
     if (isActive) {
       newAnnotationBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="6" y="6" width="12" height="12"></rect>
-        </svg>
+        <iconify-icon icon="lucide:square" width="16" height="16"></iconify-icon>
         Stop Annotating
       `;
       newAnnotationBtn.title = 'Stop annotation mode';
     } else {
       newAnnotationBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
+        <iconify-icon icon="lucide:plus" width="16" height="16"></iconify-icon>
         Start Annotating
       `;
       newAnnotationBtn.title = 'Create new annotation';
@@ -742,6 +763,31 @@ class AnnotationsPopup {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Settings Modal Methods
+  openSettings() {
+    const modal = document.getElementById('settings-modal');
+    modal.style.display = 'flex';
+    this.updateThemeSelector();
+  }
+
+  closeSettings() {
+    const modal = document.getElementById('settings-modal');
+    modal.style.display = 'none';
+  }
+
+  updateThemeSelector() {
+    if (this.themeManager) {
+      const themeSelect = document.getElementById('theme-select');
+      themeSelect.value = this.themeManager.getCurrentTheme();
+    }
+  }
+
+  async changeTheme(theme) {
+    if (this.themeManager) {
+      await this.themeManager.saveThemePreference(theme);
+    }
   }
 }
 

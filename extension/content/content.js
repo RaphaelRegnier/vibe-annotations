@@ -13,6 +13,9 @@ class ClaudeAnnotations {
     // Load existing annotations
     await this.loadAnnotations();
     
+    // Set up theme
+    await this.initTheme();
+    
     // Set up message listener
     this.setupMessageListener();
     
@@ -41,6 +44,36 @@ class ClaudeAnnotations {
       console.error('Error loading annotations:', error);
       this.annotations = [];
     }
+  }
+
+  async initTheme() {
+    try {
+      // Load theme preference from extension storage
+      const result = await chrome.storage.local.get(['themePreference']);
+      const themePreference = result.themePreference || 'system';
+      this.applyTheme(themePreference);
+      
+      // Listen for theme changes
+      chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local' && changes.themePreference) {
+          this.applyTheme(changes.themePreference.newValue);
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing theme:', error);
+    }
+  }
+
+  applyTheme(themePreference) {
+    // Store current theme for modal creation
+    this.currentTheme = themePreference;
+  }
+
+  getEffectiveTheme() {
+    if (this.currentTheme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return this.currentTheme || 'light';
   }
 
   setupMessageListener() {
@@ -635,6 +668,7 @@ class ClaudeAnnotations {
     // Create modal for editing
     const modal = document.createElement('div');
     modal.className = 'claude-comment-modal';
+    modal.setAttribute('data-claude-theme', this.getEffectiveTheme());
     modal.innerHTML = `
       <div class="claude-comment-modal-content">
         <div class="claude-comment-modal-header">
@@ -702,6 +736,7 @@ class ClaudeAnnotations {
     // Create modal
     const modal = document.createElement('div');
     modal.className = 'claude-comment-modal';
+    modal.setAttribute('data-claude-theme', this.getEffectiveTheme());
     modal.innerHTML = `
       <div class="claude-comment-modal-content">
         <div class="claude-comment-modal-header">

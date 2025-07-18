@@ -2,16 +2,25 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="container">
     <header class="header">
       <div class="header-content">
-        <div class="title-section">
-          <h1 class="title">Claude Annotations</h1>
-          <p class="subtitle" id="current-route"></p>
+        <div class="logo-and-title">
+          <img src="../assets/icons/icon128.png" alt="Claude Annotations" class="header-logo">
+          <div class="title-section">
+            <h1 class="title">Claude Annotations</h1>
+            <p class="subtitle" id="current-route"></p>
+          </div>
         </div>
+        <button id="settings-btn" class="icon-btn" title="Settings">
+          <iconify-icon icon="heroicons-outline:cog-6-tooth" width="16" height="16"></iconify-icon>
+        </button>
       </div>
     </header>
     
@@ -19,9 +28,7 @@
       <div id="annotations-list" class="annotations-list">
         <div class="empty-state">
           <div class="empty-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
+            <iconify-icon icon="lucide:message-square" width="48" height="48"></iconify-icon>
           </div>
           <p class="empty-text">No annotations yet</p>
           <p class="empty-subtext">Click on elements to add comments!</p>
@@ -32,10 +39,7 @@
     <footer class="footer">
       <div class="footer-content">
         <button id="new-annotation-btn" class="primary-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
+          <iconify-icon icon="lucide:plus" width="16" height="16"></iconify-icon>
           Start Annotating
         </button>
         <div id="mcp-status" class="mcp-status" title="MCP Connection Status">
@@ -44,7 +48,31 @@
         </div>
       </div>
     </footer>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay" style="display: none;">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Settings</h3>
+          <button id="close-settings" class="icon-btn">
+            <iconify-icon icon="lucide:x" width="16" height="16"></iconify-icon>
+          </button>
+        </div>
+        <div class="modal-content">
+          <div class="setting-group">
+            <label for="theme-select">Theme</label>
+            <select id="theme-select" class="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
+  <script src="iconify-icon.min.js"></script>
+  <script src="themes.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
