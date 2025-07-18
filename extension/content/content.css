@@ -90,7 +90,7 @@
 
 /* Element highlighting */
 .claude-annotation-highlight {
-  outline: 2px solid var(--claude-blue) !important;
+  outline: 2px solid #2563eb !important;
   outline-offset: 2px !important;
   position: relative !important;
   cursor: pointer !important;
@@ -98,8 +98,8 @@
 }
 
 .claude-annotation-highlight:hover {
-  outline-color: var(--claude-blue-light) !important;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+  outline-color: #2563eb !important;
+  box-shadow: 0 0 0 4px var(--theme-surface-highlight) !important;
 }
 
 /* Annotation badge for existing annotations */
@@ -190,18 +190,18 @@
   align-items: center !important;
   gap: 8px !important;
   padding: 12px !important;
-  background: rgba(255, 193, 7, 0.1) !important;
-  border: 1px solid rgba(255, 193, 7, 0.3) !important;
+  background: var(--theme-warning-container) !important;
+  border: 1px solid var(--theme-warning-container) !important;
   border-radius: 6px !important;
-  color: #856404 !important;
+  color: var(--theme-on-warning-container) !important;
   font-size: 13px !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   margin-bottom: 16px !important;
 }
 
 .claude-api-status-warning svg {
   flex-shrink: 0 !important;
-  stroke: #856404 !important;
+  stroke: var(--theme-on-warning-container) !important;
 }
 
 /* Inspection Mode Overlay */
@@ -209,8 +209,8 @@
   position: fixed !important;
   top: 20px !important;
   right: 20px !important;
-  background: var(--claude-blue) !important;
-  color: white !important;
+  background: var(--theme-accent) !important;
+  color: var(--theme-on-accent) !important;
   padding: 16px 20px !important;
   border-radius: 8px !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
@@ -442,7 +442,7 @@
   left: -2px !important;
   right: -2px !important;
   bottom: -2px !important;
-  border: 2px solid var(--claude-orange) !important;
+  border: 2px solid var(--theme-accent) !important;
   border-radius: 4px !important;
   pointer-events: none !important;
   opacity: 0.6 !important;
@@ -467,7 +467,7 @@
 
 /* Targeted element focus state */
 .claude-targeted-element {
-  outline: 3px solid var(--claude-blue) !important;
+  outline: 3px solid #2563eb !important;
   outline-offset: 2px !important;
   transition: outline 0.2s ease !important;
   /* Fallback for when CSS variables don't work */

@@ -12,7 +12,11 @@ class ThemeManager {
         'outline-highlight': '#00000028',
         accent: '#d97757',
         'on-accent': '#ffffff',
-        'surface-hover': '#0d0f1c14'
+        'surface-hover': '#0d0f1c14',
+        warning: '#f79009',
+        'on-warning': '#ffffff',
+        'warning-container': '#f7900919',
+        'on-warning-container': '#93370c'
       },
       dark: {
         surface: '#0d0f1c',
@@ -23,7 +27,11 @@ class ThemeManager {
         'outline-highlight': '#ffffff32',
         accent: '#d97757',
         'on-accent': '#ffffff',
-        'surface-hover': '#fcfcfd14'
+        'surface-hover': '#fcfcfd14',
+        warning: '#f79009',
+        'on-warning': '#ffffff',
+        'warning-container': '#f7900914',
+        'on-warning-container': '#f79009'
       }
     };
     

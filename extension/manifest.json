@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Claude Annotations",
   "version": "0.1.0",
-  "description": "AI-powered development annotations for localhost projects",
+  "description": "AI-powered development annotations for localhost projects and local HTML files",
   "permissions": [
     "activeTab",
     "storage",
@@ -12,7 +12,8 @@
   "host_permissions": [
     "http://localhost/*",
     "http://127.0.0.1/*",
-    "http://0.0.0.0/*"
+    "http://0.0.0.0/*",
+    "file:///*"
   ],
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -29,7 +30,8 @@
       "matches": [
         "http://localhost/*",
         "http://127.0.0.1/*", 
-        "http://0.0.0.0/*"
+        "http://0.0.0.0/*",
+        "file:///*"
       ],
       "js": ["content/content.js"],
       "css": ["content/content.css"]

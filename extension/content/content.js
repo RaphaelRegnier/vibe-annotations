@@ -67,6 +67,49 @@ class ClaudeAnnotations {
   applyTheme(themePreference) {
     // Store current theme for modal creation
     this.currentTheme = themePreference;
+    
+    // Apply theme variables to document root
+    const effectiveTheme = this.getEffectiveTheme();
+    const themes = {
+      light: {
+        surface: '#f8f9fc',
+        'surface-1': '#fcfcfd',
+        'text-primary': '#0c111b',
+        'text-secondary': '#697586',
+        outline: '#00000014',
+        'outline-highlight': '#00000028',
+        accent: '#d97757',
+        'on-accent': '#ffffff',
+        'surface-hover': '#0d0f1c14',
+        warning: '#f79009',
+        'on-warning': '#ffffff',
+        'warning-container': '#f7900919',
+        'on-warning-container': '#93370c'
+      },
+      dark: {
+        surface: '#0d0f1c',
+        'surface-1': '#13162a',
+        'text-primary': '#fcfcfd',
+        'text-secondary': '#697586',
+        outline: '#ffffff19',
+        'outline-highlight': '#ffffff32',
+        accent: '#d97757',
+        'on-accent': '#ffffff',
+        'surface-hover': '#fcfcfd14',
+        warning: '#f79009',
+        'on-warning': '#ffffff',
+        'warning-container': '#f7900914',
+        'on-warning-container': '#f79009'
+      }
+    };
+    
+    const tokens = themes[effectiveTheme];
+    
+    // Apply CSS custom properties to document root
+    const root = document.documentElement;
+    Object.entries(tokens).forEach(([key, value]) => {
+      root.style.setProperty(`--theme-${key}`, value);
+    });
   }
 
   getEffectiveTheme() {
@@ -684,7 +727,7 @@ class ClaudeAnnotations {
         ${!apiStatus.connected ? `
           <div class="claude-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
@@ -755,7 +798,7 @@ class ClaudeAnnotations {
         ${!apiStatus.connected ? `
           <div class="claude-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
             </svg>
@@ -804,9 +847,12 @@ class ClaudeAnnotations {
 
   async checkAPIStatus() {
     try {
+      // Try direct fetch first
       const response = await fetch('http://localhost:3846/health', {
         method: 'GET',
-        signal: AbortSignal.timeout(2000) // 2 second timeout
+        signal: AbortSignal.timeout(2000), // 2 second timeout
+        mode: 'cors', // Explicitly set CORS mode
+        credentials: 'omit' // Don't send credentials for localhost
       });
       
       if (response.ok) {
@@ -815,7 +861,23 @@ class ClaudeAnnotations {
         return { connected: false, error: `Server returned ${response.status}` };
       }
     } catch (error) {
-      return { connected: false, error: error.message };
+      // If direct fetch fails (e.g., on file:// URLs due to CORS), try via background script
+      console.warn('Direct API check failed, trying via background script:', error);
+      
+      try {
+        const bgResponse = await chrome.runtime.sendMessage({
+          action: 'checkMCPStatus'
+        });
+        
+        if (bgResponse && bgResponse.success && bgResponse.status) {
+          return { connected: bgResponse.status.connected };
+        } else {
+          return { connected: false, error: 'Background check failed' };
+        }
+      } catch (bgError) {
+        console.error('Background API check also failed:', bgError);
+        return { connected: false, error: error.message };
+      }
     }
   }
 
@@ -1491,7 +1553,7 @@ class ClaudeAnnotations {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         // Highlight temporarily
-        element.style.outline = '3px solid var(--claude-orange)';
+        element.style.outline = '3px solid var(--theme-accent)';
         element.style.outlineOffset = '2px';
         
         setTimeout(() => {
@@ -1559,6 +1621,26 @@ class ClaudeAnnotations {
 
   isMac() {
     return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  }
+
+  isLocalFile() {
+    return window.location.protocol === 'file:';
+  }
+
+  isValidFileType() {
+    if (!this.isLocalFile()) return true; // Non-file URLs are always valid
+    
+    const path = window.location.pathname.toLowerCase();
+    const htmlExtensions = ['.html', '.htm'];
+    
+    // Check if it ends with .html or .htm, or has no extension (could be index.html)
+    if (htmlExtensions.some(ext => path.endsWith(ext))) {
+      return true;
+    }
+    
+    // Allow files with no extension if they're likely HTML
+    const hasNoExtension = !path.includes('.') || path.endsWith('/');
+    return hasNoExtension;
   }
 }
 

@@ -41,9 +41,17 @@ class AnnotationsPopup {
       
       if (this.isLocalhostUrl(tab.url)) {
         const url = new URL(tab.url);
-        routeElement.textContent = `${url.hostname}:${url.port}${url.pathname}`;
+        if (url.protocol === 'file:') {
+          // For file URLs, show just the filename and parent directory
+          const parts = url.pathname.split('/');
+          const filename = parts[parts.length - 1] || 'index.html';
+          const parentDir = parts[parts.length - 2] || '';
+          routeElement.textContent = parentDir ? `${parentDir}/${filename}` : filename;
+        } else {
+          routeElement.textContent = `${url.hostname}:${url.port}${url.pathname}`;
+        }
       } else {
-        routeElement.textContent = 'Not on localhost';
+        routeElement.textContent = 'Not supported';
       }
     } catch (error) {
       console.error('Error setting current route:', error);
@@ -319,9 +327,9 @@ class AnnotationsPopup {
       // Get current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
-      // Check if it's a localhost URL
+      // Check if it's a localhost or local file URL
       if (!this.isLocalhostUrl(tab.url)) {
-        alert('Claude Annotations only works on localhost URLs for security reasons.');
+        alert('Claude Annotations only works on localhost URLs and local HTML files for security reasons.');
         return;
       }
 
@@ -687,9 +695,25 @@ class AnnotationsPopup {
   isLocalhostUrl(url) {
     try {
       const urlObj = new URL(url);
-      return urlObj.hostname === 'localhost' || 
-             urlObj.hostname === '127.0.0.1' || 
-             urlObj.hostname === '0.0.0.0';
+      
+      // Check localhost URLs
+      if (urlObj.hostname === 'localhost' || 
+          urlObj.hostname === '127.0.0.1' || 
+          urlObj.hostname === '0.0.0.0') {
+        return true;
+      }
+      
+      // Check file URLs - only allow HTML files
+      if (urlObj.protocol === 'file:') {
+        const path = urlObj.pathname.toLowerCase();
+        const htmlExtensions = ['.html', '.htm'];
+        
+        // Allow .html/.htm files or files with no extension
+        return htmlExtensions.some(ext => path.endsWith(ext)) || 
+               (!path.includes('.') || path.endsWith('/'));
+      }
+      
+      return false;
     } catch {
       return false;
     }
@@ -699,6 +723,11 @@ class AnnotationsPopup {
   getUrlDisplay(url) {
     try {
       const urlObj = new URL(url);
+      if (urlObj.protocol === 'file:') {
+        // For file URLs, show just the filename
+        const parts = urlObj.pathname.split('/');
+        return parts[parts.length - 1] || 'index.html';
+      }
       return `${urlObj.hostname}:${urlObj.port || '80'}`;
     } catch {
       return url;

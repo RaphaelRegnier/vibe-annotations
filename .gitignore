@@ -22,3 +22,7 @@ mcp-server/logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Session files
+session-combined.md
+session*.md

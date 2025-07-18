@@ -578,7 +578,6 @@ class ClaudeAnnotationsBackground {
       
       // Update badges when connection status changes
       if (wasConnected !== this.apiConnected) {
-        console.log(`Server connection changed: ${wasConnected ? 'online' : 'offline'} → ${this.apiConnected ? 'online' : 'offline'}`);
         await this.updateAllBadges();
       }
       
@@ -616,7 +615,6 @@ class ClaudeAnnotationsBackground {
         !Array.from(serverIds).every(id => localIds.has(id));
       
       if (annotationsChanged) {
-        console.log(`Annotations changed on server: ${localAnnotations.length} → ${serverAnnotations.length}`);
         
         // Update local storage with server state
         await chrome.storage.local.set({ 
@@ -627,7 +625,6 @@ class ClaudeAnnotationsBackground {
         // Update badges for all localhost tabs
         await this.updateAllBadges();
         
-        console.log('Annotations synced from server');
       }
       
     } catch (error) {
@@ -641,9 +638,25 @@ class ClaudeAnnotationsBackground {
     
     try {
       const urlObj = new URL(url);
-      return urlObj.hostname === 'localhost' || 
-             urlObj.hostname === '127.0.0.1' || 
-             urlObj.hostname === '0.0.0.0';
+      
+      // Check localhost URLs
+      if (urlObj.hostname === 'localhost' || 
+          urlObj.hostname === '127.0.0.1' || 
+          urlObj.hostname === '0.0.0.0') {
+        return true;
+      }
+      
+      // Check file URLs - only allow HTML files
+      if (urlObj.protocol === 'file:') {
+        const path = urlObj.pathname.toLowerCase();
+        const htmlExtensions = ['.html', '.htm'];
+        
+        // Allow .html/.htm files or files with no extension
+        return htmlExtensions.some(ext => path.endsWith(ext)) || 
+               (!path.includes('.') || path.endsWith('/'));
+      }
+      
+      return false;
     } catch {
       return false;
     }
@@ -653,7 +666,6 @@ class ClaudeAnnotationsBackground {
     try {
       // Since we can't programmatically open the popup in MV3,
       // we'll just store the focused annotation ID for when the popup is opened
-      console.log('Storing focused annotation ID for popup:', annotationId);
       
       // The focusedAnnotationId is already stored by the content script
       // This method exists mainly for completeness and potential future use

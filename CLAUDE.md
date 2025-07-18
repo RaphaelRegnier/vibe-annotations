@@ -69,9 +69,10 @@ Chrome Extension → HTTP API → Local Server → MCP HTTP ← Claude Code
 ### Components
 
 1. **Chrome Extension** (`/extension`): 
-   - Popup UI with current route display and "Start Annotating" button
-   - Content script with persistent inspection mode and pin tooltips
+   - Popup UI with theme system, settings modal, and annotation management
+   - Content script with persistent inspection mode and synchronized theming
    - Background worker for storage sync and badge management
+   - Theme Manager for light/dark/system theme handling
 
 2. **Local HTTP Server** (`/local-server`): Express server with dual role:
    - **HTTP API**: Endpoints for Chrome extension CRUD operations
@@ -84,6 +85,7 @@ Chrome Extension → HTTP API → Local Server → MCP HTTP ← Claude Code
 2. Extension manages annotations via Chrome Storage API
 3. Background worker syncs to local HTTP server
 4. Claude Code accesses annotations via MCP HTTP endpoint
+5. Theme changes propagate through Chrome Storage to all extension components
 
 ### Annotation Data Structure
 Annotations contain comprehensive context for AI processing:
@@ -126,11 +128,13 @@ The content script implements persistent inspection mode:
 - Real-time synchronization between popup and content scripts via storage events
 
 ### Visual Design System
-Following Claude brand guidelines:
-- Primary: Claude Orange (#FF7A00)
-- Secondary: Claude Blue (#2563eb)
-- Typography: System fonts (SF Pro, Segoe UI, Roboto)
-- Icons: Heroicons/Lucide style SVGs
+Complete theme system with design tokens:
+- **Theme Management**: Light/dark/system themes via ThemeManager class
+- **Design Tokens**: CSS custom properties (`--theme-*`) for all colors
+- **Typography**: Inter font family with proper font weights
+- **Icons**: Iconify integration with 200k+ icons (Heroicons/Lucide preferred)
+- **Colors**: Claude Orange (#d97757), proper contrast ratios
+- **Layout**: Zero layout shift editing, consistent spacing tokens
 
 ## MCP Integration (CORRECTED)
 
@@ -199,11 +203,16 @@ The extension is designed exclusively for localhost development:
 - ✅ Complete MCP tool implementations (`read_annotations`, `delete_annotation`, `get_project_context`)
 - ✅ Server status awareness and offline mode handling
 - ✅ Current route display in popup subtitle
-- ✅ Streamlined popup UI with "Pending annotations" header
+- ✅ Complete design system with theme management (light/dark/system)
+- ✅ Iconify integration with 200k+ icons
+- ✅ Zero layout shift editing experience
+- ✅ Cross-component theme synchronization
 
 **Architecture Highlights:**
 - **Persistent Inspection**: Users can drop multiple annotations without exiting mode
 - **Performance**: CSS-only tooltips (no JavaScript positioning calculations)
+- **Theme System**: Complete design token architecture with light/dark/system themes
 - **UX**: Toggle button changes "Start Annotating" ↔ "Stop Annotating" based on state
 - **Integration**: Claude uses `delete_annotation` tool when fixes are implemented
 - **Reliability**: Server offline = all operations disabled (no confusing offline modes)
+- **Design Quality**: Zero layout shift editing, 200k+ icon library, professional UI
