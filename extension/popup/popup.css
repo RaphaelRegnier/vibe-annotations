@@ -495,11 +495,16 @@ iconify-icon {
   border: 1px solid var(--theme-outline);
   border-radius: var(--border-radius-sm);
   padding: var(--spacing-sm) var(--spacing-md);
+  padding-right: calc(var(--spacing-md) + 24px); /* Make room for custom chevron */
   font-size: 14px;
   color: var(--theme-text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-family);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
 }
 
 .theme-select:hover {
@@ -510,6 +515,26 @@ iconify-icon {
   outline: none;
   border-color: var(--theme-outline-highlight);
   background: var(--theme-surface-hover);
+}
+
+/* Custom chevron for theme select */
+.setting-group {
+  position: relative;
+}
+
+.setting-group::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 16px;
+  height: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23697586' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .theme-select option {
