@@ -2,7 +2,7 @@
 
 class ClaudeAnnotationsBackground {
   constructor() {
-    this.apiServerUrl = 'http://localhost:3846';
+    this.apiServerUrl = 'http://127.0.0.1:3846'; // Updated to match external server
     this.apiConnected = false;
     this.init();
   }

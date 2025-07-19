@@ -19,7 +19,8 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const PORT = 3846;
-const DATA_FILE = path.join(__dirname, '..', 'mcp-server', 'data', 'annotations.json');
+const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.claude-annotations');
+const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
 
 class LocalAnnotationsServer {
   constructor() {
@@ -186,6 +187,34 @@ class LocalAnnotationsServer {
         console.error('Error deleting annotation:', error);
         res.status(500).json({ error: 'Failed to delete annotation' });
       }
+    });
+
+    // SSE endpoint for MCP connection
+    this.app.get('/sse', async (req, res) => {
+      console.log('SSE connection established');
+      
+      // Set SSE headers
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+      });
+      
+      // Send initial connection event
+      res.write('event: open\n');
+      res.write(`data: {"type":"connection","status":"connected"}\n\n`);
+      
+      // Keep connection alive
+      const keepAlive = setInterval(() => {
+        res.write(':keepalive\n\n');
+      }, 30000);
+      
+      // Clean up on client disconnect
+      req.on('close', () => {
+        console.log('SSE connection closed');
+        clearInterval(keepAlive);
+      });
     });
 
     // MCP HTTP endpoint - create fresh instances per request
@@ -575,11 +604,13 @@ class LocalAnnotationsServer {
     this.setupProcessHandlers();
     
     this.server = this.app.listen(PORT, () => {
-      console.log(`Local server running on http://localhost:${PORT}`);
-      console.log(`HTTP API: http://localhost:${PORT}/api/annotations`);
-      console.log(`MCP Endpoint: http://localhost:${PORT}/mcp`);
-      console.log(`Health: http://localhost:${PORT}/health`);
-      console.log('MCP server ready to handle requests');
+      console.log(`Claude Annotations server running on http://127.0.0.1:${PORT}`);
+      console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
+      console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);
+      console.log(`MCP Endpoint: http://127.0.0.1:${PORT}/mcp`);
+      console.log(`Health: http://127.0.0.1:${PORT}/health`);
+      console.log(`Data: ${DATA_FILE}`);
+      console.log('\nServer ready to handle requests');
     });
   }
 }
