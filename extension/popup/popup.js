@@ -4,6 +4,7 @@ class AnnotationsPopup {
   constructor() {
     this.annotations = [];
     this.themeManager = null;
+    this.serverOnline = false;
     this.init();
   }
 
@@ -15,8 +16,14 @@ class AnnotationsPopup {
     // Set current route subtitle
     await this.setCurrentRoute();
     
+    // Check MCP connection status first
+    await this.updateMCPStatus();
+    
     // Load annotations from storage
     await this.loadAnnotations();
+    
+    // Update screen visibility based on connection status and annotations
+    this.updateScreenVisibility();
     
     // Render the UI
     this.render();
@@ -26,9 +33,6 @@ class AnnotationsPopup {
     
     // Check for focused annotation and scroll to it
     await this.handleFocusedAnnotation();
-    
-    // Check MCP connection status
-    this.updateMCPStatus();
     
     // Update button text based on annotation mode status
     this.updateAnnotationButton();
@@ -103,15 +107,7 @@ class AnnotationsPopup {
     const annotationsList = document.getElementById('annotations-list');
     
     if (this.annotations.length === 0) {
-      annotationsList.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">
-            <iconify-icon icon="lucide:message-square" width="48" height="48"></iconify-icon>
-          </div>
-          <p class="empty-text">No annotations yet</p>
-          <p class="empty-subtext">Click on elements to add comments!</p>
-        </div>
-      `;
+      annotationsList.innerHTML = '';
       return;
     }
 
@@ -136,6 +132,9 @@ class AnnotationsPopup {
     
     // Update button states based on server status
     this.updateAnnotationButtons();
+    
+    // Update screen visibility after rendering
+    this.updateScreenVisibility();
   }
 
   renderAnnotationItem(annotation) {
@@ -149,7 +148,7 @@ class AnnotationsPopup {
           <span class="annotation-timestamp">${timeAgo} • ${viewportWidth}w</span>
           <div class="annotation-actions">
             <button class="action-btn target-btn" data-id="${annotation.id}" title="Go to element">
-              <iconify-icon icon="heroicons-solid:cursor-arrow-ripple" width="14" height="14"></iconify-icon>
+              <iconify-icon icon="heroicons:magnifying-glass" width="14" height="14"></iconify-icon>
             </button>
             <button class="action-btn delete-btn" data-id="${annotation.id}" title="Delete">
               <iconify-icon icon="heroicons-outline:trash" width="14" height="14"></iconify-icon>
@@ -636,6 +635,9 @@ class AnnotationsPopup {
       
       // Update existing annotation buttons based on server status
       this.updateAnnotationButtons();
+      
+      // Update screen visibility when connection status changes
+      this.updateScreenVisibility();
     } catch (error) {
       console.error('Error checking MCP status:', error);
       
@@ -651,6 +653,9 @@ class AnnotationsPopup {
       
       // Update existing annotation buttons
       this.updateAnnotationButtons();
+      
+      // Update screen visibility when connection status changes
+      this.updateScreenVisibility();
     }
   }
 
@@ -783,7 +788,7 @@ class AnnotationsPopup {
       newAnnotationBtn.title = 'Stop annotation mode';
     } else {
       newAnnotationBtn.innerHTML = `
-        <iconify-icon icon="lucide:plus" width="16" height="16"></iconify-icon>
+        <iconify-icon icon="heroicons-solid:cursor-arrow-ripple" width="16" height="16"></iconify-icon>
         Start Annotating
       `;
       newAnnotationBtn.title = 'Create new annotation';
@@ -818,6 +823,28 @@ class AnnotationsPopup {
   async changeTheme(theme) {
     if (this.themeManager) {
       await this.themeManager.saveThemePreference(theme);
+    }
+  }
+
+  updateScreenVisibility() {
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const readyScreen = document.getElementById('ready-screen');
+    const annotationsList = document.getElementById('annotations-list');
+
+    // Hide all screens first
+    welcomeScreen.style.display = 'none';
+    readyScreen.style.display = 'none';
+    annotationsList.style.display = 'none';
+
+    if (this.annotations.length > 0) {
+      // Show annotations list when there are annotations
+      annotationsList.style.display = 'flex';
+    } else if (this.serverOnline) {
+      // Show ready screen when online with no annotations
+      readyScreen.style.display = 'flex';
+    } else {
+      // Show welcome screen when offline with no annotations
+      welcomeScreen.style.display = 'flex';
     }
   }
 }
