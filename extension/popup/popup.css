@@ -124,34 +124,6 @@ body {
   display: none;
 }
 
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px var(--spacing-xl);
-  text-align: center;
-  height: 100%;
-}
-
-.empty-icon {
-  color: var(--theme-text-secondary);
-  margin-bottom: var(--spacing-lg);
-  opacity: 0.6;
-}
-
-.empty-text {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--theme-text-primary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.empty-subtext {
-  font-size: 14px;
-  color: var(--theme-text-secondary);
-}
 
 /* Annotation Item */
 .annotation-item {
@@ -540,6 +512,98 @@ iconify-icon {
 .theme-select option {
   background: var(--theme-surface-1);
   color: var(--theme-text-primary);
+}
+
+/* Welcome Screen (offline state) */
+.welcome-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 280px;
+  padding: var(--spacing-2xl);
+}
+
+.welcome-content {
+  text-align: center;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.welcome-icon {
+  margin-bottom: var(--spacing-lg);
+  color: var(--theme-text-primary);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.welcome-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.4;
+}
+
+.welcome-text {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.highlight-link {
+  color: var(--theme-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.highlight-link:hover {
+  text-decoration: underline;
+}
+
+/* Ready Screen (online state with no annotations) */
+.ready-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 280px;
+  padding: var(--spacing-2xl);
+}
+
+.ready-content {
+  text-align: center;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ready-icon {
+  margin-bottom: var(--spacing-lg);
+  color: var(--theme-text-primary);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.ready-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.4;
+}
+
+.ready-text {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* Scrollbar */

@@ -25,15 +25,34 @@
     </header>
     
     <main class="main">
-      <div id="annotations-list" class="annotations-list">
-        <div class="empty-state">
-          <div class="empty-icon">
-            <iconify-icon icon="lucide:message-square" width="48" height="48"></iconify-icon>
+      <!-- Welcome Screen (when offline) -->
+      <div id="welcome-screen" class="welcome-screen" style="display: none;">
+        <div class="welcome-content">
+          <div class="welcome-icon">
+            <iconify-icon icon="heroicons:server" width="32" height="32"></iconify-icon>
           </div>
-          <p class="empty-text">No annotations yet</p>
-          <p class="empty-subtext">Click on elements to add comments!</p>
+          <h2 class="welcome-title">Start the Claude Annotations MCP</h2>
+          <p class="welcome-text">
+            You're nearly there, start or <a href="#" target="_blank" class="highlight-link">download the latest MCP package</a> and double-click it to let Claude read and work with your annotations.
+          </p>
         </div>
       </div>
+
+      <!-- Ready Screen (when online with no annotations) -->
+      <div id="ready-screen" class="ready-screen" style="display: none;">
+        <div class="ready-content">
+          <div class="ready-icon">
+            <iconify-icon icon="heroicons:rocket-launch" width="32" height="32"></iconify-icon>
+          </div>
+          <h2 class="ready-title">Ready for your annotations</h2>
+          <p class="ready-text">
+            Click the button below to launch inspection mode and add annotations for Claude.
+          </p>
+        </div>
+      </div>
+
+      <!-- Annotations List -->
+      <div id="annotations-list" class="annotations-list"></div>
     </main>
     
     <footer class="footer">
