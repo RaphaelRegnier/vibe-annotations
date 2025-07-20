@@ -9,15 +9,62 @@ AI-powered development annotations for localhost projects. Drop comments on your
 - ⚡ **Instant feedback**: Click, comment, bulk-fix
 - 👨‍💻 **Developer-friendly**: Built for modern web development
 
+## Architecture
+
+Claude Annotations uses a two-piece architecture:
+
+1. **Browser Extension** (`/extension`): UI, setup guidance, annotation management
+2. **NPM Package** (`claude-annotations-server`): MCP server, local HTTP API, data storage
+
 ## Quick Start
 
-1. Install the Chrome extension
-2. Set up the MCP server with Claude Code
-3. Start annotating your localhost projects!
+### 1. Install the Browser Extension
+Install the `claude-annotations` extension from the Chrome Web Store.
+
+### 2. Install the Global Server
+```bash
+npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git
+```
+
+### 3. Start the Server
+```bash
+claude-annotations-server start
+```
+
+### 4. Connect Claude Code
+In your project directory:
+```bash
+claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse
+```
+
+### 5. Start Using Annotations
+- Open the extension popup for detailed setup instructions
+- Start annotating your localhost projects!
+- Use Claude Code to automatically implement fixes
+
+## User Experience Flow
+
+1. **Extension Installation**: Install from Chrome Web Store
+2. **Setup Instructions**: Extension popup guides through terminal setup
+3. **Server Detection**: Extension automatically detects running server
+4. **Daily Usage**: Create annotations → Use Claude Code → Fixes implemented
+
+## Server Management
+
+```bash
+# Check server status
+claude-annotations-server status
+
+# Stop server
+claude-annotations-server stop
+
+# Restart server
+claude-annotations-server restart
+```
 
 ## Development
 
-See `/extension` and `/mcp-server` directories for development setup.
+See `/extension` directory for browser extension development. The server package will be published separately as `claude-annotations-server`.
 
 ## License
 

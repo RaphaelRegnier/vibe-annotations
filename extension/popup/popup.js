@@ -5,6 +5,7 @@ class AnnotationsPopup {
     this.annotations = [];
     this.themeManager = null;
     this.serverOnline = false;
+    this.currentScreen = null; // Track current screen state
     this.init();
   }
 
@@ -201,6 +202,12 @@ class AnnotationsPopup {
 
     // Initialize theme selector with current theme
     this.updateThemeSelector();
+
+    // Setup command copying
+    this.setupCommandCopying();
+
+    // Setup screen navigation
+    this.setupScreenNavigation();
   }
 
   async handleFocusedAnnotation() {
@@ -611,26 +618,47 @@ class AnnotationsPopup {
 
   async updateMCPStatus() {
     try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'checkMCPStatus'
+      // Check external server health via direct HTTP call
+      const response = await fetch('http://127.0.0.1:3846/health', {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000) // 2 second timeout
       });
       
       const statusIndicator = document.querySelector('.status-indicator');
       const statusText = document.querySelector('.status-text');
       const newAnnotationBtn = document.getElementById('new-annotation-btn');
       
-      this.serverOnline = response && response.success && response.status.connected;
+      this.serverOnline = response.ok;
       
       if (this.serverOnline) {
         statusIndicator.className = 'status-indicator online';
-        statusText.textContent = 'API Connected';
+        statusText.textContent = 'MCP';
         newAnnotationBtn.disabled = false;
         newAnnotationBtn.title = 'Create new annotation';
+        
+        // Update server status in setup screens
+        const serverStatusText = document.getElementById('server-status-text');
+        const serverRunningStatus = document.getElementById('server-running-status');
+        if (serverStatusText) {
+          serverStatusText.textContent = '✅ Running (:3846)';
+          serverStatusText.className = 'status-online';
+        }
+        if (serverRunningStatus) {
+          serverRunningStatus.textContent = '✅ Running (:3846)';
+          serverRunningStatus.className = 'status-online';
+        }
       } else {
         statusIndicator.className = 'status-indicator offline';
-        statusText.textContent = 'API Offline';
-        newAnnotationBtn.disabled = true; // Disable when server is offline
-        newAnnotationBtn.title = 'MCP server is offline - cannot create annotations';
+        statusText.textContent = 'MCP';
+        newAnnotationBtn.disabled = true;
+        newAnnotationBtn.title = 'Server not running - follow setup instructions';
+        
+        // Update server status in setup screens
+        const serverStatusText = document.getElementById('server-status-text');
+        if (serverStatusText) {
+          serverStatusText.textContent = '❌ Not detected';
+          serverStatusText.className = 'status-offline';
+        }
       }
       
       // Update existing annotation buttons based on server status
@@ -639,7 +667,7 @@ class AnnotationsPopup {
       // Update screen visibility when connection status changes
       this.updateScreenVisibility();
     } catch (error) {
-      console.error('Error checking MCP status:', error);
+      console.error('Error checking server status:', error);
       
       const statusIndicator = document.querySelector('.status-indicator');
       const statusText = document.querySelector('.status-text');
@@ -647,9 +675,16 @@ class AnnotationsPopup {
       
       this.serverOnline = false;
       statusIndicator.className = 'status-indicator offline';
-      statusText.textContent = 'API Error';
-      newAnnotationBtn.disabled = true; // Disable when server has errors
-      newAnnotationBtn.title = 'MCP server error - cannot create annotations';
+      statusText.textContent = 'MCP';
+      newAnnotationBtn.disabled = true;
+      newAnnotationBtn.title = 'Server not running - follow setup instructions';
+      
+      // Update server status in setup screens
+      const serverStatusText = document.getElementById('server-status-text');
+      if (serverStatusText) {
+        serverStatusText.textContent = '❌ Not detected';
+        serverStatusText.className = 'status-offline';
+      }
       
       // Update existing annotation buttons
       this.updateAnnotationButtons();
@@ -828,24 +863,143 @@ class AnnotationsPopup {
 
   updateScreenVisibility() {
     const welcomeScreen = document.getElementById('welcome-screen');
+    const setupCompleteScreen = document.getElementById('setup-complete-screen');
+    const howItWorksScreen = document.getElementById('how-it-works-screen');
     const readyScreen = document.getElementById('ready-screen');
     const annotationsList = document.getElementById('annotations-list');
 
     // Hide all screens first
     welcomeScreen.style.display = 'none';
+    setupCompleteScreen.style.display = 'none';
+    howItWorksScreen.style.display = 'none';
     readyScreen.style.display = 'none';
     annotationsList.style.display = 'none';
+
+    // Check if we're in how-it-works mode
+    if (this.currentScreen === 'how-it-works') {
+      howItWorksScreen.style.display = 'flex';
+      return;
+    }
 
     if (this.annotations.length > 0) {
       // Show annotations list when there are annotations
       annotationsList.style.display = 'flex';
     } else if (this.serverOnline) {
-      // Show ready screen when online with no annotations
-      readyScreen.style.display = 'flex';
+      // Show setup complete screen briefly, then ready screen
+      if (this.currentScreen === 'setup-complete') {
+        setupCompleteScreen.style.display = 'flex';
+      } else {
+        readyScreen.style.display = 'flex';
+      }
     } else {
-      // Show welcome screen when offline with no annotations
+      // Show welcome screen with setup instructions when server is offline
       welcomeScreen.style.display = 'flex';
     }
+  }
+
+  setupCommandCopying() {
+    // Individual copy buttons
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const command = btn.dataset.command;
+        if (command) {
+          try {
+            await navigator.clipboard.writeText(command);
+            this.showCopyFeedback(btn);
+          } catch (error) {
+            console.error('Failed to copy command:', error);
+          }
+        }
+      });
+    });
+
+    // Copy all commands button
+    const copyAllBtn = document.getElementById('copy-all-commands');
+    if (copyAllBtn) {
+      copyAllBtn.addEventListener('click', async () => {
+        const commands = [
+          'npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git',
+          'claude-annotations-server start',
+          'claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse'
+        ];
+        const allCommands = commands.join('\n');
+        try {
+          await navigator.clipboard.writeText(allCommands);
+          this.showCopyFeedback(copyAllBtn, 'All commands copied!');
+        } catch (error) {
+          console.error('Failed to copy all commands:', error);
+        }
+      });
+    }
+
+    // Check server button
+    const checkServerBtn = document.getElementById('check-server-btn');
+    if (checkServerBtn) {
+      checkServerBtn.addEventListener('click', async () => {
+        await this.updateMCPStatus();
+        if (this.serverOnline) {
+          // Show setup complete screen briefly
+          this.currentScreen = 'setup-complete';
+          this.updateScreenVisibility();
+          
+          // Auto-transition to ready screen after 3 seconds
+          setTimeout(() => {
+            this.currentScreen = null;
+            this.updateScreenVisibility();
+          }, 3000);
+        }
+      });
+    }
+  }
+
+  setupScreenNavigation() {
+    // How it works button
+    const howItWorksBtn = document.getElementById('how-it-works-btn');
+    if (howItWorksBtn) {
+      howItWorksBtn.addEventListener('click', () => {
+        this.currentScreen = 'how-it-works';
+        this.updateScreenVisibility();
+      });
+    }
+
+    // Back to setup button
+    const backToSetupBtn = document.getElementById('back-to-setup-btn');
+    if (backToSetupBtn) {
+      backToSetupBtn.addEventListener('click', () => {
+        this.currentScreen = null;
+        this.updateScreenVisibility();
+      });
+    }
+
+    // Server management buttons
+    const viewLogsBtn = document.getElementById('view-logs-btn');
+    const restartServerBtn = document.getElementById('restart-server-btn');
+
+    if (viewLogsBtn) {
+      viewLogsBtn.addEventListener('click', () => {
+        // For now, just show an alert with instructions
+        alert('To view server logs, run:\nclaude-annotations-server logs\n\nOr check your terminal where you started the server.');
+      });
+    }
+
+    if (restartServerBtn) {
+      restartServerBtn.addEventListener('click', () => {
+        // For now, just show an alert with instructions
+        alert('To restart the server, run:\nclaude-annotations-server restart\n\nThen click "Check Again" to verify.');
+      });
+    }
+  }
+
+  showCopyFeedback(button, message = 'Copied!') {
+    const originalContent = button.innerHTML;
+    button.innerHTML = `<iconify-icon icon="lucide:check" width="14" height="14"></iconify-icon>`;
+    button.style.color = '#10b981';
+    
+    setTimeout(() => {
+      button.innerHTML = originalContent;
+      button.style.color = '';
+    }, 1000);
   }
 }
 

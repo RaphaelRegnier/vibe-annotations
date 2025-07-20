@@ -25,16 +25,203 @@
     </header>
     
     <main class="main">
-      <!-- Welcome Screen (when offline) -->
+      <!-- Welcome Screen (when server not detected) -->
       <div id="welcome-screen" class="welcome-screen" style="display: none;">
         <div class="welcome-content">
           <div class="welcome-icon">
-            <iconify-icon icon="heroicons:server" width="32" height="32"></iconify-icon>
+            <iconify-icon icon="heroicons:wrench-screwdriver" width="32" height="32"></iconify-icon>
           </div>
-          <h2 class="welcome-title">Start the Claude Annotations MCP</h2>
+          <h2 class="welcome-title">One-time Setup Required</h2>
           <p class="welcome-text">
-            You're nearly there, start or <a href="#" target="_blank" class="highlight-link">download the latest MCP package</a> and double-click it to let Claude read and work with your annotations.
+            Claude Annotations needs a local server to work with Claude Code.
           </p>
+          
+          <div class="setup-commands">
+            <div class="command-section">
+              <h3>Run these commands in your terminal:</h3>
+              
+              <div class="command-item">
+                <span class="command-number">1.</span>
+                <div class="command-content">
+                  <div class="command-label">Install server:</div>
+                  <div class="command-code">
+                    <code>npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git</code>
+                    <button class="copy-btn" data-command="npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="command-item">
+                <span class="command-number">2.</span>
+                <div class="command-content">
+                  <div class="command-label">Start server:</div>
+                  <div class="command-code">
+                    <code>claude-annotations-server start</code>
+                    <button class="copy-btn" data-command="claude-annotations-server start" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="command-item">
+                <span class="command-number">3.</span>
+                <div class="command-content">
+                  <div class="command-label">Connect Claude Code:</div>
+                  <div class="command-code">
+                    <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code>
+                    <button class="copy-btn" data-command="claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="command-actions">
+              <button id="copy-all-commands" class="secondary-btn">
+                <iconify-icon icon="lucide:copy" width="16" height="16"></iconify-icon>
+                Copy All Commands
+              </button>
+              <button id="how-it-works-btn" class="text-btn">
+                <iconify-icon icon="lucide:help-circle" width="16" height="16"></iconify-icon>
+                How it Works
+              </button>
+            </div>
+          </div>
+          
+          <div class="server-status-section">
+            <div class="server-status-indicator">
+              <span class="status-label">Server Status:</span>
+              <span id="server-status-text" class="status-offline">❌ Not detected</span>
+            </div>
+            <button id="check-server-btn" class="secondary-btn">
+              <iconify-icon icon="lucide:refresh-cw" width="16" height="16"></iconify-icon>
+              Check Again
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setup Complete Screen -->
+      <div id="setup-complete-screen" class="setup-complete-screen" style="display: none;">
+        <div class="setup-complete-content">
+          <div class="setup-complete-icon">
+            <iconify-icon icon="heroicons:check-circle" width="32" height="32"></iconify-icon>
+          </div>
+          <h2 class="setup-complete-title">✅ Setup Complete!</h2>
+          <div class="server-info">
+            <div class="server-status-indicator">
+              <span class="status-label">Server Status:</span>
+              <span id="server-running-status" class="status-online">✅ Running (:3846)</span>
+            </div>
+          </div>
+          <p class="setup-complete-text">
+            Ready to annotate! Start using annotation tools in Claude Code.
+          </p>
+          <div class="server-actions">
+            <button id="view-logs-btn" class="secondary-btn">
+              <iconify-icon icon="lucide:file-text" width="16" height="16"></iconify-icon>
+              View Server Logs
+            </button>
+            <button id="restart-server-btn" class="secondary-btn">
+              <iconify-icon icon="lucide:refresh-cw" width="16" height="16"></iconify-icon>
+              Restart Server
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- How It Works Screen -->
+      <div id="how-it-works-screen" class="how-it-works-screen" style="display: none;">
+        <div class="how-it-works-content">
+          <div class="how-it-works-header">
+            <button id="back-to-setup-btn" class="icon-btn">
+              <iconify-icon icon="lucide:arrow-left" width="16" height="16"></iconify-icon>
+            </button>
+            <h2>How it Works</h2>
+          </div>
+          
+          <div class="how-it-works-body">
+            <div class="instruction-section">
+              <h3>One-Time Setup:</h3>
+              <ol class="instruction-list">
+                <li>
+                  <strong>Install the server globally:</strong>
+                  <div class="code-block">
+                    <code>npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git</code>
+                  </div>
+                </li>
+                <li>
+                  <strong>Start the server:</strong>
+                  <div class="code-block">
+                    <code>claude-annotations-server start</code>
+                  </div>
+                  <p class="instruction-note">The server will run in the background globally</p>
+                </li>
+                <li>
+                  <strong>Navigate to your project directory:</strong>
+                  <div class="code-block">
+                    <code>cd /path/to/your/project</code>
+                  </div>
+                  <p class="instruction-note">Go to the project where you want to use Claude Annotations</p>
+                </li>
+                <li>
+                  <strong>Connect Claude Code to the server:</strong>
+                  <div class="code-block">
+                    <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code>
+                  </div>
+                  <p class="instruction-note">Run this command in each project directory where you want annotations</p>
+                </li>
+                <li>
+                  <strong>Start Claude Code in this project:</strong>
+                  <div class="code-block">
+                    <code>claude-code</code>
+                  </div>
+                </li>
+              </ol>
+            </div>
+            
+            <div class="instruction-section">
+              <h3>Server Management:</h3>
+              <div class="server-management">
+                <div class="management-item">
+                  <strong>To stop the server:</strong>
+                  <div class="code-block">
+                    <code>claude-annotations-server stop</code>
+                  </div>
+                </div>
+                <div class="management-item">
+                  <strong>To restart the server:</strong>
+                  <div class="code-block">
+                    <code>claude-annotations-server restart</code>
+                  </div>
+                </div>
+                <div class="management-item">
+                  <strong>To check if server is running:</strong>
+                  <div class="code-block">
+                    <code>claude-annotations-server status</code>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="warning-note">
+                <iconify-icon icon="lucide:alert-triangle" width="16" height="16"></iconify-icon>
+                <span><strong>Important:</strong> If you stop the server, you must restart Claude Code to reconnect when you start it again.</span>
+              </div>
+            </div>
+            
+            <div class="instruction-section">
+              <h3>Working with Different Projects:</h3>
+              <ul class="instruction-list">
+                <li>The server runs once globally and serves all projects</li>
+                <li>For each new project, run <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code> in that project directory</li>
+                <li>Start Claude Code from the project directory to use annotations in that specific project</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 

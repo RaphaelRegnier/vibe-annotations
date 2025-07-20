@@ -1,0 +1,39 @@
+# Development files
+*.log
+.DS_Store
+node_modules/
+.env
+.env.local
+
+# Test files
+test/
+*.test.js
+*.spec.js
+
+# Build artifacts
+dist/
+build/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git files
+.git/
+.gitignore
+
+# CI/CD
+.github/
+.travis.yml
+.circleci/
+
+# Documentation source
+docs/
+*.md
+!README.md
+
+# Package files
+package-lock.json
+yarn.lock

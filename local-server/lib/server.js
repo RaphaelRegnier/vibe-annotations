@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -19,7 +20,8 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const PORT = 3846;
-const DATA_FILE = path.join(__dirname, '..', 'mcp-server', 'data', 'annotations.json');
+const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.claude-annotations');
+const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
 
 class LocalAnnotationsServer {
   constructor() {
@@ -37,6 +39,7 @@ class LocalAnnotationsServer {
     );
     this.isShuttingDown = false;
     this.handlersSetup = false;
+    this.transports = {}; // Track transport sessions
     
     this.setupExpress();
     this.setupMCP();
@@ -122,12 +125,13 @@ class LocalAnnotationsServer {
           return res.status(400).json({ error: 'annotations must be an array' });
         }
 
+        // Get current annotation count for logging
+        const currentAnnotations = await this.loadAnnotations();
+        console.log(`Sync request: replacing ${currentAnnotations.length} annotations with ${annotations.length} annotations`);
+
         // Replace all annotations with the new set
         await this.saveAnnotations(annotations);
-        // Only log significant sync operations
-        if (annotations.length > 0) {
-          console.log(`Synced ${annotations.length} annotations`);
-        }
+        console.log(`Sync completed: now have ${annotations.length} annotations`);
         res.json({ success: true, count: annotations.length });
       } catch (error) {
         console.error('Error syncing annotations:', error);
@@ -188,24 +192,77 @@ class LocalAnnotationsServer {
       }
     });
 
+    // SSE endpoint for MCP connection (proper MCP SSE transport)
+    this.app.get('/sse', async (req, res) => {
+      console.log('Received GET request to /sse (MCP SSE transport)');
+      
+      try {
+        const transport = new SSEServerTransport('/messages', res);
+        this.transports[transport.sessionId] = transport;
+        
+        // Clean up transport on connection close
+        res.on("close", () => {
+          console.log(`SSE connection closed for session ${transport.sessionId}`);
+          delete this.transports[transport.sessionId];
+        });
+        
+        // Create fresh server and connect to transport
+        const server = this.createMCPServer();
+        await server.connect(transport);
+        
+        console.log(`SSE transport connected with session ID: ${transport.sessionId}`);
+      } catch (error) {
+        console.error('Error setting up SSE transport:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to establish SSE connection' });
+        }
+      }
+    });
+
+    // Messages endpoint for SSE transport (handles incoming MCP messages)
+    this.app.post('/messages', async (req, res) => {
+      console.log('Received POST request to /messages');
+      
+      try {
+        const sessionId = req.query.sessionId;
+        const transport = this.transports[sessionId];
+        
+        if (!transport || !(transport instanceof SSEServerTransport)) {
+          console.error(`No SSE transport found for session ID: ${sessionId}`);
+          res.status(400).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Bad Request: No valid SSE transport found for session ID',
+            },
+            id: null,
+          });
+          return;
+        }
+        
+        // Handle the message using the transport
+        await transport.handlePostMessage(req, res, req.body);
+        console.log(`Message handled for session ${sessionId}`);
+      } catch (error) {
+        console.error('Error handling message:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32603,
+              message: 'Internal server error',
+            },
+            id: null,
+          });
+        }
+      }
+    });
+
     // MCP HTTP endpoint - create fresh instances per request
     this.app.use('/mcp', async (req, res) => {
       try {
         // Create fresh server and transport for each request to avoid "already initialized" error
-        const server = new Server(
-          {
-            name: 'claude-annotations',
-            version: '0.1.0',
-          },
-          {
-            capabilities: {
-              tools: {},
-            },
-          }
-        );
-        
-        // Set up handlers for this instance
-        this.setupMCPHandlersForServer(server);
+        const server = this.createMCPServer();
         
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined, // Stateless mode
@@ -227,6 +284,26 @@ class LocalAnnotationsServer {
 
   setupMCP() {
     // Original server setup - now unused
+  }
+
+  // Helper method to create fresh MCP server instances
+  createMCPServer() {
+    const server = new Server(
+      {
+        name: 'claude-annotations',
+        version: '0.1.0',
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      }
+    );
+    
+    // Set up handlers for this instance
+    this.setupMCPHandlersForServer(server);
+    
+    return server;
   }
 
   setupMCPHandlersForServer(server) {
@@ -407,6 +484,7 @@ class LocalAnnotationsServer {
   async saveAnnotations(annotations) {
     try {
       await this.ensureDataFile();
+      console.log(`Saving ${annotations.length} annotations to disk`);
       const jsonData = JSON.stringify(annotations, null, 2);
       
       // Atomic write: write to temp file first, then rename
@@ -416,6 +494,7 @@ class LocalAnnotationsServer {
       // Rename temp file to actual file (atomic operation)
       const fs = await import('fs');
       await fs.promises.rename(tempFile, DATA_FILE);
+      console.log(`Successfully saved ${annotations.length} annotations`);
     } catch (error) {
       console.error('Error saving annotations:', error);
       throw error;
@@ -425,10 +504,22 @@ class LocalAnnotationsServer {
   async ensureDataFile() {
     const dataDir = path.dirname(DATA_FILE);
     if (!existsSync(dataDir)) {
+      console.log(`Creating data directory: ${dataDir}`);
       await mkdir(dataDir, { recursive: true });
     }
+    
     if (!existsSync(DATA_FILE)) {
+      console.log(`Creating new annotation file: ${DATA_FILE}`);
       await writeFile(DATA_FILE, JSON.stringify([], null, 2));
+    } else {
+      // File exists - log current annotation count for verification
+      try {
+        const existingData = await readFile(DATA_FILE, 'utf8');
+        const annotations = JSON.parse(existingData || '[]');
+        console.log(`Annotation file exists with ${annotations.length} annotations`);
+      } catch (error) {
+        console.warn(`Warning: Could not read existing annotation file: ${error.message}`);
+      }
     }
   }
 
@@ -575,11 +666,13 @@ class LocalAnnotationsServer {
     this.setupProcessHandlers();
     
     this.server = this.app.listen(PORT, () => {
-      console.log(`Local server running on http://localhost:${PORT}`);
-      console.log(`HTTP API: http://localhost:${PORT}/api/annotations`);
-      console.log(`MCP Endpoint: http://localhost:${PORT}/mcp`);
-      console.log(`Health: http://localhost:${PORT}/health`);
-      console.log('MCP server ready to handle requests');
+      console.log(`Claude Annotations server running on http://127.0.0.1:${PORT}`);
+      console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
+      console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);
+      console.log(`MCP Endpoint: http://127.0.0.1:${PORT}/mcp`);
+      console.log(`Health: http://127.0.0.1:${PORT}/health`);
+      console.log(`Data: ${DATA_FILE}`);
+      console.log('\nServer ready to handle requests');
     });
   }
 }
