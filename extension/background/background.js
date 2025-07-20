@@ -581,14 +581,14 @@ class ClaudeAnnotationsBackground {
         await this.updateAllBadges();
       }
       
-      // If server is online, sync annotations to detect external changes
+      // If server is online, smart sync annotations (bidirectional with conflict resolution)
       if (this.apiConnected) {
-        await this.syncAnnotationsFromServer();
+        await this.smartSyncAnnotations();
       }
     }, 10000);
   }
 
-  async syncAnnotationsFromServer() {
+  async smartSyncAnnotations() {
     try {
       // Get current local annotations
       const localResult = await chrome.storage.local.get(['annotations', 'lastServerSync']);
@@ -598,11 +598,14 @@ class ClaudeAnnotationsBackground {
       // Get server annotations
       const response = await fetch(`${this.apiServerUrl}/api/annotations`);
       if (!response.ok) {
+        console.log('Sync skipped: server error');
         return; // Skip sync if server error
       }
       
       const serverResult = await response.json();
       const serverAnnotations = serverResult.annotations || [];
+      
+      console.log(`Sync check - Local: ${localAnnotations.length}, Server: ${serverAnnotations.length}`);
       
       // Compare annotation counts and IDs
       const localIds = new Set(localAnnotations.map(a => a.id));
@@ -615,20 +618,50 @@ class ClaudeAnnotationsBackground {
         !Array.from(serverIds).every(id => localIds.has(id));
       
       if (annotationsChanged) {
-        
-        // Update local storage with server state
-        await chrome.storage.local.set({ 
-          annotations: serverAnnotations,
-          lastServerSync: Date.now()
-        });
-        
-        // Update badges for all localhost tabs
-        await this.updateAllBadges();
-        
+        // Smart sync logic: determine direction based on content
+        if (localAnnotations.length > serverAnnotations.length) {
+          // Local has more annotations - sync TO server (preserve local data)
+          console.log(`Syncing TO server: local has ${localAnnotations.length} annotations, server has ${serverAnnotations.length}`);
+          await this.syncAnnotationsToAPI(localAnnotations);
+          
+          // Update local sync timestamp
+          await chrome.storage.local.set({ 
+            lastServerSync: Date.now()
+          });
+        } else if (serverAnnotations.length > localAnnotations.length) {
+          // Server has more annotations - sync FROM server
+          console.log(`Syncing FROM server: server has ${serverAnnotations.length} annotations, local has ${localAnnotations.length}`);
+          
+          await chrome.storage.local.set({ 
+            annotations: serverAnnotations,
+            lastServerSync: Date.now()
+          });
+          
+          // Update badges for all localhost tabs
+          await this.updateAllBadges();
+        } else {
+          // Same count but different content - use most recent based on timestamps
+          const localNewest = Math.max(...localAnnotations.map(a => new Date(a.updated_at || a.created_at || 0).getTime()), 0);
+          const serverNewest = Math.max(...serverAnnotations.map(a => new Date(a.updated_at || a.created_at || 0).getTime()), 0);
+          
+          if (localNewest >= serverNewest) {
+            console.log('Syncing TO server: local annotations are more recent');
+            await this.syncAnnotationsToAPI(localAnnotations);
+          } else {
+            console.log('Syncing FROM server: server annotations are more recent');
+            await chrome.storage.local.set({ 
+              annotations: serverAnnotations,
+              lastServerSync: Date.now()
+            });
+            await this.updateAllBadges();
+          }
+        }
+      } else {
+        console.log('Annotations are in sync');
       }
       
     } catch (error) {
-      console.error('Error syncing annotations from server:', error);
+      console.error('Error during smart sync:', error);
     }
   }
 
