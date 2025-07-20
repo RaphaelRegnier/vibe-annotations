@@ -329,6 +329,13 @@ class ClaudeAnnotationsBackground {
       
       await chrome.storage.local.set({ annotations: filteredAnnotations });
       
+      // Also delete from API server
+      try {
+        await this.deleteAnnotationFromAPI(id);
+      } catch (apiError) {
+        console.warn('Failed to delete from API server:', apiError.message);
+        // Don't throw - local deletion succeeded
+      }
       
       // Find the deleted annotation's URL to update badge
       const deletedAnnotation = annotations.find(a => a.id === id);
@@ -341,6 +348,32 @@ class ClaudeAnnotationsBackground {
       
     } catch (error) {
       console.error('Error deleting annotation:', error);
+      throw error;
+    }
+  }
+
+  async deleteAnnotationFromAPI(id) {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/annotations/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API delete error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete annotation from API');
+      }
+      
+      console.log('[Background] Annotation deleted from API:', id);
+    } catch (error) {
+      console.error('[Background] Error deleting annotation from API:', error);
       throw error;
     }
   }
@@ -618,44 +651,25 @@ class ClaudeAnnotationsBackground {
         !Array.from(serverIds).every(id => localIds.has(id));
       
       if (annotationsChanged) {
-        // Smart sync logic: determine direction based on content
-        if (localAnnotations.length > serverAnnotations.length) {
-          // Local has more annotations - sync TO server (preserve local data)
-          console.log(`Syncing TO server: local has ${localAnnotations.length} annotations, server has ${serverAnnotations.length}`);
-          await this.syncAnnotationsToAPI(localAnnotations);
-          
-          // Update local sync timestamp
-          await chrome.storage.local.set({ 
-            lastServerSync: Date.now()
-          });
-        } else if (serverAnnotations.length > localAnnotations.length) {
-          // Server has more annotations - sync FROM server
-          console.log(`Syncing FROM server: server has ${serverAnnotations.length} annotations, local has ${localAnnotations.length}`);
-          
-          await chrome.storage.local.set({ 
-            annotations: serverAnnotations,
-            lastServerSync: Date.now()
-          });
-          
-          // Update badges for all localhost tabs
-          await this.updateAllBadges();
-        } else {
-          // Same count but different content - use most recent based on timestamps
-          const localNewest = Math.max(...localAnnotations.map(a => new Date(a.updated_at || a.created_at || 0).getTime()), 0);
-          const serverNewest = Math.max(...serverAnnotations.map(a => new Date(a.updated_at || a.created_at || 0).getTime()), 0);
-          
-          if (localNewest >= serverNewest) {
-            console.log('Syncing TO server: local annotations are more recent');
-            await this.syncAnnotationsToAPI(localAnnotations);
-          } else {
-            console.log('Syncing FROM server: server annotations are more recent');
-            await chrome.storage.local.set({ 
-              annotations: serverAnnotations,
-              lastServerSync: Date.now()
-            });
-            await this.updateAllBadges();
-          }
-        }
+        // Always trust the server as the source of truth
+        // This ensures deletions made by Claude (via MCP) are properly synced
+        console.log(`Syncing FROM server: ${serverAnnotations.length} annotations (local had ${localAnnotations.length})`);
+        
+        await chrome.storage.local.set({ 
+          annotations: serverAnnotations,
+          lastServerSync: Date.now()
+        });
+        
+        // Update badges for all localhost tabs
+        await this.updateAllBadges();
+        
+        // Notify any open popups to refresh their view
+        chrome.runtime.sendMessage({ 
+          action: 'annotationsUpdated',
+          annotations: serverAnnotations 
+        }).catch(() => {
+          // Ignore errors if no listeners
+        });
       } else {
         console.log('Annotations are in sync');
       }
