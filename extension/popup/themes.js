@@ -22,7 +22,7 @@ class ThemeManager {
         surface: '#0d0f1c',
         'surface-1': '#13162a',
         'text-primary': '#fcfcfd',
-        'text-secondary': '#697586',
+        'text-secondary': '#9AA4B2',
         outline: '#ffffff19',
         'outline-highlight': '#ffffff32',
         accent: '#d97757',

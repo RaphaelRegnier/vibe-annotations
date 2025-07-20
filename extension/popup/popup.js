@@ -161,6 +161,17 @@ class AnnotationsPopup {
   }
 
   setupEventListeners() {
+    // Listen for annotation updates from background script
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'annotationsUpdated') {
+        // Reload annotations and re-render if they've changed
+        this.loadAnnotations().then(() => {
+          this.updateScreenVisibility();
+          this.render();
+        });
+      }
+    });
+
     // New annotation button
     const newAnnotationBtn = document.getElementById('new-annotation-btn');
     newAnnotationBtn.addEventListener('click', async () => {
@@ -202,6 +213,14 @@ class AnnotationsPopup {
 
     // Initialize theme selector with current theme
     this.updateThemeSelector();
+
+    // Refresh status button
+    const refreshStatusBtn = document.getElementById('refresh-status-btn');
+    if (refreshStatusBtn) {
+      refreshStatusBtn.addEventListener('click', async () => {
+        await this.updateMCPStatus();
+      });
+    }
 
     // Setup command copying
     this.setupCommandCopying();
@@ -632,7 +651,7 @@ class AnnotationsPopup {
       
       if (this.serverOnline) {
         statusIndicator.className = 'status-indicator online';
-        statusText.textContent = 'MCP';
+        statusText.textContent = 'API online';
         newAnnotationBtn.disabled = false;
         newAnnotationBtn.title = 'Create new annotation';
         
@@ -649,7 +668,7 @@ class AnnotationsPopup {
         }
       } else {
         statusIndicator.className = 'status-indicator offline';
-        statusText.textContent = 'MCP';
+        statusText.textContent = 'API offline';
         newAnnotationBtn.disabled = true;
         newAnnotationBtn.title = 'Server not running - follow setup instructions';
         
@@ -675,7 +694,7 @@ class AnnotationsPopup {
       
       this.serverOnline = false;
       statusIndicator.className = 'status-indicator offline';
-      statusText.textContent = 'MCP';
+      statusText.textContent = 'API offline';
       newAnnotationBtn.disabled = true;
       newAnnotationBtn.title = 'Server not running - follow setup instructions';
       
@@ -863,6 +882,7 @@ class AnnotationsPopup {
 
   updateScreenVisibility() {
     const welcomeScreen = document.getElementById('welcome-screen');
+    const getStartedScreen = document.getElementById('get-started-screen');
     const setupCompleteScreen = document.getElementById('setup-complete-screen');
     const howItWorksScreen = document.getElementById('how-it-works-screen');
     const readyScreen = document.getElementById('ready-screen');
@@ -870,12 +890,18 @@ class AnnotationsPopup {
 
     // Hide all screens first
     welcomeScreen.style.display = 'none';
+    getStartedScreen.style.display = 'none';
     setupCompleteScreen.style.display = 'none';
     howItWorksScreen.style.display = 'none';
     readyScreen.style.display = 'none';
     annotationsList.style.display = 'none';
 
-    // Check if we're in how-it-works mode
+    // Check if we're in specific screens
+    if (this.currentScreen === 'get-started') {
+      getStartedScreen.style.display = 'flex';
+      return;
+    }
+    
     if (this.currentScreen === 'how-it-works') {
       howItWorksScreen.style.display = 'flex';
       return;
@@ -892,7 +918,7 @@ class AnnotationsPopup {
         readyScreen.style.display = 'flex';
       }
     } else {
-      // Show welcome screen with setup instructions when server is offline
+      // Show welcome screen when server is offline
       welcomeScreen.style.display = 'flex';
     }
   }
@@ -954,6 +980,33 @@ class AnnotationsPopup {
   }
 
   setupScreenNavigation() {
+    // Get started button in welcome screen
+    const getStartedBtn = document.getElementById('get-started-btn');
+    if (getStartedBtn) {
+      getStartedBtn.addEventListener('click', () => {
+        this.currentScreen = 'get-started';
+        this.updateScreenVisibility();
+      });
+    }
+
+    // Get started header button
+    const getStartedHeaderBtn = document.getElementById('get-started-header-btn');
+    if (getStartedHeaderBtn) {
+      getStartedHeaderBtn.addEventListener('click', () => {
+        this.currentScreen = 'get-started';
+        this.updateScreenVisibility();
+      });
+    }
+
+    // Back to welcome button
+    const backToWelcomeBtn = document.getElementById('back-to-welcome-btn');
+    if (backToWelcomeBtn) {
+      backToWelcomeBtn.addEventListener('click', () => {
+        this.currentScreen = null;
+        this.updateScreenVisibility();
+      });
+    }
+
     // How it works button
     const howItWorksBtn = document.getElementById('how-it-works-btn');
     if (howItWorksBtn) {
