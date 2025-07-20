@@ -40,6 +40,7 @@ class LocalAnnotationsServer {
     this.isShuttingDown = false;
     this.handlersSetup = false;
     this.transports = {}; // Track transport sessions
+    this.connections = new Set(); // Track HTTP connections
     
     this.setupExpress();
     this.setupMCP();
@@ -203,6 +204,26 @@ class LocalAnnotationsServer {
         // Clean up transport on connection close
         res.on("close", () => {
           console.log(`SSE connection closed for session ${transport.sessionId}`);
+          try {
+            if (transport && typeof transport.close === 'function') {
+              transport.close();
+            }
+          } catch (error) {
+            console.warn(`Error closing transport ${transport.sessionId}:`, error.message);
+          }
+          delete this.transports[transport.sessionId];
+        });
+        
+        // Handle connection errors
+        res.on("error", (error) => {
+          console.warn(`SSE connection error for session ${transport.sessionId}:`, error.message);
+          try {
+            if (transport && typeof transport.close === 'function') {
+              transport.close();
+            }
+          } catch (closeError) {
+            console.warn(`Error closing transport ${transport.sessionId}:`, closeError.message);
+          }
           delete this.transports[transport.sessionId];
         });
         
@@ -631,32 +652,90 @@ class LocalAnnotationsServer {
     if (this.handlersSetup) return;
     this.handlersSetup = true;
     
-    const forceExit = () => {
+    const gracefulShutdown = async (signal) => {
       if (this.isShuttingDown) return;
       this.isShuttingDown = true;
       
-      console.log('\nShutting down gracefully...');
+      console.log(`\nReceived ${signal}. Shutting down gracefully...`);
       
-      // Force exit after 2 seconds if graceful shutdown doesn't work
+      // Set a force exit timer as a last resort
       const forceExitTimer = setTimeout(() => {
         console.log('Force exiting...');
         process.exit(1);
-      }, 2000);
+      }, 5000); // Increased to 5 seconds
       
-      if (this.server) {
-        this.server.close(() => {
-          clearTimeout(forceExitTimer);
-          console.log('Server closed');
-          process.exit(0);
+      try {
+        // Step 1: Close all MCP transport sessions
+        console.log('Closing MCP transport sessions...');
+        const transportPromises = Object.entries(this.transports).map(([sessionId, transport]) => {
+          return new Promise((resolve) => {
+            try {
+              if (transport && typeof transport.close === 'function') {
+                transport.close();
+              }
+              delete this.transports[sessionId];
+              resolve();
+            } catch (error) {
+              console.warn(`Error closing transport ${sessionId}:`, error.message);
+              resolve();
+            }
+          });
         });
-      } else {
+        
+        await Promise.all(transportPromises);
+        console.log('MCP transports closed');
+        
+        // Step 2: Close all HTTP connections
+        console.log('Closing HTTP connections...');
+        this.connections.forEach(connection => {
+          try {
+            connection.destroy();
+          } catch (error) {
+            console.warn('Error destroying connection:', error.message);
+          }
+        });
+        this.connections.clear();
+        
+        // Step 3: Close the HTTP server
+        if (this.server) {
+          console.log('Closing HTTP server...');
+          await new Promise((resolve) => {
+            this.server.close((error) => {
+              if (error) {
+                console.warn('Error closing server:', error.message);
+              }
+              resolve();
+            });
+          });
+          console.log('HTTP server closed');
+        }
+        
+        // Clean shutdown completed
         clearTimeout(forceExitTimer);
+        console.log('Graceful shutdown completed');
         process.exit(0);
+        
+      } catch (error) {
+        console.error('Error during graceful shutdown:', error);
+        clearTimeout(forceExitTimer);
+        process.exit(1);
       }
     };
 
-    process.on('SIGINT', forceExit);
-    process.on('SIGTERM', forceExit);
+    // Handle shutdown signals
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught exception:', error);
+      gracefulShutdown('uncaughtException');
+    });
+    
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled rejection at:', promise, 'reason:', reason);
+      gracefulShutdown('unhandledRejection');
+    });
   }
 
   async start() {
@@ -673,6 +752,19 @@ class LocalAnnotationsServer {
       console.log(`Health: http://127.0.0.1:${PORT}/health`);
       console.log(`Data: ${DATA_FILE}`);
       console.log('\nServer ready to handle requests');
+    });
+    
+    // Track connections for graceful shutdown
+    this.server.on('connection', (connection) => {
+      this.connections.add(connection);
+      
+      connection.on('close', () => {
+        this.connections.delete(connection);
+      });
+      
+      connection.on('error', () => {
+        this.connections.delete(connection);
+      });
     });
   }
 }
