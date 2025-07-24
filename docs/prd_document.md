@@ -49,14 +49,12 @@ claude-annotations/
 │   └── assets/
 │       ├── icons/               # Extension icons
 │       └── images/              # UI assets
-└── mcp-server/
+└── local-server/
     ├── package.json             # Node.js dependencies  
-    ├── src/
-    │   ├── index.js            # Main MCP server entry
-    │   ├── tools/              # MCP tool implementations
-    │   ├── storage/            # JSON file operations
-    │   └── utils/              # Validation and helpers
-    └── data/
+    ├── lib/
+    │   └── server.js           # Main HTTP + MCP server entry
+    └── bin/
+        └── cli.js              # CLI interface
         └── annotations.json     # Shared data store
 ```
 

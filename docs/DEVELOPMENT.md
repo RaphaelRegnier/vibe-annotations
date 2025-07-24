@@ -8,10 +8,10 @@ cd extension
 # Open chrome://extensions/, enable Developer mode, click "Load unpacked"
 ```
 
-## MCP Server Development  
+## Local Server Development  
 
 ```bash
-cd mcp-server
+cd local-server
 npm run dev
 ```
 
