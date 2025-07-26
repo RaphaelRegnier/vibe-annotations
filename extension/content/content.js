@@ -418,6 +418,9 @@ class ClaudeAnnotations {
       width: window.innerWidth,
       height: window.innerHeight
     };
+
+    // Get source mapping information
+    const sourceMapping = this.generateSourceMapping(element);
     
     return {
       selector,
@@ -426,9 +429,443 @@ class ClaudeAnnotations {
       text: element.textContent.substring(0, 100).trim(),
       styles: relevantStyles,
       position,
-      viewport
+      viewport,
+      source_mapping: sourceMapping
     };
   }
+
+  generateSourceMapping(element) {
+    try {
+      // Get source mapping information
+      const sourceInfo = this.extractSourceInfo(element);
+      
+      // Get route-based project area
+      const projectArea = this.getProjectAreaFromURL();
+      const urlPath = new URL(window.location.href).pathname;
+      
+      // Always generate context hints for semantic understanding
+      const contextHints = this.generateContextHints(element);
+      
+      return {
+        source_file_path: sourceInfo.filePath || null,
+        source_line_range: sourceInfo.lineRange || null,
+        project_area: projectArea,
+        url_path: urlPath,
+        source_map_available: sourceInfo.hasSourceMap || false,
+        context_hints: contextHints
+      };
+      
+    } catch (error) {
+      return {
+        source_file_path: null,
+        source_line_range: null,
+        project_area: 'unknown',
+        url_path: window.location.pathname || '/',
+        source_map_available: false,
+        context_hints: this.generateContextHints(element)
+      };
+    }
+  }
+
+  generateContextHints(element) {
+    const hints = [];
+    
+    // 1. Semantic hierarchy - what type of UI section is this?
+    const semanticRole = this.inferSemanticRole(element);
+    if (semanticRole) {
+      hints.push(`UI section: ${semanticRole}`);
+    }
+    
+    // 2. Component depth and nesting level
+    const componentDepth = this.getComponentDepth(element);
+    if (componentDepth > 1) {
+      hints.push(`Nested ${componentDepth} levels deep in component hierarchy`);
+    }
+    
+    // 3. Framework-specific patterns (React/Next.js bonus detection)
+    const frameworkHints = this.detectFrameworkPatterns(element);
+    if (frameworkHints.length > 0) {
+      hints.push(...frameworkHints);
+    }
+    
+    // 4. Likely file location based on semantic role and URL
+    const fileLocationHint = this.inferFileLocation(element, semanticRole);
+    if (fileLocationHint) {
+      hints.push(`Likely file: ${fileLocationHint}`);
+    }
+    
+    return hints.length > 0 ? hints : null;
+  }
+
+  inferSemanticRole(element) {
+    // Determine what type of UI section this element represents
+    
+    // Check element itself first
+    if (element.closest('nav, [role="navigation"]')) return 'navigation';
+    if (element.closest('header, [role="banner"]')) return 'header';
+    if (element.closest('footer, [role="contentinfo"]')) return 'footer';
+    if (element.closest('aside, [role="complementary"]')) return 'sidebar';
+    if (element.closest('main, [role="main"]')) return 'main-content';
+    if (element.closest('form, [role="form"]')) return 'form';
+    
+    // Check for modal/dialog patterns
+    if (element.closest('[role="dialog"], .modal, .popup, .overlay')) return 'modal';
+    
+    // Check for card/item patterns
+    if (element.closest('.card, .item, .post, .article, [role="article"]')) return 'content-card';
+    
+    // Check for list item patterns
+    if (element.closest('li, [role="listitem"], .list-item')) return 'list-item';
+    
+    // Check for button/interactive patterns
+    if (element.matches('button, [role="button"], .btn, .button')) return 'button';
+    if (element.matches('input, select, textarea, [role="textbox"]')) return 'form-input';
+    
+    // Check for table patterns
+    if (element.closest('table, [role="table"], [role="grid"]')) return 'table';
+    
+    return null;
+  }
+  
+  getComponentDepth(element) {
+    // Count how many component-like containers this element is nested within
+    let depth = 0;
+    let current = element.parentElement;
+    const maxDepth = 10;
+    
+    while (current && depth < maxDepth && current.tagName !== 'BODY') {
+      // Look for component-like patterns
+      const classes = Array.from(current.classList);
+      const hasComponentPattern = classes.some(cls => 
+        /^[A-Z][a-zA-Z0-9]*/.test(cls) || // PascalCase
+        cls.includes('component') ||
+        cls.includes('container') ||
+        cls.includes('wrapper')
+      );
+      
+      if (hasComponentPattern) {
+        depth++;
+      }
+      
+      current = current.parentElement;
+    }
+    
+    return depth;
+  }
+  
+  detectFrameworkPatterns(element) {
+    const patterns = [];
+    
+    // Look for React-specific patterns
+    if (element.hasAttribute('data-testid')) {
+      patterns.push(`React test ID: ${element.getAttribute('data-testid')}`);
+    }
+    
+    // Look for Next.js specific patterns
+    if (element.closest('[data-nextjs-scroll-focus-boundary]') ||
+        document.querySelector('script[src*="_next"]')) {
+      patterns.push('Next.js app detected');
+    }
+    
+    // Look for CSS-in-JS patterns (styled-components, emotion, etc.)
+    const classes = Array.from(element.classList);
+    const hasCSSInJS = classes.some(cls => 
+      /^[a-z0-9]{6,}$/.test(cls) || // Hash-like classes
+      cls.startsWith('css-') ||
+      cls.startsWith('emotion-')
+    );
+    if (hasCSSInJS) {
+      patterns.push('CSS-in-JS styling detected');
+    }
+    
+    return patterns;
+  }
+  
+  inferFileLocation(element, semanticRole) {
+    const pathname = window.location.pathname;
+    const segments = pathname.split('/').filter(s => s);
+    
+    // For Next.js App Router patterns
+    if (segments.length > 0) {
+      const lastSegment = segments[segments.length - 1];
+      
+      // Common Next.js file patterns
+      if (semanticRole === 'header') return `components/Header.tsx or app/layout.tsx`;
+      if (semanticRole === 'footer') return `components/Footer.tsx or app/layout.tsx`;
+      if (semanticRole === 'navigation') return `components/Navigation.tsx`;
+      if (semanticRole === 'main-content') return `app/${segments.join('/')}/page.tsx`;
+      if (semanticRole === 'modal') return `components/Modal.tsx or components/dialogs/`;
+      
+      // Page-specific components
+      if (lastSegment) {
+        return `app/${segments.join('/')}/page.tsx or components/${this.capitalize(lastSegment)}Page.tsx`;
+      }
+    }
+    
+    // Fallback for root pages
+    if (semanticRole === 'main-content') return 'app/page.tsx or pages/index.tsx';
+    
+    return null;
+  }
+  
+  capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  getProjectAreaFromURL() {
+    const url = new URL(window.location.href);
+    const pathname = url.pathname;
+    
+    // Remove leading slash and split path segments
+    const segments = pathname.substring(1).split('/').filter(seg => seg.length > 0);
+    
+    // If no segments, it's the home/root area
+    if (segments.length === 0) {
+      return 'home';
+    }
+    
+    // Use the first segment as the primary project area
+    const primaryArea = segments[0].toLowerCase();
+    
+    // Map common patterns to normalized areas
+    const areaMap = {
+      // Admin/Dashboard areas
+      'admin': 'admin',
+      'dashboard': 'dashboard',
+      'control-panel': 'admin',
+      'cp': 'admin',
+      
+      // User areas
+      'users': 'users',
+      'user': 'users',
+      'profile': 'users',
+      'profiles': 'users',
+      'account': 'users',
+      'accounts': 'users',
+      
+      // Product areas
+      'products': 'products',
+      'product': 'products',
+      'items': 'products',
+      'item': 'products',
+      'catalog': 'products',
+      
+      // Order/Commerce areas
+      'orders': 'orders',
+      'order': 'orders',
+      'checkout': 'orders',
+      'cart': 'orders',
+      'shopping': 'orders',
+      
+      // Content areas
+      'posts': 'content',
+      'post': 'content',
+      'articles': 'content',
+      'article': 'content',
+      'blog': 'content',
+      'news': 'content',
+      
+      // Settings areas
+      'settings': 'settings',
+      'config': 'settings',
+      'configuration': 'settings',
+      'preferences': 'settings',
+      
+      // Auth areas
+      'login': 'auth',
+      'signin': 'auth',
+      'signup': 'auth',
+      'register': 'auth',
+      'auth': 'auth',
+      'authentication': 'auth'
+    };
+    
+    // Return mapped area or use the primary segment as-is
+    return areaMap[primaryArea] || primaryArea;
+  }
+
+  extractSourceInfo(element) {
+    let sourceInfo = {
+      filePath: null,
+      lineRange: null,
+      hasSourceMap: false
+    };
+
+    // Try React fiber detection first (most reliable for React/Next.js)
+    try {
+      const reactInfo = this.getReactFiberInfo(element);
+      if (reactInfo) {
+        sourceInfo = { ...sourceInfo, ...reactInfo };
+      }
+    } catch (error) {
+      // Continue with fallback methods
+    }
+
+    // Try data attribute detection
+    if (!sourceInfo.filePath) {
+      try {
+        const dataInfo = this.getDataAttributeInfo(element);
+        if (dataInfo) {
+          sourceInfo = { ...sourceInfo, ...dataInfo };
+        }
+      } catch (error) {
+        // Continue with empty source info
+      }
+    }
+
+    return sourceInfo;
+  }
+
+
+  getReactFiberInfo(element) {
+    // React fiber detection for source file info only (works in development mode)
+    let current = element;
+    const maxDepth = 10;
+    let depth = 0;
+
+    while (current && depth < maxDepth) {
+      // Check for React fiber keys
+      const allKeys = Object.keys(current);
+      const fiberKey = allKeys.find(key => 
+        key.startsWith('__reactFiber') || 
+        key.startsWith('__reactInternalInstance') ||
+        key.startsWith('_reactInternalFiber')
+      );
+      
+      if (fiberKey) {
+        const fiber = current[fiberKey];
+        
+        if (fiber) {
+          // Walk up the fiber tree to find source info
+          let fiberNode = fiber;
+          let fiberDepth = 0;
+          const maxFiberDepth = 20;
+          
+          while (fiberNode && fiberDepth < maxFiberDepth) {
+            // Check for source information in various locations
+            const source = fiberNode._debugSource || 
+                          fiberNode._source ||
+                          fiberNode.elementType?._source ||
+                          fiberNode.type?._source;
+            
+            if (source && source.fileName) {
+              return {
+                filePath: this.normalizeSourcePath(source.fileName),
+                lineRange: source.lineNumber ? `${source.lineNumber}-${source.lineNumber + 10}` : null,
+                hasSourceMap: true
+              };
+            }
+
+            // Try alternate location for Next.js
+            if (fiberNode._debugOwner) {
+              const ownerSource = fiberNode._debugOwner._debugSource || 
+                                 fiberNode._debugOwner._source;
+              if (ownerSource && ownerSource.fileName) {
+                return {
+                  filePath: this.normalizeSourcePath(ownerSource.fileName),
+                  lineRange: ownerSource.lineNumber ? `${ownerSource.lineNumber}-${ownerSource.lineNumber + 10}` : null,
+                  hasSourceMap: true
+                };
+              }
+            }
+
+            // Move up the fiber tree
+            fiberNode = fiberNode.return || fiberNode._debugOwner;
+            fiberDepth++;
+          }
+        }
+      }
+
+      // Move up the DOM tree
+      current = current.parentElement;
+      depth++;
+    }
+
+    return null;
+  }
+
+  getDataAttributeInfo(element) {
+    // Look for data attributes that might contain source info
+    let current = element;
+    const maxDepth = 5;
+    let depth = 0;
+
+    while (current && depth < maxDepth) {
+      // Check for common data attributes used by build tools
+      const dataFile = current.getAttribute('data-source-file') || 
+                      current.getAttribute('data-component-file') ||
+                      current.getAttribute('data-file');
+      
+      const dataLine = current.getAttribute('data-source-line') || 
+                      current.getAttribute('data-line');
+      
+      if (dataFile) {
+        return {
+          filePath: this.normalizeSourcePath(dataFile),
+          lineRange: dataLine ? `${dataLine}-${parseInt(dataLine) + 10}` : null,
+          hasSourceMap: true
+        };
+      }
+
+      // Check for Next.js specific attributes
+      const nextDataPath = current.getAttribute('data-nextjs-path');
+      if (nextDataPath) {
+        return {
+          filePath: this.normalizeSourcePath(nextDataPath),
+          lineRange: null,
+          hasSourceMap: true
+        };
+      }
+
+      current = current.parentElement;
+      depth++;
+    }
+
+    return null;
+  }
+
+
+  normalizeSourcePath(filePath) {
+    // Remove common prefixes and normalize path
+    let normalized = filePath
+      // Remove Turbopack prefixes
+      .replace(/^\[project\]\//, '')
+      .replace(/^\[turbopack\]\//, '')
+      .replace(/^\[next\]\//, '')
+      // Next.js App Router patterns (preserve full path for clarity)
+      .replace(/^.*\/(app\/.*?)$/, '$1')
+      // React/SPA patterns
+      .replace(/^.*\/src\//, 'src/')
+      .replace(/^.*\/components\//, 'components/')
+      .replace(/^.*\/pages\//, 'pages/')
+      // Rails patterns
+      .replace(/^.*\/app\/views\//, 'app/views/')
+      .replace(/^.*\/app\/assets\//, 'app/assets/')
+      .replace(/^.*\/app\/controllers\//, 'app/controllers/')
+      .replace(/^.*\/app\/models\//, 'app/models/')
+      .replace(/^.*\/app\/helpers\//, 'app/helpers/')
+      // Django patterns
+      .replace(/^.*\/templates\//, 'templates/')
+      .replace(/^.*\/static\//, 'static/')
+      // General web patterns
+      .replace(/^.*\/public\//, 'public/')
+      .replace(/^.*\/assets\//, 'assets/')
+      .replace(/^.*\/js\//, 'js/')
+      .replace(/^.*\/css\//, 'css/')
+      .replace(/^.*\/scss\//, 'scss/')
+      .replace(/^.*\/styles\//, 'styles/')
+      // Remove query parameters and hash
+      .replace(/\?.*$/, '')
+      .replace(/#.*$/, '');
+    
+    // For Next.js app directory, ensure we preserve the app/ prefix
+    if (!normalized.startsWith('app/') && normalized.includes('/app/')) {
+      normalized = 'app/' + normalized.split('/app/')[1];
+    }
+    
+    return normalized;
+  }
+
 
   generateSelector(element) {
     // Start with the most specific selectors and work up
@@ -1117,6 +1554,12 @@ class ClaudeAnnotations {
           styles: context.styles,
           position: context.position
         },
+        source_file_path: context.source_mapping?.source_file_path || null,
+        source_line_range: context.source_mapping?.source_line_range || null,
+        project_area: context.source_mapping?.project_area || 'unknown',
+        url_path: context.source_mapping?.url_path || window.location.pathname,
+        source_map_available: context.source_mapping?.source_map_available || false,
+        context_hints: context.source_mapping?.context_hints || null,
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
