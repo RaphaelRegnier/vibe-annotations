@@ -1172,21 +1172,28 @@ class ClaudeAnnotations {
           </div>
         ` : ''}
         
-        <div class="claude-element-preview">
-          <div class="claude-element-info">
-            <strong>Element:</strong> ${context.tag}${context.classes.length ? '.' + context.classes.join('.') : ''}
+        <div class="claude-element-details">
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--code-bracket-square"></span>
+            <span class="claude-detail-value">${context.selector}</span>
           </div>
-          <div class="claude-element-selector">${context.selector}</div>
-        </div>
-        
-        <div class="claude-viewport-info">
-          <span><strong>Viewport:</strong> ${context.viewport.width}x${context.viewport.height}</span>
-          <span><strong>Position:</strong> ${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
-          <span><strong>Size:</strong> ${Math.round(context.position.width)}x${Math.round(context.position.height)}</span>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--computer-desktop"></span>
+            <span class="claude-detail-value">${context.viewport.width}w</span>
+          </div>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--map-pin"></span>
+            <span class="claude-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
+          </div>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--arrows-pointing-out"></span>
+            <span class="claude-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
+          </div>
         </div>
         
         <div class="claude-comment-input-wrapper">
           <textarea 
+            id="claude-comment-textarea"
             class="claude-comment-textarea" 
             placeholder="Describe what needs to be changed or improved..."
             maxlength="1000"
@@ -1195,8 +1202,13 @@ class ClaudeAnnotations {
         </div>
         
         <div class="claude-comment-actions">
-          <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
-          <button class="claude-btn claude-btn-primary" id="save-comment" disabled>Save Changes</button>
+          <button class="claude-btn claude-btn-icon" id="delete-comment" title="Delete annotation">
+            <span class="claude-icon claude-icon--trash"></span>
+          </button>
+          <div class="claude-btn-group">
+            <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
+            <button class="claude-btn claude-btn-primary" id="save-comment" disabled>Save Changes</button>
+          </div>
         </div>
       </div>
     `;
@@ -1243,21 +1255,28 @@ class ClaudeAnnotations {
           </div>
         ` : ''}
         
-        <div class="claude-element-preview">
-          <div class="claude-element-info">
-            <strong>Element:</strong> ${context.tag}${context.classes.length ? '.' + context.classes.join('.') : ''}
+        <div class="claude-element-details">
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--code-bracket-square"></span>
+            <span class="claude-detail-value">${context.selector}</span>
           </div>
-          <div class="claude-element-selector">${context.selector}</div>
-        </div>
-        
-        <div class="claude-viewport-info">
-          <span><strong>Viewport:</strong> ${context.viewport.width}x${context.viewport.height}</span>
-          <span><strong>Position:</strong> ${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
-          <span><strong>Size:</strong> ${Math.round(context.position.width)}x${Math.round(context.position.height)}</span>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--computer-desktop"></span>
+            <span class="claude-detail-value">${context.viewport.width}w</span>
+          </div>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--map-pin"></span>
+            <span class="claude-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
+          </div>
+          <div class="claude-detail-item">
+            <span class="claude-icon claude-icon--arrows-pointing-out"></span>
+            <span class="claude-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
+          </div>
         </div>
         
         <div class="claude-comment-input-wrapper">
           <textarea 
+            id="claude-comment-textarea"
             class="claude-comment-textarea" 
             placeholder="Describe what needs to be changed or improved..."
             maxlength="1000"
@@ -1322,6 +1341,7 @@ class ClaudeAnnotations {
     const textarea = modal.querySelector('.claude-comment-textarea');
     const cancelBtn = modal.querySelector('#cancel-comment');
     const saveBtn = modal.querySelector('#save-comment');
+    const deleteBtn = modal.querySelector('#delete-comment');
     const closeBtn = modal.querySelector('.claude-comment-modal-close');
     
     // Enable/disable save button based on textarea content and API status
@@ -1357,6 +1377,31 @@ class ClaudeAnnotations {
     
     cancelBtn.addEventListener('click', closeModal);
     closeBtn.addEventListener('click', closeModal);
+    
+    // Delete button handler
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to delete this annotation?')) {
+          try {
+            await chrome.runtime.sendMessage({
+              action: 'deleteAnnotation',
+              id: annotation.id
+            });
+            
+            // Remove the badge
+            const badge = document.querySelector(`[data-annotation-id="${annotation.id}"]`);
+            if (badge) {
+              badge.remove();
+            }
+            
+            closeModal();
+          } catch (error) {
+            console.error('Error deleting annotation:', error);
+            alert('Failed to delete annotation. Please try again.');
+          }
+        }
+      });
+    }
     
     // Click outside to close
     modal.addEventListener('click', (e) => {
