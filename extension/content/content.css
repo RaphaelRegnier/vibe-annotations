@@ -43,15 +43,17 @@
 
 /* Dark theme */
 .claude-comment-modal[data-claude-theme="dark"] {
-  --theme-surface: #0d0f1c;
-  --theme-surface-1: #13162a;
+  --theme-surface: #0C0E12;
+  --theme-surface-1: #191D24;
   --theme-text-primary: #fcfcfd;
   --theme-text-secondary: #697586;
-  --theme-outline: #ffffff19;
-  --theme-outline-highlight: #ffffff32;
+  --theme-outline: #ffffff0d;
+  --theme-outline-highlight: #ffffff26;
   --theme-accent: #d97757;
   --theme-on-accent: #ffffff;
   --theme-surface-hover: #fcfcfd14;
+  --theme-secondary-button-bg: #ffffff0d;
+  --theme-textarea-bg: #ffffff0d;
 }
 
 /* Light theme */
@@ -65,20 +67,24 @@
   --theme-accent: #d97757;
   --theme-on-accent: #ffffff;
   --theme-surface-hover: #0d0f1c14;
+  --theme-secondary-button-bg: #0000000d;
+  --theme-textarea-bg: #0000000d;
 }
 
 /* System theme - fallback to media query for modal when theme is system */
 @media (prefers-color-scheme: dark) {
   .claude-comment-modal:not([data-claude-theme]) {
-    --theme-surface: #0d0f1c;
-    --theme-surface-1: #13162a;
+    --theme-surface: #0C0E12;
+    --theme-surface-1: #191D24;
     --theme-text-primary: #fcfcfd;
     --theme-text-secondary: #697586;
-    --theme-outline: #ffffff19;
-    --theme-outline-highlight: #ffffff32;
+    --theme-outline: #ffffff0d;
+    --theme-outline-highlight: #ffffff26;
     --theme-accent: #d97757;
     --theme-on-accent: #ffffff;
     --theme-surface-hover: #fcfcfd14;
+    --theme-secondary-button-bg: #ffffff0d;
+    --theme-textarea-bg: #ffffff0d;
   }
 }
 
@@ -266,7 +272,7 @@
   left: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  background: var(--theme-surface-hover) !important;
+  background: rgba(0, 0, 0, 0.3) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -283,8 +289,6 @@
   width: 90% !important;
   max-height: 80vh !important;
   overflow-y: auto !important;
-  box-shadow: 0 var(--spacing-xl) var(--spacing-2xl) -5px var(--theme-surface-hover), 
-              0 var(--spacing-sm) var(--spacing-sm) -5px var(--theme-outline) !important;
 }
 
 .claude-comment-modal-header {
@@ -314,6 +318,70 @@
 .claude-comment-modal-close:hover {
   background: var(--theme-surface-hover) !important;
   color: var(--theme-text-primary) !important;
+}
+
+/* Element details bar */
+.claude-element-details {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: var(--spacing-md) var(--spacing-lg) !important;
+  margin-bottom: var(--spacing-xl) !important;
+  color: var(--theme-text-secondary) !important;
+  font-size: 13px !important;
+}
+
+.claude-detail-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-sm) !important;
+}
+
+.claude-detail-item .claude-icon {
+  color: var(--theme-text-secondary) !important;
+}
+
+.claude-detail-value {
+  color: var(--theme-text-secondary) !important;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace !important;
+}
+
+/* Claude modal icons - namespaced to avoid conflicts */
+.claude-icon {
+  display: inline-block !important;
+  width: 16px !important;
+  height: 16px !important;
+  background-color: currentColor !important;
+  -webkit-mask-repeat: no-repeat !important;
+  mask-repeat: no-repeat !important;
+  -webkit-mask-size: 100% 100% !important;
+  mask-size: 100% 100% !important;
+  flex-shrink: 0 !important;
+}
+
+.claude-icon--code-bracket-square {
+  -webkit-mask-image: url('https://api.iconify.design/heroicons/code-bracket-square.svg') !important;
+  mask-image: url('https://api.iconify.design/heroicons/code-bracket-square.svg') !important;
+}
+
+.claude-icon--computer-desktop {
+  -webkit-mask-image: url('https://api.iconify.design/heroicons/computer-desktop.svg') !important;
+  mask-image: url('https://api.iconify.design/heroicons/computer-desktop.svg') !important;
+}
+
+.claude-icon--map-pin {
+  -webkit-mask-image: url('https://api.iconify.design/heroicons/map-pin.svg') !important;
+  mask-image: url('https://api.iconify.design/heroicons/map-pin.svg') !important;
+}
+
+.claude-icon--arrows-pointing-out {
+  -webkit-mask-image: url('https://api.iconify.design/heroicons/arrows-pointing-out.svg') !important;
+  mask-image: url('https://api.iconify.design/heroicons/arrows-pointing-out.svg') !important;
+}
+
+.claude-icon--trash {
+  -webkit-mask-image: url('https://api.iconify.design/heroicons/trash.svg') !important;
+  mask-image: url('https://api.iconify.design/heroicons/trash.svg') !important;
 }
 
 .claude-element-preview {
@@ -359,9 +427,9 @@
   line-height: 1.4 !important;
   resize: vertical !important;
   margin-bottom: var(--spacing-lg) !important;
-  transition: border-color 0.2s ease !important;
+  background: var(--theme-textarea-bg) !important;
   color: var(--theme-text-primary) !important;
-  background-color: var(--theme-surface-1) !important;
+  transition: border-color 0.2s ease !important;
 }
 
 .claude-comment-textarea:focus {
@@ -377,8 +445,15 @@
 .claude-comment-actions {
   display: flex !important;
   gap: var(--spacing-md) !important;
-  justify-content: flex-end !important;
+  justify-content: space-between !important;
+  align-items: center !important;
   margin-top: var(--spacing-lg) !important;
+}
+
+.claude-comment-actions .claude-btn-group {
+  display: flex !important;
+  gap: var(--spacing-md) !important;
+  align-items: center !important;
 }
 
 .claude-btn {
@@ -395,11 +470,11 @@
 .claude-btn-primary {
   background: var(--theme-accent) !important;
   color: var(--theme-on-accent) !important;
+  box-shadow: 0 1px 2px 0 rgba(255, 255, 255, 0.33) inset !important;
 }
 
 .claude-btn-primary:hover {
   opacity: 0.9 !important;
-  transform: translateY(-1px) !important;
 }
 
 .claude-btn-primary:disabled {
@@ -411,14 +486,30 @@
 }
 
 .claude-btn-secondary {
-  background: var(--theme-surface) !important;
-  color: var(--theme-text-primary) !important;
-  border: 1px solid var(--theme-outline) !important;
+  background: var(--theme-secondary-button-bg) !important;
+  color: var(--theme-text-secondary) !important;
+  border: none !important;
 }
 
 .claude-btn-secondary:hover {
-  background: var(--theme-surface-hover) !important;
-  border-color: var(--theme-outline-highlight) !important;
+  background: var(--theme-outline) !important;
+}
+
+.claude-btn-icon {
+  background: transparent !important;
+  color: var(--theme-text-secondary) !important;
+  border: none !important;
+  padding: var(--spacing-sm) !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.claude-btn-icon:hover {
+  color: #dc2626 !important;
+  background: #dc26260d !important;
 }
 
 /* Animation modes */

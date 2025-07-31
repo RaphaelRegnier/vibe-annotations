@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Claude Annotations",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI-powered development annotations for localhost projects and local HTML files",
+  "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [
     "activeTab",
     "storage",
