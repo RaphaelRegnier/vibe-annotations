@@ -1,11 +1,11 @@
 {
-  "name": "claude-annotations-server",
+  "name": "vibe-annotations-server",
   "version": "0.1.0",
-  "description": "Global MCP server for Claude Annotations browser extension",
+  "description": "Global MCP server for Vibe Annotations browser extension",
   "main": "lib/server.js",
   "type": "module",
   "bin": {
-    "claude-annotations-server": "./bin/cli.js"
+    "vibe-annotations-server": "./bin/cli.js"
   },
   "files": [
     "bin/",
@@ -18,7 +18,7 @@
     "prepublishOnly": "npm test",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "keywords": ["mcp", "claude", "annotations", "sse", "http", "claude-code"],
+  "keywords": ["mcp", "vibe", "annotations", "sse", "http", "claude-code"],
   "author": "Raphaël Régnier",
   "license": "MIT",
   "private": true,
@@ -35,10 +35,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/RaphaelRegnier/claude-annotations-server.git"
+    "url": "https://github.com/RaphaelRegnier/vibe-annotations-server.git"
   },
-  "homepage": "https://github.com/RaphaelRegnier/claude-annotations-server#readme",
+  "homepage": "https://github.com/RaphaelRegnier/vibe-annotations-server#readme",
   "bugs": {
-    "url": "https://github.com/RaphaelRegnier/claude-annotations-server/issues"
+    "url": "https://github.com/RaphaelRegnier/vibe-annotations-server/issues"
   }
 }

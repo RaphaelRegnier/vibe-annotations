@@ -1,4 +1,4 @@
-// Theme system for Claude Annotations Extension
+// Theme system for Vibe Annotations Extension
 
 class ThemeManager {
   constructor() {

@@ -1,7 +1,7 @@
-# Claude Annotations MVP - Implementation Plan
+# Vibe Annotations MVP - Implementation Plan
 
 ## Project Overview
-Build a Chrome extension called "Claude Annotations" that allows developers to drop visual comments on their localhost development projects and bulk-process them via Claude Code MCP integration for automated code fixes.
+Build a Chrome extension called "Vibe Annotations" that allows developers to drop visual comments on their localhost development projects and bulk-process them via Claude Code MCP integration for automated code fixes.
 
 ## Phase 1: Chrome Extension Core (Week 1-2)
 
@@ -79,16 +79,16 @@ Build a Chrome extension called "Claude Annotations" that allows developers to d
 - [ ] Finalize extension manifest and permissions
 - [ ] Create store listing assets (screenshots, descriptions)
 - [ ] Package extension for distribution
-- [ ] Submit "Claude Annotations" to Chrome Web Store
+- [ ] Submit "Vibe Annotations" to Chrome Web Store
 
 ### Step 4.2: MCP Distribution
-- [ ] Package Claude Annotations MCP server for easy installation
+- [ ] Package Vibe Annotations MCP server for easy installation
 - [ ] Create installation documentation for Claude Code integration
 - [ ] Test installation process on clean environment
 - [ ] Prepare for future DXT packaging
 
 ### Step 4.3: Landing Page & Marketing
-- [ ] Design and build claude-annotations.dev landing page
+- [ ] Design and build vibe-annotations.dev landing page
 - [ ] Create demo video/GIFs showing localhost workflow
 - [ ] Write documentation and getting started guide
 - [ ] Prepare launch announcement for Claude community

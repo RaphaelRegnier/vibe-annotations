@@ -1,8 +1,8 @@
-# Claude Annotations MVP - Product Requirements Document
+# Vibe Annotations MVP - Product Requirements Document
 
 ## Executive Summary
 
-**Product Name**: Claude Annotations MVP  
+**Product Name**: Vibe Annotations MVP  
 **Target Users**: Web developers using Claude Code  
 **Primary Goal**: Enable visual annotation of localhost projects with bulk AI-powered code fixing via MCP integration  
 
@@ -12,7 +12,7 @@ Developers working on localhost projects waste time describing visual bugs and U
 
 ## Solution Overview
 
-A Chrome extension called "Claude Annotations" that captures precise visual feedback on localhost development projects with smart context (DOM selectors, breakpoints, element metadata, project file mapping) and integrates with Claude Code via MCP for automated bulk code fixes in the actual source files.
+A Chrome extension called "Vibe Annotations" that captures precise visual feedback on localhost development projects with smart context (DOM selectors, breakpoints, element metadata, project file mapping) and integrates with Claude Code via MCP for automated bulk code fixes in the actual source files.
 
 ## User Stories
 
@@ -33,7 +33,7 @@ A Chrome extension called "Claude Annotations" that captures precise visual feed
 
 #### Core Components
 ```
-claude-annotations/
+vibe-annotations/
 ├── extension/
 │   ├── manifest.json              # Extension manifest (V3)
 │   ├── popup/
@@ -69,7 +69,7 @@ claude-annotations/
 
 #### Core Structure
 ```
-claude-annotations-mcp/
+vibe-annotations-mcp/
 ├── package.json              # Node.js dependencies
 ├── src/
 │   ├── index.js             # Main MCP server entry
@@ -153,7 +153,7 @@ interface Annotation {
 ## User Interface Requirements
 
 ### Chrome Extension Popup
-- **Header**: Claude Annotations logo + title + settings icon
+- **Header**: Vibe Annotations logo + title + settings icon
 - **Comment List**: Scrollable list of annotations with:
   - Website favicon + localhost URL
   - Comment preview (truncated)
@@ -264,7 +264,7 @@ interface Annotation {
 ## Success Criteria
 
 ### MVP Launch Criteria
-- [ ] Claude Annotations extension installs and works on common localhost ports (3000, 8080, 5173, etc.)
+- [ ] Vibe Annotations extension installs and works on common localhost ports (3000, 8080, 5173, etc.)
 - [ ] Detects React, Vue, Svelte, and vanilla HTML projects
 - [ ] Complete annotation workflow (create → process → archive) works
 - [ ] MCP integration successfully maps annotations to source files
@@ -274,7 +274,7 @@ interface Annotation {
 
 ### User Experience Goals
 - [ ] Users can create their first annotation in <2 minutes
-- [ ] Complete Claude Annotations workflow demo takes <5 minutes
+- [ ] Complete Vibe Annotations workflow demo takes <5 minutes
 - [ ] 90% of users successfully process annotations via Claude Code MCP
 - [ ] Users report time savings vs. manual implementation
 - [ ] Tool feels like a natural extension of Claude ecosystem
@@ -284,8 +284,8 @@ interface Annotation {
 ### Pre-Launch (Week 4)
 - [ ] Internal testing on 20+ diverse localhost projects
 - [ ] Documentation and video tutorials complete
-- [ ] Chrome Web Store submission for "Claude Annotations" approved
-- [ ] Landing page live at claude-annotations.dev with clear value proposition
+- [ ] Chrome Web Store submission for "Vibe Annotations" approved
+- [ ] Landing page live at vibe-annotations.dev with clear value proposition
 
 ### Launch Week
 - [ ] Announce on Claude community channels and developer communities

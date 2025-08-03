@@ -1,11 +1,11 @@
 # Updating the NPM Package
 
-This document explains how to update the `claude-annotations-server` npm package on GitHub.
+This document explains how to update the `vibe-annotations-server` npm package on GitHub.
 
 ## Overview
 
 The server code lives in `local-server/` subdirectory of this main repository, but is published as a separate npm package at:
-https://github.com/RaphaelRegnier/claude-annotations-server
+https://github.com/RaphaelRegnier/vibe-annotations-server
 
 ## How to Update the NPM Package
 
@@ -47,23 +47,23 @@ git commit -m "Bump version to $(npm list --depth=0 | head -1 | awk '{print $1}'
 Test that the updated package works:
 ```bash
 # Uninstall old version
-npm uninstall -g claude-annotations-server
+npm uninstall -g vibe-annotations-server
 
 # Install from GitHub
-npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git
+npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
 
 # Test functionality
-claude-annotations-server --version
-claude-annotations-server start --daemon
-claude-annotations-server status
-claude-annotations-server stop
+vibe-annotations-server --version
+vibe-annotations-server start --daemon
+vibe-annotations-server status
+vibe-annotations-server stop
 ```
 
 ## One-time Setup (already done)
 
 The git remote for the npm package repo was set up with:
 ```bash
-git remote add npm-package https://github.com/RaphaelRegnier/claude-annotations-server.git
+git remote add npm-package https://github.com/RaphaelRegnier/vibe-annotations-server.git
 ```
 
 ## Alternative: Simple Script

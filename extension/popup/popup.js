@@ -1,4 +1,4 @@
-// Claude Annotations Popup JavaScript
+// Vibe Annotations Popup JavaScript
 
 class AnnotationsPopup {
   constructor() {
@@ -259,7 +259,7 @@ class AnnotationsPopup {
       });
       
       // Add a highlight effect
-      annotationElement.style.animation = 'claude-highlight 2s ease-out';
+      annotationElement.style.animation = 'vibe-highlight 2s ease-out';
       
       // Remove the animation after it completes
       setTimeout(() => {
@@ -354,7 +354,7 @@ class AnnotationsPopup {
       
       // Check if it's a localhost or local file URL
       if (!this.isLocalhostUrl(tab.url)) {
-        alert('Claude Annotations only works on localhost URLs and local HTML files for security reasons.');
+        alert('Vibe Annotations only works on localhost URLs and local HTML files for security reasons.');
         return;
       }
 
@@ -945,9 +945,9 @@ class AnnotationsPopup {
     if (copyAllBtn) {
       copyAllBtn.addEventListener('click', async () => {
         const commands = [
-          'npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git',
-          'claude-annotations-server start',
-          'claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse'
+          'npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git',
+          'vibe-annotations-server start',
+          'claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse'
         ];
         const allCommands = commands.join('\n');
         try {
@@ -1032,14 +1032,14 @@ class AnnotationsPopup {
     if (viewLogsBtn) {
       viewLogsBtn.addEventListener('click', () => {
         // For now, just show an alert with instructions
-        alert('To view server logs, run:\nclaude-annotations-server logs\n\nOr check your terminal where you started the server.');
+        alert('To view server logs, run:\nvibe-annotations-server logs\n\nOr check your terminal where you started the server.');
       });
     }
 
     if (restartServerBtn) {
       restartServerBtn.addEventListener('click', () => {
         // For now, just show an alert with instructions
-        alert('To restart the server, run:\nclaude-annotations-server restart\n\nThen click "Check Again" to verify.');
+        alert('To restart the server, run:\nvibe-annotations-server restart\n\nThen click "Check Again" to verify.');
       });
     }
   }
