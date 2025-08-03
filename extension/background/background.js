@@ -1,6 +1,6 @@
-// Claude Annotations Background Service Worker
+// Vibe Annotations Background Service Worker
 
-class ClaudeAnnotationsBackground {
+class VibeAnnotationsBackground {
   constructor() {
     this.apiServerUrl = 'http://127.0.0.1:3846'; // Updated to match external server
     this.apiConnected = false;
@@ -480,7 +480,7 @@ class ClaudeAnnotationsBackground {
         
         await chrome.action.setTitle({
           tabId: tabId,
-          title: `Claude Annotations - ${pendingCount} pending annotation${pendingCount === 1 ? '' : 's'}`
+          title: `Vibe Annotations - ${pendingCount} pending annotation${pendingCount === 1 ? '' : 's'}`
         });
       } else {
         await this.clearBadge(tabId);
@@ -514,7 +514,7 @@ class ClaudeAnnotationsBackground {
         
         await chrome.action.setTitle({
           tabId: tabId,
-          title: `Claude Annotations - ${pendingCount} pending annotation${pendingCount === 1 ? '' : 's'}`
+          title: `Vibe Annotations - ${pendingCount} pending annotation${pendingCount === 1 ? '' : 's'}`
         });
       } else {
         await this.clearBadge(tabId);
@@ -529,7 +529,7 @@ class ClaudeAnnotationsBackground {
       await chrome.action.setBadgeText({ tabId: tabId, text: '' });
       await chrome.action.setTitle({ 
         tabId: tabId, 
-        title: 'Claude Annotations' 
+        title: 'Vibe Annotations' 
       });
     } catch (error) {
       console.error('Error clearing badge:', error);
@@ -746,9 +746,9 @@ class ClaudeAnnotationsBackground {
 
   // Utility function for generating IDs
   generateId() {
-    return 'claude_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return 'vibe_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 }
 
 // Initialize the background service worker
-new ClaudeAnnotationsBackground();
+new VibeAnnotationsBackground();

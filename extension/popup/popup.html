@@ -12,9 +12,9 @@
     <header class="header">
       <div class="header-content">
         <div class="logo-and-title">
-          <img src="../assets/icons/icon128.png" alt="Claude Annotations" class="header-logo">
+          <img src="../assets/icons/icon128.png" alt="Vibe Annotations" class="header-logo">
           <div class="title-section">
-            <h1 class="title">Claude Annotations</h1>
+            <h1 class="title">Vibe Annotations</h1>
             <p class="subtitle" id="current-route"></p>
           </div>
         </div>
@@ -34,11 +34,11 @@
       <div id="welcome-screen" class="welcome-screen" style="display: none;">
         <div class="welcome-content">
           <div class="welcome-logo">
-            <img src="../assets/icons/icon128.png" alt="Claude Annotations" width="48" height="48">
+            <img src="../assets/icons/icon128.png" alt="Vibe Annotations" width="48" height="48">
           </div>
-          <h2 class="welcome-title">Welcome to Claude Annotations!</h2>
+          <h2 class="welcome-title">Welcome to Vibe Annotations!</h2>
           <p class="welcome-description">
-            Claude Annotations gives your Claude Code superpowers, allowing it to bulk-treat all your visual annotations across different pages, while minding responsiveness.
+            Vibe Annotations gives your Claude Code superpowers, allowing it to bulk-treat all your visual annotations across different pages, while minding responsiveness.
           </p>
           <button id="get-started-btn" class="primary-btn get-started-btn">
             Get started (1min)
@@ -62,16 +62,16 @@
               
               <h3>1. Download and install the npm server globally by running:</h3>
               <div class="command-code">
-                <code>npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git</code>
-                <button class="copy-btn" data-command="npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git" title="Copy command">
+                <code>npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git</code>
+                <button class="copy-btn" data-command="npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
               
               <h3>2. Start the server on your local machine:</h3>
               <div class="command-code">
-                <code>claude-annotations-server start --daemon</code>
-                <button class="copy-btn" data-command="claude-annotations-server start --daemon" title="Copy command">
+                <code>vibe-annotations-server start --daemon</code>
+                <button class="copy-btn" data-command="vibe-annotations-server start --daemon" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
@@ -79,21 +79,21 @@
               
               <h3>3. Go to your project repo where Claude Code is installed, and run:</h3>
               <div class="command-code">
-                <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code>
-                <button class="copy-btn" data-command="claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse" title="Copy command">
+                <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
+                <button class="copy-btn" data-command="claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
-              <p>To verify your installation, run <code>/mcp</code> inside of Claude Code and you should see the claude-annotations MCP server connected.</p>
+              <p>To verify your installation, run <code>/mcp</code> inside of Claude Code and you should see the vibe-annotations MCP server connected.</p>
               
               <h2><strong>How it works</strong></h2>
-              <p>Claude Annotations only works when your local server is on, and the project host is localhost, 127.0.0.1, 0.0.0.0, or *.local. It recognizes common localhost and HTML local files.</p>
+              <p>Vibe Annotations only works when your local server is on, and the project host is localhost, 127.0.0.1, 0.0.0.0, or *.local. It recognizes common localhost and HTML local files.</p>
               
               <h3>1. Click "Start annotating"</h3>
               <p>You will enter an inspection mode to drop annotations, super fast! To exit, press Esc or reopen the popup and click "Stop annotating".</p>
               
               <h3>2. Drop your annotations, minding responsiveness.</h3>
-              <p>Each annotation saves the window size, so Claude will mind your breakpoints when working on your feedbacks. Example: If you want to change an H1 fontsize only on mobile, just adjust your window size directly on your browser, or devtools. You can also specify it in your annotation.</p>
+              <p>Each annotation saves the window size, so Claude Code will mind your breakpoints when working on your feedbacks. Example: If you want to change an H1 fontsize only on mobile, just adjust your window size directly on your browser, or devtools. You can also specify it in your annotation.</p>
               
               <p><strong>Pro tips:</strong></p>
               <ul>
@@ -102,7 +102,7 @@
               </ul>
               
               <h3>3. Ask Claude Code to read and implement your comments/feedbacks/annotations.</h3>
-              <p>Claude Code will automatically call the MCP tools, read your annotations, understand their context and implement changes unless they are unclear. Once treated, Claude will automatically delete the annotations forever, and you're ready for the next batch!</p>
+              <p>Claude Code will automatically call the MCP tools, read your annotations, understand their context and implement changes unless they are unclear. Once treated, Claude Code will automatically delete the annotations forever, and you're ready for the next batch!</p>
               
               <p>You're done! Work faster than ever!</p>
               
@@ -110,36 +110,36 @@
               
               <h3>1. Server commands</h3>
               <div class="command-code">
-                <code>claude-annotations-server --help</code>
-                <button class="copy-btn" data-command="claude-annotations-server --help" title="Copy command">
+                <code>vibe-annotations-server --help</code>
+                <button class="copy-btn" data-command="vibe-annotations-server --help" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
               
               <h3>2. Reconnect MCP</h3>
-              <p>Claude loads the MCPs only once upon start. If you restart your MCP server, you will have to kill and restart your Claude Code session(s).</p>
+              <p>Claude Code loads the MCPs only once upon start. If you restart your MCP server, you will have to kill and restart your Claude Code session(s).</p>
               
-              <h3>3. Clean uninstallation of Claude Annotations</h3>
+              <h3>3. Clean uninstallation of Vibe Annotations</h3>
               <p>First remove the mcp:</p>
               <div class="command-code">
-                <code>claude mcp remove claude-annotations</code>
-                <button class="copy-btn" data-command="claude mcp remove claude-annotations" title="Copy command">
+                <code>claude mcp remove vibe-annotations</code>
+                <button class="copy-btn" data-command="claude mcp remove vibe-annotations" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
               
               <p>Then uninstall the npm server globally:</p>
               <div class="command-code">
-                <code>npm uninstall -g claude-annotations-server</code>
-                <button class="copy-btn" data-command="npm uninstall -g claude-annotations-server" title="Copy command">
+                <code>npm uninstall -g vibe-annotations-server</code>
+                <button class="copy-btn" data-command="npm uninstall -g vibe-annotations-server" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
               
               <p>Remove the data file:</p>
               <div class="command-code">
-                <code>rm -rf ~/.claude-annotations</code>
-                <button class="copy-btn" data-command="rm -rf ~/.claude-annotations" title="Copy command">
+                <code>rm -rf ~/.vibe-annotations</code>
+                <button class="copy-btn" data-command="rm -rf ~/.vibe-annotations" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
@@ -196,13 +196,13 @@
                 <li>
                   <strong>Install the server globally:</strong>
                   <div class="code-block">
-                    <code>npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git</code>
+                    <code>npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git</code>
                   </div>
                 </li>
                 <li>
                   <strong>Start the server:</strong>
                   <div class="code-block">
-                    <code>claude-annotations-server start</code>
+                    <code>vibe-annotations-server start</code>
                   </div>
                   <p class="instruction-note">The server will run in the background globally</p>
                 </li>
@@ -216,7 +216,7 @@
                 <li>
                   <strong>Connect Claude Code to the server:</strong>
                   <div class="code-block">
-                    <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code>
+                    <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
                   </div>
                   <p class="instruction-note">Run this command in each project directory where you want annotations</p>
                 </li>
@@ -235,19 +235,19 @@
                 <div class="management-item">
                   <strong>To stop the server:</strong>
                   <div class="code-block">
-                    <code>claude-annotations-server stop</code>
+                    <code>vibe-annotations-server stop</code>
                   </div>
                 </div>
                 <div class="management-item">
                   <strong>To restart the server:</strong>
                   <div class="code-block">
-                    <code>claude-annotations-server restart</code>
+                    <code>vibe-annotations-server restart</code>
                   </div>
                 </div>
                 <div class="management-item">
                   <strong>To check if server is running:</strong>
                   <div class="code-block">
-                    <code>claude-annotations-server status</code>
+                    <code>vibe-annotations-server status</code>
                   </div>
                 </div>
               </div>
@@ -262,7 +262,7 @@
               <h3>Working with Different Projects:</h3>
               <ul class="instruction-list">
                 <li>The server runs once globally and serves all projects</li>
-                <li>For each new project, run <code>claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse</code> in that project directory</li>
+                <li>For each new project, run <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code> in that project directory</li>
                 <li>Start Claude Code from the project directory to use annotations in that specific project</li>
               </ul>
             </div>
@@ -278,7 +278,7 @@
           </div>
           <h2 class="ready-title">Ready for your annotations</h2>
           <p class="ready-text">
-            Click the button below to launch inspection mode and add annotations for Claude.
+            Click the button below to launch inspection mode and add annotations for Claude Code.
           </p>
         </div>
       </div>

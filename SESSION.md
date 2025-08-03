@@ -1,4 +1,4 @@
-# Claude Annotations - Development Session History
+# Vibe Annotations - Development Session History
 
 **Project**: Chrome extension for localhost development annotation + Claude Code MCP integration  
 **Version**: 0.3.0 (SSE Transport & Annotation Persistence)  
@@ -63,8 +63,8 @@ if (localAnnotations.length > serverAnnotations.length) {
 
 #### NPM Package Distribution
 - Set up git subtree workflow for maintaining npm package in separate repository
-- Created automation for updating `claude-annotations-server` package on GitHub
-- Package now installable via: `npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git`
+- Created automation for updating `vibe-annotations-server` package on GitHub
+- Package now installable via: `npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git`
 
 #### Testing Results
 - ✅ SSE transport connects successfully with Claude Code
@@ -309,7 +309,7 @@ npm start  # Starts HTTP server (port 3846) with MCP endpoint
 ### MCP Integration
 ```bash
 # Add to Claude Code
-claude mcp add --transport http claude-annotations http://localhost:3846/mcp
+claude mcp add --transport http vibe-annotations http://localhost:3846/mcp
 ```
 
 ### Testing
@@ -364,7 +364,7 @@ The system now has a production-ready architecture:
 - ✅ Route-scoped annotation management
 - ✅ Complete CRUD operations with proper error handling
 
-The Claude Annotations extension is now feature-complete with a professional-grade design system, ready for production use in development workflows with Claude Code integration.
+The Vibe Annotations extension is now feature-complete with a professional-grade design system, ready for production use in development workflows with Claude Code integration.
 
 ---
 

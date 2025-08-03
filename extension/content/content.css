@@ -1,4 +1,4 @@
-/* Claude Annotations Content Script Styles */
+/* Vibe Annotations Content Script Styles */
 :root {
   /* Design tokens - light theme as default */
   --theme-surface: #f8f9fc;
@@ -26,23 +26,23 @@
   --border-radius-lg: 16px;
   
   /* Legacy colors for backward compatibility */
-  --claude-orange: #FF7A00;
-  --claude-blue: #2563eb;
-  --claude-blue-light: #3b82f6;
-  --claude-gray-50: #f9fafb;
-  --claude-gray-100: #f3f4f6;
-  --claude-gray-200: #e5e7eb;
-  --claude-gray-300: #d1d5db;
-  --claude-gray-400: #9ca3af;
-  --claude-gray-500: #6b7280;
-  --claude-gray-600: #4b5563;
-  --claude-gray-700: #374151;
-  --claude-gray-800: #1f2937;
-  --claude-gray-900: #111827;
+  --vibe-orange: #FF7A00;
+  --vibe-blue: #2563eb;
+  --vibe-blue-light: #3b82f6;
+  --vibe-gray-50: #f9fafb;
+  --vibe-gray-100: #f3f4f6;
+  --vibe-gray-200: #e5e7eb;
+  --vibe-gray-300: #d1d5db;
+  --vibe-gray-400: #9ca3af;
+  --vibe-gray-500: #6b7280;
+  --vibe-gray-600: #4b5563;
+  --vibe-gray-700: #374151;
+  --vibe-gray-800: #1f2937;
+  --vibe-gray-900: #111827;
 }
 
 /* Dark theme */
-.claude-comment-modal[data-claude-theme="dark"] {
+.vibe-comment-modal[data-vibe-theme="dark"] {
   --theme-surface: #0C0E12;
   --theme-surface-1: #191D24;
   --theme-text-primary: #fcfcfd;
@@ -57,7 +57,7 @@
 }
 
 /* Light theme */
-.claude-comment-modal[data-claude-theme="light"] {
+.vibe-comment-modal[data-vibe-theme="light"] {
   --theme-surface: #f8f9fc;
   --theme-surface-1: #fcfcfd;
   --theme-text-primary: #0c111b;
@@ -73,7 +73,7 @@
 
 /* System theme - fallback to media query for modal when theme is system */
 @media (prefers-color-scheme: dark) {
-  .claude-comment-modal:not([data-claude-theme]) {
+  .vibe-comment-modal:not([data-vibe-theme]) {
     --theme-surface: #0C0E12;
     --theme-surface-1: #191D24;
     --theme-text-primary: #fcfcfd;
@@ -90,12 +90,12 @@
 
 /* Ensure variables are available everywhere */
 * {
-  --claude-orange: #FF7A00;
-  --claude-blue: #2563eb;
+  --vibe-orange: #FF7A00;
+  --vibe-blue: #2563eb;
 }
 
 /* Element highlighting */
-.claude-annotation-highlight {
+.vibe-annotation-highlight {
   outline: 2px solid #2563eb !important;
   outline-offset: 2px !important;
   position: relative !important;
@@ -103,15 +103,15 @@
   transition: all 0.2s ease !important;
 }
 
-.claude-annotation-highlight:hover {
+.vibe-annotation-highlight:hover {
   outline-color: #2563eb !important;
   box-shadow: 0 0 0 4px var(--theme-surface-highlight) !important;
 }
 
 /* Annotation badge for existing annotations */
-.claude-annotation-badge {
+.vibe-annotation-badge {
   position: fixed !important;
-  background: var(--claude-gray-600) !important;
+  background: var(--vibe-gray-600) !important;
   color: white !important;
   border-radius: 50% !important;
   width: 20px !important;
@@ -129,12 +129,12 @@
 }
 
 /* Pin tooltip - child of badge */
-.claude-pin-tooltip {
+.vibe-pin-tooltip {
   position: absolute !important;
   top: calc(100% + 8px) !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  background: var(--claude-gray-900) !important;
+  background: var(--vibe-gray-900) !important;
   color: white !important;
   padding: 8px 12px !important;
   border-radius: 6px !important;
@@ -154,13 +154,13 @@
 }
 
 /* Show tooltip on badge hover */
-.claude-annotation-badge:hover .claude-pin-tooltip {
+.vibe-annotation-badge:hover .vibe-pin-tooltip {
   opacity: 1 !important;
   visibility: visible !important;
 }
 
 /* Tooltip arrow */
-.claude-pin-tooltip::before {
+.vibe-pin-tooltip::before {
   content: '' !important;
   position: absolute !important;
   top: -5px !important;
@@ -168,13 +168,13 @@
   transform: translateX(-50%) !important;
   border-left: 5px solid transparent !important;
   border-right: 5px solid transparent !important;
-  border-bottom: 5px solid var(--claude-gray-900) !important;
+  border-bottom: 5px solid var(--vibe-gray-900) !important;
 }
 
 /* Annotation tooltip */
-.claude-annotation-tooltip {
+.vibe-annotation-tooltip {
   position: absolute !important;
-  background: var(--claude-gray-900) !important;
+  background: var(--vibe-gray-900) !important;
   color: white !important;
   padding: 8px 12px !important;
   border-radius: 6px !important;
@@ -191,7 +191,7 @@
 }
 
 /* API Status Warning */
-.claude-api-status-warning {
+.vibe-api-status-warning {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
@@ -205,13 +205,13 @@
   margin-bottom: 16px !important;
 }
 
-.claude-api-status-warning svg {
+.vibe-api-status-warning svg {
   flex-shrink: 0 !important;
   stroke: var(--theme-on-warning-container) !important;
 }
 
 /* Inspection Mode Overlay */
-.claude-inspection-overlay {
+.vibe-inspection-overlay {
   position: fixed !important;
   top: 20px !important;
   right: 20px !important;
@@ -228,33 +228,33 @@
   transition: all 0.3s ease !important;
 }
 
-.claude-inspection-overlay-fade {
+.vibe-inspection-overlay-fade {
   opacity: 0 !important;
   transform: translateX(20px) !important;
 }
 
-.claude-inspection-content h3 {
+.vibe-inspection-content h3 {
   margin: 0 0 8px 0 !important;
   font-size: 14px !important;
   font-weight: 600 !important;
 }
 
-.claude-inspection-content p {
+.vibe-inspection-content p {
   margin: 4px 0 !important;
   font-size: 12px !important;
   opacity: 0.9 !important;
 }
 
-.claude-inspection-content strong {
+.vibe-inspection-content strong {
   font-weight: 600 !important;
 }
 
-.claude-annotation-tooltip.show {
+.vibe-annotation-tooltip.show {
   opacity: 1 !important;
   transform: translateY(0) !important;
 }
 
-.claude-annotation-tooltip::before {
+.vibe-annotation-tooltip::before {
   content: '' !important;
   position: absolute !important;
   top: -5px !important;
@@ -262,11 +262,11 @@
   transform: translateX(-50%) !important;
   border-left: 5px solid transparent !important;
   border-right: 5px solid transparent !important;
-  border-bottom: 5px solid var(--claude-gray-900) !important;
+  border-bottom: 5px solid var(--vibe-gray-900) !important;
 }
 
 /* Comment modal */
-.claude-comment-modal {
+.vibe-comment-modal {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
@@ -280,7 +280,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-.claude-comment-modal-content {
+.vibe-comment-modal-content {
   background: var(--theme-surface-1) !important;
   border: 1px solid var(--theme-outline) !important;
   border-radius: var(--border-radius-md) !important;
@@ -291,21 +291,21 @@
   overflow-y: auto !important;
 }
 
-.claude-comment-modal-header {
+.vibe-comment-modal-header {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   margin-bottom: var(--spacing-xl) !important;
 }
 
-.claude-comment-modal-title {
+.vibe-comment-modal-title {
   font-size: 18px !important;
   font-weight: 600 !important;
   color: var(--theme-text-primary) !important;
   margin: 0 !important;
 }
 
-.claude-comment-modal-close {
+.vibe-comment-modal-close {
   background: none !important;
   border: none !important;
   padding: var(--spacing-sm) !important;
@@ -315,13 +315,13 @@
   transition: all 0.2s ease !important;
 }
 
-.claude-comment-modal-close:hover {
+.vibe-comment-modal-close:hover {
   background: var(--theme-surface-hover) !important;
   color: var(--theme-text-primary) !important;
 }
 
 /* Element details bar */
-.claude-element-details {
+.vibe-element-details {
   display: flex !important;
   align-items: center !important;
   flex-wrap: wrap !important;
@@ -331,23 +331,23 @@
   font-size: 13px !important;
 }
 
-.claude-detail-item {
+.vibe-detail-item {
   display: flex !important;
   align-items: center !important;
   gap: var(--spacing-sm) !important;
 }
 
-.claude-detail-item .claude-icon {
+.vibe-detail-item .vibe-icon {
   color: var(--theme-text-secondary) !important;
 }
 
-.claude-detail-value {
+.vibe-detail-value {
   color: var(--theme-text-secondary) !important;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace !important;
 }
 
 /* Claude modal icons - namespaced to avoid conflicts */
-.claude-icon {
+.vibe-icon {
   display: inline-block !important;
   width: 16px !important;
   height: 16px !important;
@@ -359,32 +359,32 @@
   flex-shrink: 0 !important;
 }
 
-.claude-icon--code-bracket-square {
+.vibe-icon--code-bracket-square {
   -webkit-mask-image: url('https://api.iconify.design/heroicons/code-bracket-square.svg') !important;
   mask-image: url('https://api.iconify.design/heroicons/code-bracket-square.svg') !important;
 }
 
-.claude-icon--computer-desktop {
+.vibe-icon--computer-desktop {
   -webkit-mask-image: url('https://api.iconify.design/heroicons/computer-desktop.svg') !important;
   mask-image: url('https://api.iconify.design/heroicons/computer-desktop.svg') !important;
 }
 
-.claude-icon--map-pin {
+.vibe-icon--map-pin {
   -webkit-mask-image: url('https://api.iconify.design/heroicons/map-pin.svg') !important;
   mask-image: url('https://api.iconify.design/heroicons/map-pin.svg') !important;
 }
 
-.claude-icon--arrows-pointing-out {
+.vibe-icon--arrows-pointing-out {
   -webkit-mask-image: url('https://api.iconify.design/heroicons/arrows-pointing-out.svg') !important;
   mask-image: url('https://api.iconify.design/heroicons/arrows-pointing-out.svg') !important;
 }
 
-.claude-icon--trash {
+.vibe-icon--trash {
   -webkit-mask-image: url('https://api.iconify.design/heroicons/trash.svg') !important;
   mask-image: url('https://api.iconify.design/heroicons/trash.svg') !important;
 }
 
-.claude-element-preview {
+.vibe-element-preview {
   background: var(--theme-surface) !important;
   border: 1px solid var(--theme-outline) !important;
   border-radius: var(--border-radius-sm) !important;
@@ -392,13 +392,13 @@
   margin-bottom: var(--spacing-lg) !important;
 }
 
-.claude-element-info {
+.vibe-element-info {
   font-size: 12px !important;
   color: var(--theme-text-secondary) !important;
   margin-bottom: var(--spacing-sm) !important;
 }
 
-.claude-element-selector {
+.vibe-element-selector {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
   font-size: 11px !important;
   background: var(--theme-text-primary) !important;
@@ -408,7 +408,7 @@
   word-break: break-all !important;
 }
 
-.claude-viewport-info {
+.vibe-viewport-info {
   display: flex !important;
   gap: var(--spacing-lg) !important;
   font-size: 12px !important;
@@ -416,7 +416,7 @@
   margin-bottom: var(--spacing-lg) !important;
 }
 
-.claude-comment-textarea {
+.vibe-comment-textarea {
   width: 100% !important;
   min-height: 120px !important;
   padding: var(--spacing-md) !important;
@@ -432,17 +432,17 @@
   transition: border-color 0.2s ease !important;
 }
 
-.claude-comment-textarea:focus {
+.vibe-comment-textarea:focus {
   outline: none !important;
   border-color: var(--theme-outline-highlight) !important;
   background: var(--theme-surface-hover) !important;
 }
 
-.claude-comment-textarea::placeholder {
+.vibe-comment-textarea::placeholder {
   color: var(--theme-text-secondary) !important;
 }
 
-.claude-comment-actions {
+.vibe-comment-actions {
   display: flex !important;
   gap: var(--spacing-md) !important;
   justify-content: space-between !important;
@@ -450,13 +450,13 @@
   margin-top: var(--spacing-lg) !important;
 }
 
-.claude-comment-actions .claude-btn-group {
+.vibe-comment-actions .vibe-btn-group {
   display: flex !important;
   gap: var(--spacing-md) !important;
   align-items: center !important;
 }
 
-.claude-btn {
+.vibe-btn {
   padding: 10px var(--spacing-lg) !important;
   border-radius: var(--border-radius-sm) !important;
   font-size: 14px !important;
@@ -467,17 +467,17 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-.claude-btn-primary {
+.vibe-btn-primary {
   background: var(--theme-accent) !important;
   color: var(--theme-on-accent) !important;
   box-shadow: 0 1px 2px 0 rgba(255, 255, 255, 0.33) inset !important;
 }
 
-.claude-btn-primary:hover {
+.vibe-btn-primary:hover {
   opacity: 0.9 !important;
 }
 
-.claude-btn-primary:disabled {
+.vibe-btn-primary:disabled {
   background: var(--theme-text-secondary) !important;
   color: var(--theme-surface) !important;
   cursor: not-allowed !important;
@@ -485,17 +485,17 @@
   transform: none !important;
 }
 
-.claude-btn-secondary {
+.vibe-btn-secondary {
   background: var(--theme-secondary-button-bg) !important;
   color: var(--theme-text-secondary) !important;
   border: none !important;
 }
 
-.claude-btn-secondary:hover {
+.vibe-btn-secondary:hover {
   background: var(--theme-outline) !important;
 }
 
-.claude-btn-icon {
+.vibe-btn-icon {
   background: transparent !important;
   color: var(--theme-text-secondary) !important;
   border: none !important;
@@ -507,26 +507,26 @@
   justify-content: center !important;
 }
 
-.claude-btn-icon:hover {
+.vibe-btn-icon:hover {
   color: #dc2626 !important;
   background: #dc26260d !important;
 }
 
 /* Animation modes */
-.claude-annotation-mode-active {
+.vibe-annotation-mode-active {
   cursor: crosshair !important;
 }
 
-.claude-annotation-mode-active * {
+.vibe-annotation-mode-active * {
   cursor: crosshair !important;
 }
 
 /* Annotation existing elements */
-.claude-annotated-element {
+.vibe-annotated-element {
   position: relative !important;
 }
 
-.claude-annotated-element::after {
+.vibe-annotated-element::after {
   content: '' !important;
   position: absolute !important;
   top: -2px !important;
@@ -540,7 +540,7 @@
 }
 
 /* Fade animations */
-@keyframes claude-fade-in {
+@keyframes vibe-fade-in {
   from {
     opacity: 0;
     transform: scale(0.95);
@@ -551,13 +551,13 @@
   }
 }
 
-.claude-comment-modal {
-  animation: claude-fade-in 0.2s ease !important;
+.vibe-comment-modal {
+  animation: vibe-fade-in 0.2s ease !important;
 }
 
 
 /* Targeted element focus state */
-.claude-targeted-element {
+.vibe-targeted-element {
   outline: 3px solid #2563eb !important;
   outline-offset: 2px !important;
   transition: outline 0.2s ease !important;
@@ -566,12 +566,12 @@
 }
 
 /* Comment input wrapper and helper text */
-.claude-comment-input-wrapper {
+.vibe-comment-input-wrapper {
   position: relative !important;
   width: 100% !important;
 }
 
-.claude-comment-helper {
+.vibe-comment-helper {
   position: absolute !important;
   bottom: 4px !important;
   right: 4px !important;
@@ -585,12 +585,12 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
-  .claude-comment-modal-content {
+  .vibe-comment-modal-content {
     width: 95% !important;
     padding: 20px !important;
   }
   
-  .claude-viewport-info {
+  .vibe-viewport-info {
     flex-direction: column !important;
     gap: 8px !important;
   }

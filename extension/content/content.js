@@ -1,6 +1,6 @@
-// Claude Annotations Content Script
+// Vibe Annotations Content Script
 
-class ClaudeAnnotations {
+class VibeAnnotations {
   constructor() {
     this.isAnnotationMode = false;
     this.annotations = [];
@@ -179,7 +179,7 @@ class ClaudeAnnotations {
     this.isAnnotationMode = true;
     
     // Add visual indicator
-    document.body.classList.add('claude-annotation-mode-active');
+    document.body.classList.add('vibe-annotation-mode-active');
     
     // Set up event listeners
     this.setupAnnotationListeners();
@@ -191,9 +191,9 @@ class ClaudeAnnotations {
   showInspectionModeOverlay() {
     // Create overlay with instructions
     const overlay = document.createElement('div');
-    overlay.className = 'claude-inspection-overlay';
+    overlay.className = 'vibe-inspection-overlay';
     overlay.innerHTML = `
-      <div class="claude-inspection-content">
+      <div class="vibe-inspection-content">
         <p>Press ESC or click the extension to exit inspection.</p>
       </div>
     `;
@@ -202,7 +202,7 @@ class ClaudeAnnotations {
     
     // Auto-hide after 3 seconds
     setTimeout(() => {
-      overlay.classList.add('claude-inspection-overlay-fade');
+      overlay.classList.add('vibe-inspection-overlay-fade');
       setTimeout(() => {
         if (overlay.parentNode) {
           overlay.remove();
@@ -212,7 +212,7 @@ class ClaudeAnnotations {
   }
 
   removeInspectionModeOverlay() {
-    const overlay = document.querySelector('.claude-inspection-overlay');
+    const overlay = document.querySelector('.vibe-inspection-overlay');
     if (overlay) {
       overlay.remove();
     }
@@ -222,7 +222,7 @@ class ClaudeAnnotations {
     this.isAnnotationMode = false;
     
     // Remove visual indicators
-    document.body.classList.remove('claude-annotation-mode-active');
+    document.body.classList.remove('vibe-annotation-mode-active');
     this.removeInspectionModeOverlay();
     
     // Remove event listeners
@@ -238,7 +238,7 @@ class ClaudeAnnotations {
   tempDisableAnnotationMode() {
     
     // Remove visual indicators but keep isAnnotationMode true
-    document.body.classList.remove('claude-annotation-mode-active');
+    document.body.classList.remove('vibe-annotation-mode-active');
     
     // Remove event listeners temporarily - this is crucial for modal interactions
     this.removeAnnotationListeners();
@@ -251,7 +251,7 @@ class ClaudeAnnotations {
     
     if (this.isAnnotationMode) {
       // Re-add visual indicators
-      document.body.classList.add('claude-annotation-mode-active');
+      document.body.classList.add('vibe-annotation-mode-active');
       
       // Re-setup event listeners
       this.setupAnnotationListeners();
@@ -289,10 +289,10 @@ class ClaudeAnnotations {
     e.stopPropagation();
     
     // Skip Claude annotation elements and badges
-    if (e.target.closest('.claude-comment-modal') || 
-        e.target.classList.contains('claude-annotation-highlight') ||
-        e.target.classList.contains('claude-annotation-badge') ||
-        e.target.closest('.claude-annotation-badge')) {
+    if (e.target.closest('.vibe-comment-modal') || 
+        e.target.classList.contains('vibe-annotation-highlight') ||
+        e.target.classList.contains('vibe-annotation-badge') ||
+        e.target.closest('.vibe-annotation-badge')) {
       return;
     }
     
@@ -319,11 +319,11 @@ class ClaudeAnnotations {
     
     
     // Skip Claude annotation elements, modal buttons, and annotation badges
-    if (e.target.closest('.claude-comment-modal') || 
-        e.target.classList.contains('claude-btn') ||
-        e.target.closest('.claude-btn') ||
-        e.target.classList.contains('claude-annotation-badge') ||
-        e.target.closest('.claude-annotation-badge')) {
+    if (e.target.closest('.vibe-comment-modal') || 
+        e.target.classList.contains('vibe-btn') ||
+        e.target.closest('.vibe-btn') ||
+        e.target.classList.contains('vibe-annotation-badge') ||
+        e.target.closest('.vibe-annotation-badge')) {
       return;
     }
     
@@ -332,19 +332,19 @@ class ClaudeAnnotations {
 
   highlightElement(element) {
     this.clearHighlights();
-    element.classList.add('claude-annotation-highlight');
+    element.classList.add('vibe-annotation-highlight');
   }
 
   clearHighlights() {
-    document.querySelectorAll('.claude-annotation-highlight').forEach(el => {
-      el.classList.remove('claude-annotation-highlight');
+    document.querySelectorAll('.vibe-annotation-highlight').forEach(el => {
+      el.classList.remove('vibe-annotation-highlight');
     });
   }
 
   showModeIndicator() {
     // Create a floating indicator
     const indicator = document.createElement('div');
-    indicator.id = 'claude-mode-indicator';
+    indicator.id = 'vibe-mode-indicator';
     indicator.innerHTML = `
       <div style="
         position: fixed;
@@ -371,7 +371,7 @@ class ClaudeAnnotations {
   }
 
   removeModeIndicator() {
-    const indicator = document.getElementById('claude-mode-indicator');
+    const indicator = document.getElementById('vibe-mode-indicator');
     if (indicator) {
       indicator.remove();
     }
@@ -937,7 +937,7 @@ class ClaudeAnnotations {
     if (!element.className) return null;
     
     const classes = Array.from(element.classList)
-      .filter(cls => !cls.startsWith('claude-'))
+      .filter(cls => !cls.startsWith('vibe-'))
       .filter(cls => this.isStableClass(cls))
       .slice(0, 4); // Use more classes for better specificity
     
@@ -955,7 +955,7 @@ class ClaudeAnnotations {
     const parent = element.parentElement;
     if (parent && parent.tagName !== 'BODY') {
       const parentClasses = Array.from(parent.classList)
-        .filter(cls => !cls.startsWith('claude-'))
+        .filter(cls => !cls.startsWith('vibe-'))
         .filter(cls => this.isStableClass(cls))
         .slice(0, 2);
       
@@ -983,7 +983,7 @@ class ClaudeAnnotations {
       
       // 1. Check for stable classes
       const stableClasses = Array.from(current.classList)
-        .filter(cls => !cls.startsWith('claude-'))
+        .filter(cls => !cls.startsWith('vibe-'))
         .filter(cls => this.isStableClass(cls))
         .slice(0, 2);
       
@@ -1077,8 +1077,8 @@ class ClaudeAnnotations {
   generateDataAttributeSelector(element) {
     // Last resort: add a data attribute to the element
     const dataId = `claude-annotation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    element.setAttribute('data-claude-id', dataId);
-    return `[data-claude-id="${dataId}"]`;
+    element.setAttribute('data-vibe-id', dataId);
+    return `[data-vibe-id="${dataId}"]`;
   }
 
   generatePositionSelector(element) {
@@ -1098,7 +1098,7 @@ class ClaudeAnnotations {
       
       // Add parent context for better stability
       const parentClasses = Array.from(parent.classList)
-        .filter(cls => !cls.startsWith('claude-'))
+        .filter(cls => !cls.startsWith('vibe-'))
         .filter(cls => this.isStableClass(cls))
         .slice(0, 2);
       
@@ -1147,13 +1147,13 @@ class ClaudeAnnotations {
     
     // Create modal for editing
     const modal = document.createElement('div');
-    modal.className = 'claude-comment-modal';
-    modal.setAttribute('data-claude-theme', this.getEffectiveTheme());
+    modal.className = 'vibe-comment-modal';
+    modal.setAttribute('data-vibe-theme', this.getEffectiveTheme());
     modal.innerHTML = `
-      <div class="claude-comment-modal-content">
-        <div class="claude-comment-modal-header">
-          <h3 class="claude-comment-modal-title">Edit Annotation</h3>
-          <button class="claude-comment-modal-close">
+      <div class="vibe-comment-modal-content">
+        <div class="vibe-comment-modal-header">
+          <h3 class="vibe-comment-modal-title">Edit Annotation</h3>
+          <button class="vibe-comment-modal-close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1162,7 +1162,7 @@ class ClaudeAnnotations {
         </div>
         
         ${!apiStatus.connected ? `
-          <div class="claude-api-status-warning">
+          <div class="vibe-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -1172,42 +1172,42 @@ class ClaudeAnnotations {
           </div>
         ` : ''}
         
-        <div class="claude-element-details">
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--code-bracket-square"></span>
-            <span class="claude-detail-value">${context.selector}</span>
+        <div class="vibe-element-details">
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--code-bracket-square"></span>
+            <span class="vibe-detail-value">${context.selector}</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--computer-desktop"></span>
-            <span class="claude-detail-value">${context.viewport.width}w</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--computer-desktop"></span>
+            <span class="vibe-detail-value">${context.viewport.width}w</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--map-pin"></span>
-            <span class="claude-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--map-pin"></span>
+            <span class="vibe-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--arrows-pointing-out"></span>
-            <span class="claude-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--arrows-pointing-out"></span>
+            <span class="vibe-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
           </div>
         </div>
         
-        <div class="claude-comment-input-wrapper">
+        <div class="vibe-comment-input-wrapper">
           <textarea 
-            id="claude-comment-textarea"
-            class="claude-comment-textarea" 
+            id="vibe-comment-textarea"
+            class="vibe-comment-textarea" 
             placeholder="Describe what needs to be changed or improved..."
             maxlength="1000"
           >${annotation.comment}</textarea>
-          <div class="claude-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
+          <div class="vibe-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
         </div>
         
-        <div class="claude-comment-actions">
-          <button class="claude-btn claude-btn-icon" id="delete-comment" title="Delete annotation">
-            <span class="claude-icon claude-icon--trash"></span>
+        <div class="vibe-comment-actions">
+          <button class="vibe-btn claude-btn-icon" id="delete-comment" title="Delete annotation">
+            <span class="vibe-icon claude-icon--trash"></span>
           </button>
-          <div class="claude-btn-group">
-            <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
-            <button class="claude-btn claude-btn-primary" id="save-comment" disabled>Save Changes</button>
+          <div class="vibe-btn-group">
+            <button class="vibe-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
+            <button class="vibe-btn claude-btn-primary" id="save-comment" disabled>Save Changes</button>
           </div>
         </div>
       </div>
@@ -1219,7 +1219,7 @@ class ClaudeAnnotations {
     this.setupEditModalListeners(modal, element, context, annotation);
     
     // Focus textarea and select all text
-    const textarea = modal.querySelector('.claude-comment-textarea');
+    const textarea = modal.querySelector('.vibe-comment-textarea');
     textarea.focus();
     textarea.select();
   }
@@ -1230,13 +1230,13 @@ class ClaudeAnnotations {
     
     // Create modal
     const modal = document.createElement('div');
-    modal.className = 'claude-comment-modal';
-    modal.setAttribute('data-claude-theme', this.getEffectiveTheme());
+    modal.className = 'vibe-comment-modal';
+    modal.setAttribute('data-vibe-theme', this.getEffectiveTheme());
     modal.innerHTML = `
-      <div class="claude-comment-modal-content">
-        <div class="claude-comment-modal-header">
-          <h3 class="claude-comment-modal-title">Add Annotation</h3>
-          <button class="claude-comment-modal-close">
+      <div class="vibe-comment-modal-content">
+        <div class="vibe-comment-modal-header">
+          <h3 class="vibe-comment-modal-title">Add Annotation</h3>
+          <button class="vibe-comment-modal-close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -1245,7 +1245,7 @@ class ClaudeAnnotations {
         </div>
         
         ${!apiStatus.connected ? `
-          <div class="claude-api-status-warning">
+          <div class="vibe-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
               <line x1="12" y1="9" x2="12" y2="13"></line>
@@ -1255,38 +1255,38 @@ class ClaudeAnnotations {
           </div>
         ` : ''}
         
-        <div class="claude-element-details">
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--code-bracket-square"></span>
-            <span class="claude-detail-value">${context.selector}</span>
+        <div class="vibe-element-details">
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--code-bracket-square"></span>
+            <span class="vibe-detail-value">${context.selector}</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--computer-desktop"></span>
-            <span class="claude-detail-value">${context.viewport.width}w</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--computer-desktop"></span>
+            <span class="vibe-detail-value">${context.viewport.width}w</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--map-pin"></span>
-            <span class="claude-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--map-pin"></span>
+            <span class="vibe-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
           </div>
-          <div class="claude-detail-item">
-            <span class="claude-icon claude-icon--arrows-pointing-out"></span>
-            <span class="claude-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
+          <div class="vibe-detail-item">
+            <span class="vibe-icon claude-icon--arrows-pointing-out"></span>
+            <span class="vibe-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
           </div>
         </div>
         
-        <div class="claude-comment-input-wrapper">
+        <div class="vibe-comment-input-wrapper">
           <textarea 
-            id="claude-comment-textarea"
-            class="claude-comment-textarea" 
+            id="vibe-comment-textarea"
+            class="vibe-comment-textarea" 
             placeholder="Describe what needs to be changed or improved..."
             maxlength="1000"
           ></textarea>
-          <div class="claude-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
+          <div class="vibe-comment-helper">${this.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
         </div>
         
-        <div class="claude-comment-actions">
-          <button class="claude-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
-          <button class="claude-btn claude-btn-primary" id="save-comment" disabled>Save Annotation</button>
+        <div class="vibe-comment-actions">
+          <button class="vibe-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
+          <button class="vibe-btn claude-btn-primary" id="save-comment" disabled>Save Annotation</button>
         </div>
       </div>
     `;
@@ -1297,7 +1297,7 @@ class ClaudeAnnotations {
     this.setupModalListeners(modal, element, context);
     
     // Focus textarea
-    const textarea = modal.querySelector('.claude-comment-textarea');
+    const textarea = modal.querySelector('.vibe-comment-textarea');
     textarea.focus();
   }
 
@@ -1338,11 +1338,11 @@ class ClaudeAnnotations {
   }
 
   setupEditModalListeners(modal, element, context, annotation) {
-    const textarea = modal.querySelector('.claude-comment-textarea');
+    const textarea = modal.querySelector('.vibe-comment-textarea');
     const cancelBtn = modal.querySelector('#cancel-comment');
     const saveBtn = modal.querySelector('#save-comment');
     const deleteBtn = modal.querySelector('#delete-comment');
-    const closeBtn = modal.querySelector('.claude-comment-modal-close');
+    const closeBtn = modal.querySelector('.vibe-comment-modal-close');
     
     // Enable/disable save button based on textarea content and API status
     const updateSaveButton = async () => {
@@ -1444,10 +1444,10 @@ class ClaudeAnnotations {
   }
 
   setupModalListeners(modal, element, context) {
-    const textarea = modal.querySelector('.claude-comment-textarea');
+    const textarea = modal.querySelector('.vibe-comment-textarea');
     const cancelBtn = modal.querySelector('#cancel-comment');
     const saveBtn = modal.querySelector('#save-comment');
-    const closeBtn = modal.querySelector('.claude-comment-modal-close');
+    const closeBtn = modal.querySelector('.vibe-comment-modal-close');
     
     // Enable/disable save button based on textarea content and API status
     const updateSaveButton = async () => {
@@ -1547,9 +1547,9 @@ class ClaudeAnnotations {
         // Update the tooltip content
         const element = document.querySelector(annotation.selector);
         if (element) {
-          const badge = element.querySelector('.claude-annotation-badge');
+          const badge = element.querySelector('.vibe-annotation-badge');
           if (badge) {
-            const tooltip = badge.querySelector('.claude-pin-tooltip');
+            const tooltip = badge.querySelector('.vibe-pin-tooltip');
             if (tooltip) {
               tooltip.textContent = newComment;
             }
@@ -1581,8 +1581,8 @@ class ClaudeAnnotations {
           console.error('Even regenerated selector fails. Using fallback approach.');
           // Add data attribute as fallback
           const dataId = `claude-annotation-${Date.now()}`;
-          element.setAttribute('data-claude-id', dataId);
-          context.selector = `[data-claude-id="${dataId}"]`;
+          element.setAttribute('data-vibe-id', dataId);
+          context.selector = `[data-vibe-id="${dataId}"]`;
         }
       }
       
@@ -1678,7 +1678,7 @@ class ClaudeAnnotations {
   }
 
   clearAllBadges() {
-    const existingBadges = document.querySelectorAll('.claude-annotation-badge');
+    const existingBadges = document.querySelectorAll('.vibe-annotation-badge');
     
     // Clear badges from both elements and body
     existingBadges.forEach((badge) => {
@@ -1786,10 +1786,10 @@ class ClaudeAnnotations {
     }
     
     // Try to find by data attribute if it exists
-    if (annotation.selector.includes('data-claude-id')) {
-      const dataIdMatch = annotation.selector.match(/data-claude-id="([^"]+)"/);
+    if (annotation.selector.includes('data-vibe-id')) {
+      const dataIdMatch = annotation.selector.match(/data-vibe-id="([^"]+)"/);
       if (dataIdMatch) {
-        element = document.querySelector(`[data-claude-id="${dataIdMatch[1]}"]`);
+        element = document.querySelector(`[data-vibe-id="${dataIdMatch[1]}"]`);
         if (element) {
           return element;
         }
@@ -1918,7 +1918,7 @@ class ClaudeAnnotations {
         clearTimeout(this.updateTimeout);
         this.updateTimeout = setTimeout(() => {
           // Only update if we have missing annotations
-          const missingCount = this.annotations.length - document.querySelectorAll('.claude-annotation-badge').length;
+          const missingCount = this.annotations.length - document.querySelectorAll('.vibe-annotation-badge').length;
           if (missingCount > 0) {
             this.showExistingAnnotations();
           }
@@ -1936,14 +1936,14 @@ class ClaudeAnnotations {
 
   addAnnotationBadge(element, annotation, index) {
     // Remove existing badge if any
-    const existingBadge = element.querySelector('.claude-annotation-badge');
+    const existingBadge = element.querySelector('.vibe-annotation-badge');
     if (existingBadge) {
       existingBadge.remove();
     }
     
     // Create badge
     const badge = document.createElement('div');
-    badge.className = 'claude-annotation-badge';
+    badge.className = 'vibe-annotation-badge';
     badge.textContent = index.toString(); // Show index number instead of emoji
     // No title to avoid default browser tooltip interfering
     
@@ -1955,7 +1955,7 @@ class ClaudeAnnotations {
     
     // Create tooltip as child of badge
     const tooltip = document.createElement('div');
-    tooltip.className = 'claude-pin-tooltip';
+    tooltip.className = 'vibe-pin-tooltip';
     tooltip.textContent = annotation.comment;
     badge.appendChild(tooltip);
     
@@ -2002,7 +2002,7 @@ class ClaudeAnnotations {
   generateElementId(element) {
     // Generate unique ID for element if it doesn't have one
     if (!element.dataset.claudeAnnotationId) {
-      element.dataset.claudeAnnotationId = 'claude-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+      element.dataset.claudeAnnotationId = 'vibe-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
     return element.dataset.claudeAnnotationId;
   }
@@ -2067,14 +2067,14 @@ class ClaudeAnnotations {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       
       // Now find the corresponding pin/badge to apply focus state
-      const allBadges = document.querySelectorAll('.claude-annotation-badge');
+      const allBadges = document.querySelectorAll('.vibe-annotation-badge');
       let targetBadge = null;
       
       // Find the badge that corresponds to this annotation
       for (const badge of allBadges) {
         const elementId = badge.dataset.originalElementId;
         if (elementId) {
-          const originalElement = document.querySelector(`[data-claude-annotation-id="${elementId}"]`);
+          const originalElement = document.querySelector(`[data-vibe-annotation-id="${elementId}"]`);
           if (originalElement === element) {
             targetBadge = badge;
             break;
@@ -2084,17 +2084,17 @@ class ClaudeAnnotations {
       
       if (targetBadge) {
         // Add blue focus state to the pin
-        targetBadge.classList.add('claude-targeted-element');
+        targetBadge.classList.add('vibe-targeted-element');
         
         // Remove focus state after 3 seconds
         setTimeout(() => {
-          targetBadge.classList.remove('claude-targeted-element');
+          targetBadge.classList.remove('vibe-targeted-element');
         }, 3000);
       } else {
         // Fallback: apply focus to the original element if pin not found
-        element.classList.add('claude-targeted-element');
+        element.classList.add('vibe-targeted-element');
         setTimeout(() => {
-          element.classList.remove('claude-targeted-element');
+          element.classList.remove('vibe-targeted-element');
         }, 3000);
       }
     } catch (error) {
@@ -2104,7 +2104,7 @@ class ClaudeAnnotations {
 
 
   generateId() {
-    return 'claude_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return 'vibe_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
   isMac() {
@@ -2135,8 +2135,8 @@ class ClaudeAnnotations {
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    new ClaudeAnnotations();
+    new VibeAnnotations();
   });
 } else {
-  new ClaudeAnnotations();
+  new VibeAnnotations();
 }

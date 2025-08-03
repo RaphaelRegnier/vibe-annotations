@@ -1,4 +1,4 @@
-# Claude Annotations
+# Vibe Annotations
 
 AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let Claude Code implement the fixes automatically.
 
@@ -11,30 +11,30 @@ AI-powered development annotations for localhost projects. Drop comments on your
 
 ## Architecture
 
-Claude Annotations uses a two-piece architecture:
+Vibe Annotations uses a two-piece architecture:
 
 1. **Browser Extension** (`/extension`): UI, setup guidance, annotation management
-2. **NPM Package** (`claude-annotations-server`): MCP server, local HTTP API, data storage
+2. **NPM Package** (`vibe-annotations-server`): MCP server, local HTTP API, data storage
 
 ## Quick Start
 
 ### 1. Install the Browser Extension
-Install the `claude-annotations` extension from the Chrome Web Store.
+Install the `vibe-annotations` extension from the Chrome Web Store.
 
 ### 2. Install the Global Server
 ```bash
-npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git
+npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
 ```
 
 ### 3. Start the Server
 ```bash
-claude-annotations-server start
+vibe-annotations-server start
 ```
 
 ### 4. Connect Claude Code
 In your project directory:
 ```bash
-claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse
+claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 ```
 
 ### 5. Start Using Annotations
@@ -53,18 +53,18 @@ claude mcp add --transport sse claude-annotations http://127.0.0.1:3846/sse
 
 ```bash
 # Check server status
-claude-annotations-server status
+vibe-annotations-server status
 
 # Stop server
-claude-annotations-server stop
+vibe-annotations-server stop
 
 # Restart server
-claude-annotations-server restart
+vibe-annotations-server restart
 ```
 
 ## Development
 
-See `/extension` directory for browser extension development. The server package will be published separately as `claude-annotations-server`.
+See `/extension` directory for browser extension development. The server package will be published separately as `vibe-annotations-server`.
 
 ## License
 

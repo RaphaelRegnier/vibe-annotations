@@ -1,4 +1,4 @@
-/* Claude Annotations Popup Styles with Theme System */
+/* Vibe Annotations Popup Styles with Theme System */
 
 /* Theme Variables - will be set by ThemeManager */
 :root {
@@ -778,7 +778,7 @@ iconify-icon {
 }
 
 /* Highlight animation for focused annotations */
-@keyframes claude-highlight {
+@keyframes vibe-highlight {
   0% {
     background-color: var(--theme-accent);
     transform: scale(1.02);
