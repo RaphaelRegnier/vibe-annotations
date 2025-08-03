@@ -191,20 +191,6 @@ class AnnotationsPopup {
       this.openSettings();
     });
 
-    // Settings modal close button
-    const closeSettingsBtn = document.getElementById('close-settings');
-    closeSettingsBtn.addEventListener('click', () => {
-      this.closeSettings();
-    });
-
-    // Modal overlay click to close
-    const modalOverlay = document.getElementById('settings-modal');
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        this.closeSettings();
-      }
-    });
-
     // Theme selector
     const themeSelect = document.getElementById('theme-select');
     themeSelect.addEventListener('change', (e) => {
@@ -213,6 +199,15 @@ class AnnotationsPopup {
 
     // Initialize theme selector with current theme
     this.updateThemeSelector();
+
+    // Screenshot toggle
+    const screenshotToggle = document.getElementById('screenshot-toggle');
+    screenshotToggle.addEventListener('change', (e) => {
+      this.updateScreenshotSetting(e.target.checked);
+    });
+
+    // Initialize screenshot toggle with current setting
+    this.updateScreenshotToggle();
 
     // Refresh status button
     const refreshStatusBtn = document.getElementById('refresh-status-btn');
@@ -372,8 +367,13 @@ class AnnotationsPopup {
       console.error('Error starting annotation mode:', error);
       
       // More specific error message
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (error.message.includes('receiving end does not exist')) {
-        alert('Content script not ready. Please refresh the page and try again.');
+        if (tab.url.startsWith('file://')) {
+          alert('File access required: Please go to chrome://extensions/, find "Vibe Annotations", and enable "Allow access to file URLs". Then refresh this page.');
+        } else {
+          alert('Content script not ready. Please refresh the page and try again.');
+        }
       } else {
         alert('Error: Make sure you are on a localhost page and refresh if needed.');
       }
@@ -858,16 +858,12 @@ class AnnotationsPopup {
     return div.innerHTML;
   }
 
-  // Settings Modal Methods
+  // Settings Screen Methods
   openSettings() {
-    const modal = document.getElementById('settings-modal');
-    modal.style.display = 'flex';
+    this.currentScreen = 'settings';
+    this.updateScreenVisibility();
     this.updateThemeSelector();
-  }
-
-  closeSettings() {
-    const modal = document.getElementById('settings-modal');
-    modal.style.display = 'none';
+    this.updateScreenshotToggle();
   }
 
   updateThemeSelector() {
@@ -883,11 +879,36 @@ class AnnotationsPopup {
     }
   }
 
+  async updateScreenshotSetting(enabled) {
+    try {
+      await chrome.storage.local.set({ screenshotEnabled: enabled });
+      console.log(`Screenshot capture ${enabled ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error('Error saving screenshot setting:', error);
+    }
+  }
+
+  async updateScreenshotToggle() {
+    try {
+      const result = await chrome.storage.local.get(['screenshotEnabled']);
+      const screenshotToggle = document.getElementById('screenshot-toggle');
+      // Default to enabled (true) if not set
+      const enabled = result.screenshotEnabled !== undefined ? result.screenshotEnabled : true;
+      screenshotToggle.checked = enabled;
+    } catch (error) {
+      console.error('Error loading screenshot setting:', error);
+      // Default to enabled on error
+      const screenshotToggle = document.getElementById('screenshot-toggle');
+      screenshotToggle.checked = true;
+    }
+  }
+
   updateScreenVisibility() {
     const welcomeScreen = document.getElementById('welcome-screen');
     const getStartedScreen = document.getElementById('get-started-screen');
     const setupCompleteScreen = document.getElementById('setup-complete-screen');
     const howItWorksScreen = document.getElementById('how-it-works-screen');
+    const settingsScreen = document.getElementById('settings-screen');
     const readyScreen = document.getElementById('ready-screen');
     const annotationsList = document.getElementById('annotations-list');
 
@@ -896,6 +917,7 @@ class AnnotationsPopup {
     getStartedScreen.style.display = 'none';
     setupCompleteScreen.style.display = 'none';
     howItWorksScreen.style.display = 'none';
+    settingsScreen.style.display = 'none';
     readyScreen.style.display = 'none';
     annotationsList.style.display = 'none';
 
@@ -907,6 +929,11 @@ class AnnotationsPopup {
     
     if (this.currentScreen === 'how-it-works') {
       howItWorksScreen.style.display = 'flex';
+      return;
+    }
+
+    if (this.currentScreen === 'settings') {
+      settingsScreen.style.display = 'flex';
       return;
     }
 
@@ -1023,6 +1050,15 @@ class AnnotationsPopup {
     const backToSetupBtn = document.getElementById('back-to-setup-btn');
     if (backToSetupBtn) {
       backToSetupBtn.addEventListener('click', () => {
+        this.currentScreen = null;
+        this.updateScreenVisibility();
+      });
+    }
+
+    // Back from settings button
+    const backFromSettingsBtn = document.getElementById('back-from-settings-btn');
+    if (backFromSettingsBtn) {
+      backFromSettingsBtn.addEventListener('click', () => {
         this.currentScreen = null;
         this.updateScreenVisibility();
       });

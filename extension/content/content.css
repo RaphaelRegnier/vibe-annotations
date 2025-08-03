@@ -1,12 +1,6 @@
 /* Vibe Annotations Content Script Styles */
 
-/* Font Face Declaration */
-@font-face {
-  font-family: 'Inter';
-  src: url('../assets/fonts/InterVariable.woff2') format('woff2-variations');
-  font-weight: 100 900;
-  font-display: swap;
-}
+/* Font Face Declaration - Will be dynamically injected by JavaScript */
 
 :root {
   /* Design tokens - light theme as default */
@@ -243,9 +237,9 @@
 }
 
 .vibe-inspection-content h3 {
-  margin: 0 0 8px 0 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .vibe-inspection-content p {
@@ -292,36 +286,36 @@
 .vibe-comment-modal-content {
   background: var(--theme-surface-1) !important;
   border: 1px solid var(--theme-outline) !important;
-  border-radius: var(--border-radius-md) !important;
-  padding: var(--spacing-2xl) !important;
-  max-width: 500px !important;
-  width: 90% !important;
-  max-height: 80vh !important;
-  overflow-y: auto !important;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-2xl);
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .vibe-comment-modal-header {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  margin-bottom: var(--spacing-xl) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-xl);
 }
 
 .vibe-comment-modal-title {
-  font-size: 18px !important;
-  font-weight: 600 !important;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--theme-text-primary) !important;
-  margin: 0 !important;
+  margin: 0;
 }
 
 .vibe-comment-modal-close {
-  background: none !important;
-  border: none !important;
-  padding: var(--spacing-sm) !important;
-  border-radius: var(--border-radius-sm) !important;
+  background: none;
+  border: none;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
   cursor: pointer !important;
   color: var(--theme-text-secondary) !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease;
 }
 
 .vibe-comment-modal-close:hover {
@@ -331,19 +325,19 @@
 
 /* Element details bar */
 .vibe-element-details {
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: var(--spacing-md) var(--spacing-lg) !important;
-  margin-bottom: var(--spacing-xl) !important;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
   color: var(--theme-text-secondary) !important;
-  font-size: 13px !important;
+  font-size: 13px;
 }
 
 .vibe-detail-item {
-  display: flex !important;
-  align-items: center !important;
-  gap: var(--spacing-sm) !important;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .vibe-detail-item .vibe-icon {
@@ -357,15 +351,15 @@
 
 /* Vibe modal icons - namespaced to avoid conflicts */
 .vibe-icon {
-  display: inline-block !important;
-  width: 16px !important;
-  height: 16px !important;
-  background-color: currentColor !important;
-  -webkit-mask-repeat: no-repeat !important;
-  mask-repeat: no-repeat !important;
-  -webkit-mask-size: 100% 100% !important;
-  mask-size: 100% 100% !important;
-  flex-shrink: 0 !important;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  flex-shrink: 0;
 }
 
 .vibe-icon--code-bracket-square {
@@ -396,49 +390,49 @@
 .vibe-element-preview {
   background: var(--theme-surface) !important;
   border: 1px solid var(--theme-outline) !important;
-  border-radius: var(--border-radius-sm) !important;
-  padding: var(--spacing-md) !important;
-  margin-bottom: var(--spacing-lg) !important;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
 .vibe-element-info {
-  font-size: 12px !important;
+  font-size: 12px;
   color: var(--theme-text-secondary) !important;
-  margin-bottom: var(--spacing-sm) !important;
+  margin-bottom: var(--spacing-sm);
 }
 
 .vibe-element-selector {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-  font-size: 11px !important;
+  font-size: 11px;
   background: var(--theme-text-primary) !important;
   color: var(--theme-surface-1) !important;
-  padding: var(--spacing-sm) !important;
-  border-radius: var(--border-radius-xs) !important;
-  word-break: break-all !important;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-xs);
+  word-break: break-all;
 }
 
 .vibe-viewport-info {
-  display: flex !important;
-  gap: var(--spacing-lg) !important;
-  font-size: 12px !important;
+  display: flex;
+  gap: var(--spacing-lg);
+  font-size: 12px;
   color: var(--theme-text-secondary) !important;
-  margin-bottom: var(--spacing-lg) !important;
+  margin-bottom: var(--spacing-lg);
 }
 
 .vibe-comment-textarea {
-  width: 100% !important;
-  min-height: 120px !important;
-  padding: var(--spacing-md) !important;
+  width: 100%;
+  min-height: 120px;
+  padding: var(--spacing-md);
   border: 1px solid var(--theme-outline) !important;
-  border-radius: var(--border-radius-sm) !important;
+  border-radius: var(--border-radius-sm);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-size: 14px !important;
-  line-height: 1.4 !important;
-  resize: vertical !important;
-  margin-bottom: var(--spacing-lg) !important;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: vertical;
+  margin-bottom: var(--spacing-lg);
   background: var(--theme-textarea-bg) !important;
   color: var(--theme-text-primary) !important;
-  transition: border-color 0.2s ease !important;
+  transition: border-color 0.2s ease;
 }
 
 .vibe-comment-textarea:focus {
@@ -453,25 +447,27 @@
 
 .vibe-comment-actions {
   display: flex !important;
-  gap: var(--spacing-md) !important;
-  justify-content: space-between !important;
-  align-items: center !important;
-  margin-top: var(--spacing-lg) !important;
+  gap: var(--spacing-md);
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-lg);
 }
 
 .vibe-comment-actions .vibe-btn-group {
-  display: flex !important;
-  gap: var(--spacing-md) !important;
-  align-items: center !important;
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  flex-grow: 1;
+  justify-content: flex-end;
 }
 
 .vibe-btn {
-  padding: 10px var(--spacing-lg) !important;
-  border-radius: var(--border-radius-sm) !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  padding: 10px var(--spacing-lg);
+  border-radius: var(--border-radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   border: none !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
@@ -479,19 +475,19 @@
 .vibe-btn-primary {
   background: var(--theme-accent) !important;
   color: var(--theme-on-accent) !important;
-  box-shadow: 0 1px 2px 0 rgba(255, 255, 255, 0.33) inset !important;
+  box-shadow: 0 1px 2px 0 rgba(255, 255, 255, 0.33) inset;
 }
 
 .vibe-btn-primary:hover {
-  opacity: 0.9 !important;
+  opacity: 0.9;
 }
 
 .vibe-btn-primary:disabled {
   background: var(--theme-text-secondary) !important;
   color: var(--theme-surface) !important;
-  cursor: not-allowed !important;
-  opacity: 0.6 !important;
-  transform: none !important;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
 }
 
 .vibe-btn-secondary {
@@ -508,12 +504,12 @@
   background: transparent !important;
   color: var(--theme-text-secondary) !important;
   border: none !important;
-  padding: var(--spacing-sm) !important;
-  width: 32px !important;
-  height: 32px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  padding: var(--spacing-sm);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .vibe-btn-icon:hover {
