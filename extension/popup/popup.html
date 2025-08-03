@@ -35,7 +35,7 @@
           </div>
           <h2 class="welcome-title">Welcome to Vibe Annotations!</h2>
           <p class="welcome-description">
-            Vibe Annotations gives your Claude Code superpowers, allowing it to bulk-treat all your visual annotations across different pages, while minding responsiveness.
+            Vibe Annotations gives your AI coding agent superpowers, allowing it to bulk-treat all your visual annotations across different pages, while minding responsiveness.
           </p>
           <button id="get-started-btn" class="primary-btn get-started-btn">
             Get started (1min)
@@ -55,7 +55,7 @@
           
           <div class="get-started-body">
             <div class="rich-text-content">
-              <p>To read your annotations, Claude Code needs to communicate to an MCP + HTTP API server that will run on your local machine.</p>
+              <p>To read your annotations, your AI coding agent needs to communicate to an MCP + HTTP API server that will run on your local machine.</p>
               
               <h3>1. Download and install the npm server globally by running:</h3>
               <div class="command-code">
@@ -74,23 +74,128 @@
               </div>
               <p>This will keep the server running in the background</p>
               
-              <h3>3. Go to your project repo where Claude Code is installed, and run:</h3>
-              <div class="command-code">
-                <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
-                <button class="copy-btn" data-command="claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse" title="Copy command">
-                  <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
-                </button>
-              </div>
-              <p>To verify your installation, run <code>/mcp</code> inside of Claude Code and you should see the vibe-annotations MCP server connected.</p>
+              <h3>3. Connect your AI coding agent to the server:</h3>
               
-              <h2><strong>How it works</strong></h2>
+              <!-- AI Agent Tabs -->
+              <div class="agent-tabs">
+                <div class="tab-buttons">
+                  <button class="tab-btn active" data-agent="claude">Claude Code</button>
+                  <button class="tab-btn" data-agent="cursor">Cursor</button>
+                  <button class="tab-btn" data-agent="windsurf">Windsurf</button>
+                  <button class="tab-btn" data-agent="vscode">VS Code</button>
+                  <button class="tab-btn" data-agent="other">Other editors</button>
+                </div>
+                
+                <!-- Claude Code Tab -->
+                <div class="tab-content active" data-agent="claude">
+                  <p>Go to your project directory and run:</p>
+                  <div class="command-code">
+                    <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
+                    <button class="copy-btn" data-command="claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  <p>To verify your installation, run <code>/mcp</code> inside of Claude Code and you should see the vibe-annotations MCP server connected.</p>
+                </div>
+                
+                <!-- Cursor Tab -->
+                <div class="tab-content" data-agent="cursor">
+                  <ol>
+                    <li>Open Cursor → Settings → Cursor Settings</li>
+                    <li>Go to the Tools & Integrations tab</li>
+                    <li>Click + Add new global MCP server</li>
+                    <li>Enter the following configuration and save:</li>
+                  </ol>
+                  <div class="command-code">
+                    <code>{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/sse"
+    }
+  }
+}</code>
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- Windsurf Tab -->
+                <div class="tab-content" data-agent="windsurf">
+                  <ol>
+                    <li>Navigate to Windsurf → Settings → Advanced Settings</li>
+                    <li>Scroll down to the Cascade section</li>
+                    <li>Click "Add new server" or edit the raw JSON config file</li>
+                    <li>Add the following configuration:</li>
+                  </ol>
+                  <div class="command-code">
+                    <code>{
+  "mcpServers": {
+    "vibe-annotations": {
+      "serverUrl": "http://127.0.0.1:3846/sse"
+    }
+  }
+}</code>
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  <p>Make sure to press the refresh button after adding the new MCP plugin.</p>
+                </div>
+                
+                <!-- VS Code Tab -->
+                <div class="tab-content" data-agent="vscode">
+                  <ol>
+                    <li>Install an AI extension that supports MCP (like GitHub Copilot Chat or Continue)</li>
+                    <li>Go to Code → Settings → Settings or use the shortcut ⌘,</li>
+                    <li>In the search bar, type "MCP"</li>
+                    <li>Look for MCP server configurations in your AI extension settings</li>
+                    <li>Add the following SSE configuration:</li>
+                  </ol>
+                  <div class="command-code">
+                    <code>{
+  "mcpServers": {
+    "vibe-annotations": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3846/sse"
+    }
+  }
+}</code>
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"type":"sse","url":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  <p><strong>Note:</strong> MCP support varies by AI extension. Check your extension's documentation for specific setup instructions.</p>
+                </div>
+                
+                <!-- Other Editors Tab -->
+                <div class="tab-content" data-agent="other">
+                  <p>Other code editors and tools that support SSE (Server-Sent Events) can also connect to the Vibe Annotations MCP server.</p>
+                  <p>If you're using a different editor or tool, check its documentation to confirm it supports SSE-based communication. If it does, you can manually add the server using this configuration:</p>
+                  <div class="command-code">
+                    <code>{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/sse"
+    }
+  }
+}</code>
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  <p><strong>Note:</strong> The Vibe Annotations MCP server communicates over the SSE protocol. Use your editor's steps for setting up an SSE-compatible MCP server, and use the URL: <code>http://127.0.0.1:3846/sse</code></p>
+                </div>
+              </div>
+              
+              <h2>How it works</h2>
               <p>Vibe Annotations only works when your local server is on, and the project host is localhost, 127.0.0.1, 0.0.0.0, or *.local. It recognizes common localhost and HTML local files.</p>
               
               <h3>1. Click "Start annotating"</h3>
               <p>You will enter an inspection mode to drop annotations, super fast! To exit, press Esc or reopen the popup and click "Stop annotating".</p>
               
               <h3>2. Drop your annotations, minding responsiveness.</h3>
-              <p>Each annotation saves the window size, so Claude Code will mind your breakpoints when working on your feedbacks. Example: If you want to change an H1 fontsize only on mobile, just adjust your window size directly on your browser, or devtools. You can also specify it in your annotation.</p>
+              <p>Each annotation saves the window size, so your AI coding agent will mind your breakpoints when working on your feedbacks. Example: If you want to change an H1 fontsize only on mobile, just adjust your window size directly on your browser, or devtools. You can also specify it in your annotation.</p>
               
               <p><strong>Pro tips:</strong></p>
               <ul>
@@ -98,8 +203,8 @@
                 <li>You can drop annotations on multiple pages and projects.</li>
               </ul>
               
-              <h3>3. Ask Claude Code to read and implement your comments/feedbacks/annotations.</h3>
-              <p>Claude Code will automatically call the MCP tools, read your annotations, understand their context and implement changes unless they are unclear. Once treated, Claude Code will automatically delete the annotations forever, and you're ready for the next batch!</p>
+              <h3>3. Ask your AI coding agent to read and implement your comments/feedbacks/annotations.</h3>
+              <p>Your AI coding agent will automatically call the MCP tools, read your annotations, understand their context and implement changes unless they are unclear. Once treated, your AI coding agent will automatically delete the annotations forever, and you're ready for the next batch!</p>
               
               <p>You're done! Work faster than ever!</p>
               
@@ -114,15 +219,40 @@
               </div>
               
               <h3>2. Reconnect MCP</h3>
-              <p>Claude Code loads the MCPs only once upon start. If you restart your MCP server, you will have to kill and restart your Claude Code session(s).</p>
+              <p>Your AI coding agent loads the MCPs only once upon start. If you restart your MCP server, you will have to kill and restart your AI coding agent session(s).</p>
               
               <h3>3. Clean uninstallation of Vibe Annotations</h3>
-              <p>First remove the mcp:</p>
-              <div class="command-code">
-                <code>claude mcp remove vibe-annotations</code>
-                <button class="copy-btn" data-command="claude mcp remove vibe-annotations" title="Copy command">
-                  <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
-                </button>
+              <p>First remove the MCP server from your AI coding agent (command varies by agent):</p>
+              
+              <!-- Uninstall Commands for Different Agents -->
+              <div class="agent-tabs">
+                <div class="tab-buttons">
+                  <button class="tab-btn active" data-agent="claude-uninstall">Claude Code</button>
+                  <button class="tab-btn" data-agent="cursor-uninstall">Cursor</button>
+                  <button class="tab-btn" data-agent="windsurf-uninstall">Windsurf</button>
+                  <button class="tab-btn" data-agent="other-uninstall">Other editors</button>
+                </div>
+                
+                <div class="tab-content active" data-agent="claude-uninstall">
+                  <div class="command-code">
+                    <code>claude mcp remove vibe-annotations</code>
+                    <button class="copy-btn" data-command="claude mcp remove vibe-annotations" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="tab-content" data-agent="cursor-uninstall">
+                  <p>Go to Cursor → Settings → Cursor Settings → Tools & Integrations tab and remove the vibe-annotations server from your configuration.</p>
+                </div>
+                
+                <div class="tab-content" data-agent="windsurf-uninstall">
+                  <p>Go to Windsurf → Settings → Advanced Settings → Cascade section and remove the vibe-annotations server from your MCP configuration.</p>
+                </div>
+                
+                <div class="tab-content" data-agent="other-uninstall">
+                  <p>Remove the vibe-annotations server from your editor's MCP configuration settings.</p>
+                </div>
               </div>
               
               <p>Then uninstall the npm server globally:</p>
@@ -161,7 +291,7 @@
             </div>
           </div>
           <p class="setup-complete-text">
-            Ready to annotate! Start using annotation tools in Claude Code.
+            Ready to annotate! Start using annotation tools in your AI coding agent.
           </p>
           <div class="server-actions">
             <button id="view-logs-btn" class="secondary-btn">
@@ -208,20 +338,15 @@
                   <div class="code-block">
                     <code>cd /path/to/your/project</code>
                   </div>
-                  <p class="instruction-note">Go to the project where you want to use Claude Annotations</p>
+                  <p class="instruction-note">Go to the project where you want to use Vibe Annotations</p>
                 </li>
                 <li>
-                  <strong>Connect Claude Code to the server:</strong>
-                  <div class="code-block">
-                    <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
-                  </div>
-                  <p class="instruction-note">Run this command in each project directory where you want annotations</p>
+                  <strong>Connect your AI coding agent to the server:</strong>
+                  <p class="instruction-note">Setup varies by AI coding agent. See the main setup instructions for detailed steps for Claude Code, Cursor, Windsurf, VS Code, and other editors.</p>
                 </li>
                 <li>
-                  <strong>Start Claude Code in this project:</strong>
-                  <div class="code-block">
-                    <code>claude-code</code>
-                  </div>
+                  <strong>Start your AI coding agent in this project:</strong>
+                  <p class="instruction-note">Launch your preferred AI coding agent from the project directory to begin using annotations.</p>
                 </li>
               </ol>
             </div>
@@ -251,7 +376,7 @@
               
               <div class="warning-note">
                 <iconify-icon icon="lucide:alert-triangle" width="16" height="16"></iconify-icon>
-                <span><strong>Important:</strong> If you stop the server, you must restart Claude Code to reconnect when you start it again.</span>
+                <span><strong>Important:</strong> If you stop the server, you must restart your AI coding agent to reconnect when you start it again.</span>
               </div>
             </div>
             
@@ -259,8 +384,8 @@
               <h3>Working with Different Projects:</h3>
               <ul class="instruction-list">
                 <li>The server runs once globally and serves all projects</li>
-                <li>For each new project, run <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code> in that project directory</li>
-                <li>Start Claude Code from the project directory to use annotations in that specific project</li>
+                <li>For each new project, configure the MCP server connection in your AI coding agent (see main setup instructions for agent-specific steps)</li>
+                <li>Start your AI coding agent from the project directory to use annotations in that specific project</li>
               </ul>
             </div>
           </div>
@@ -275,7 +400,7 @@
           </div>
           <h2 class="ready-title">Ready for your annotations</h2>
           <p class="ready-text">
-            Click the button below to launch inspection mode and add annotations for Claude Code.
+            Click the button below to launch inspection mode and add annotations for your AI coding agent.
           </p>
         </div>
       </div>

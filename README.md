@@ -1,11 +1,11 @@
 # Vibe Annotations
 
-AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let Claude Code implement the fixes automatically.
+AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let your AI coding agent implement the fixes automatically.
 
 ## Features
 
 - 🏠 **Localhost-focused**: Works on your development projects
-- 🤖 **AI-powered**: Integrates with Claude Code via MCP
+- 🤖 **AI-powered**: Integrates with AI coding agents via MCP
 - ⚡ **Instant feedback**: Click, comment, bulk-fix
 - 👨‍💻 **Developer-friendly**: Built for modern web development
 
@@ -31,23 +31,68 @@ npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
 vibe-annotations-server start
 ```
 
-### 4. Connect Claude Code
+### 4. Connect Your AI Coding Agent
+Choose your AI coding agent and follow the setup:
+
+#### Claude Code
 In your project directory:
 ```bash
 claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 ```
 
+#### Cursor
+1. Open Cursor → Settings → Cursor Settings
+2. Go to the Tools & Integrations tab
+3. Click + Add new global MCP server
+4. Add this configuration:
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/sse"
+    }
+  }
+}
+```
+
+#### Windsurf
+1. Navigate to Windsurf → Settings → Advanced Settings
+2. Scroll down to the Cascade section
+3. Add this configuration:
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "serverUrl": "http://127.0.0.1:3846/sse"
+    }
+  }
+}
+```
+
+#### VS Code
+Install an AI extension that supports MCP, then add this configuration to your MCP settings:
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "type": "sse",
+      "url": "http://127.0.0.1:3846/sse"
+    }
+  }
+}
+```
+
 ### 5. Start Using Annotations
 - Open the extension popup for detailed setup instructions
 - Start annotating your localhost projects!
-- Use Claude Code to automatically implement fixes
+- Use your AI coding agent to automatically implement fixes
 
 ## User Experience Flow
 
 1. **Extension Installation**: Install from Chrome Web Store
 2. **Setup Instructions**: Extension popup guides through terminal setup
 3. **Server Detection**: Extension automatically detects running server
-4. **Daily Usage**: Create annotations → Use Claude Code → Fixes implemented
+4. **Daily Usage**: Create annotations → Use your AI coding agent → Fixes implemented
 
 ## Server Management
 
