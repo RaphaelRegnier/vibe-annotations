@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const PORT = 3846;
-const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.claude-annotations');
+const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
 
 class LocalAnnotationsServer {

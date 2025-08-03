@@ -59,7 +59,7 @@ The server provides:
 - **HTTP API** (`/api/annotations`): For Chrome extension communication
 - **Health Check** (`/health`): For status monitoring
 
-Data is stored in `~/.claude-annotations/annotations.json`.
+Data is stored in `~/.vibe-annotations/annotations.json`.
 
 ## Development
 

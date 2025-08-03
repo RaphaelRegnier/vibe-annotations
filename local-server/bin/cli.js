@@ -17,7 +17,7 @@ const execAsync = promisify(exec);
 const program = new Command();
 
 // Configuration paths
-const CONFIG_DIR = join(homedir(), '.claude-annotations');
+const CONFIG_DIR = join(homedir(), '.vibe-annotations');
 const PID_FILE = join(CONFIG_DIR, 'server.pid');
 const LOG_FILE = join(CONFIG_DIR, 'server.log');
 const PORT = 3846;
