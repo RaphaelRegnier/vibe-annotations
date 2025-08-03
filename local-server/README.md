@@ -1,11 +1,11 @@
-# claude-annotations-server
+# vibe-annotations-server
 
-Global MCP server for Claude Annotations browser extension.
+Global MCP server for Vibe Annotations browser extension.
 
 ## Installation
 
 ```bash
-npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.git
+npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
 ```
 
 ## Usage
@@ -13,7 +13,7 @@ npm install -g git+https://github.com/RaphaelRegnier/claude-annotations-server.g
 ### Start the server
 
 ```bash
-claude-annotations-server start
+vibe-annotations-server start
 ```
 
 The server will run in the background on port 3846.
@@ -21,27 +21,27 @@ The server will run in the background on port 3846.
 ### Stop the server
 
 ```bash
-claude-annotations-server stop
+vibe-annotations-server stop
 ```
 
 ### Check server status
 
 ```bash
-claude-annotations-server status
+vibe-annotations-server status
 ```
 
 ### Restart the server
 
 ```bash
-claude-annotations-server restart
+vibe-annotations-server restart
 ```
 
 ### View logs
 
 ```bash
-claude-annotations-server logs
+vibe-annotations-server logs
 # or follow logs
-claude-annotations-server logs -f
+vibe-annotations-server logs -f
 ```
 
 ## Claude Code Integration
@@ -66,7 +66,7 @@ Data is stored in `~/.vibe-annotations/annotations.json`.
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd claude-annotations-server
+cd vibe-annotations-server
 
 # Install dependencies
 npm install

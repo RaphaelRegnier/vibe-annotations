@@ -58,13 +58,13 @@ async function checkPort() {
 
 // Commands
 program
-  .name('claude-annotations-server')
-  .description('Global MCP server for Claude Annotations browser extension')
+  .name('vibe-annotations-server')
+  .description('Global MCP server for Vibe Annotations browser extension')
   .version('0.1.0');
 
 program
   .command('start')
-  .description('Start the Claude Annotations server')
+  .description('Start the Vibe Annotations server')
   .option('-d, --daemon', 'Run as daemon (background process)')
   .action(async (options) => {
     if (isServerRunning()) {
@@ -74,7 +74,7 @@ program
       return;
     }
 
-    console.log(chalk.blue('Starting Claude Annotations server...'));
+    console.log(chalk.blue('Starting Vibe Annotations server...'));
 
     const serverPath = join(dirname(__dirname), 'lib', 'server.js');
     
@@ -96,7 +96,7 @@ program
       let attempts = 0;
       while (attempts < 10) {
         if (await checkPort()) {
-          console.log(chalk.green('✅ Claude Annotations server running on http://127.0.0.1:3846/sse'));
+          console.log(chalk.green('✅ Vibe Annotations server running on http://127.0.0.1:3846/sse'));
           console.log(chalk.gray(`   PID: ${child.pid}`));
           console.log(chalk.gray(`   Logs: ${LOG_FILE}`));
           break;
@@ -128,7 +128,7 @@ program
 
 program
   .command('stop')
-  .description('Stop the Claude Annotations server')
+  .description('Stop the Vibe Annotations server')
   .action(() => {
     if (!isServerRunning()) {
       console.log(chalk.yellow('Server is not running'));
@@ -151,7 +151,7 @@ program
 
 program
   .command('restart')
-  .description('Restart the Claude Annotations server')
+  .description('Restart the Vibe Annotations server')
   .action(async () => {
     console.log(chalk.blue('Restarting server...'));
     
@@ -190,7 +190,7 @@ program
       console.log(chalk.gray(`   URL: http://127.0.0.1:${PORT}/sse`));
     } else if (running && !portAvailable) {
       console.log(chalk.yellow('⚠️  Server process exists but is not responding'));
-      console.log(chalk.gray('   Try running: claude-annotations-server restart'));
+      console.log(chalk.gray('   Try running: vibe-annotations-server restart'));
     } else {
       console.log(chalk.gray('○ Server is not running'));
     }

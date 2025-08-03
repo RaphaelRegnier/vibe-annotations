@@ -334,7 +334,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations from the Claude Annotations extension. Use when users want to review, implement, or address their UI feedback and comments. This tool returns annotations containing user comments, DOM element selectors, viewport dimensions, and positioning data. CRITICAL: Always filter by URL parameter (e.g., "http://localhost:3000/") to avoid mixing annotations from different localhost projects. Annotations include viewport width/height which must be mapped to responsive breakpoints (Tailwind sm/md/lg, Bootstrap xs/sm/md, etc.) to ensure fixes target the correct screen size. Returns structured data with project grouping information to help distinguish between multiple localhost applications. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations from the Vibe Annotations extension. Use when users want to review, implement, or address their UI feedback and comments. This tool returns annotations containing user comments, DOM element selectors, viewport dimensions, and positioning data. CRITICAL: Always filter by URL parameter (e.g., "http://localhost:3000/") to avoid mixing annotations from different localhost projects. Annotations include viewport width/height which must be mapped to responsive breakpoints (Tailwind sm/md/lg, Bootstrap xs/sm/md, etc.) to ensure fixes target the correct screen size. Returns structured data with project grouping information to help distinguish between multiple localhost applications. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -745,7 +745,7 @@ class LocalAnnotationsServer {
     this.setupProcessHandlers();
     
     this.server = this.app.listen(PORT, () => {
-      console.log(`Claude Annotations server running on http://127.0.0.1:${PORT}`);
+      console.log(`Vibe Annotations server running on http://127.0.0.1:${PORT}`);
       console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
       console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);
       console.log(`MCP Endpoint: http://127.0.0.1:${PORT}/mcp`);
