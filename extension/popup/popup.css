@@ -13,6 +13,7 @@
   /* Design tokens will be injected as --theme-* variables */
   
   /* Static design tokens */
+  --border-radius-xs: 4px;
   --border-radius-sm: 8px;
   --border-radius-md: 12px;
   --border-radius-lg: 16px;
@@ -1124,5 +1125,82 @@ iconify-icon {
 .warning-note iconify-icon {
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+/* AI Agent Tabs */
+.agent-tabs {
+  margin: var(--spacing-xl) 0;
+}
+
+.tab-buttons {
+  display: flex;
+  background: var(--theme-surface-1);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs);
+  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-xs);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-family);
+  border-radius: var(--border-radius-xs);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tab-btn.active,
+.tab-btn:hover {
+  background: var(--theme-surface);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-outline);
+}
+
+.tab-btn.active {
+  background: var(--theme-accent);
+  color: var(--theme-on-accent);
+  border-color: var(--theme-accent);
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tab-content ol {
+  margin: var(--spacing-md) 0;
+  padding-left: var(--spacing-xl);
+}
+
+.tab-content ol li {
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.5;
+}
+
+.tab-content p {
+  margin: var(--spacing-md) 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
