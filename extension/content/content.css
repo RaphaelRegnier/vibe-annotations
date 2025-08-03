@@ -1,4 +1,13 @@
 /* Vibe Annotations Content Script Styles */
+
+/* Font Face Declaration */
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/InterVariable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 :root {
   /* Design tokens - light theme as default */
   --theme-surface: #f8f9fc;
@@ -346,7 +355,7 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace !important;
 }
 
-/* Claude modal icons - namespaced to avoid conflicts */
+/* Vibe modal icons - namespaced to avoid conflicts */
 .vibe-icon {
   display: inline-block !important;
   width: 16px !important;

@@ -288,7 +288,7 @@ class VibeAnnotations {
     e.preventDefault();
     e.stopPropagation();
     
-    // Skip Claude annotation elements and badges
+    // Skip Vibe annotation elements and badges
     if (e.target.closest('.vibe-comment-modal') || 
         e.target.classList.contains('vibe-annotation-highlight') ||
         e.target.classList.contains('vibe-annotation-badge') ||
@@ -318,7 +318,7 @@ class VibeAnnotations {
     e.stopPropagation();
     
     
-    // Skip Claude annotation elements, modal buttons, and annotation badges
+    // Skip Vibe annotation elements, modal buttons, and annotation badges
     if (e.target.closest('.vibe-comment-modal') || 
         e.target.classList.contains('vibe-btn') ||
         e.target.closest('.vibe-btn') ||
@@ -359,7 +359,7 @@ class VibeAnnotations {
         font-weight: 500;
         z-index: 2147483646;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        animation: claude-fade-in 0.2s ease;
+        animation: vibe-fade-in 0.2s ease;
       ">
         Click on any element to add a comment
         <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">
@@ -1076,7 +1076,7 @@ class VibeAnnotations {
 
   generateDataAttributeSelector(element) {
     // Last resort: add a data attribute to the element
-    const dataId = `claude-annotation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const dataId = `vibe-annotation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     element.setAttribute('data-vibe-id', dataId);
     return `[data-vibe-id="${dataId}"]`;
   }
@@ -1174,19 +1174,19 @@ class VibeAnnotations {
         
         <div class="vibe-element-details">
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--code-bracket-square"></span>
+            <span class="vibe-icon vibe-icon--code-bracket-square"></span>
             <span class="vibe-detail-value">${context.selector}</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--computer-desktop"></span>
+            <span class="vibe-icon vibe-icon--computer-desktop"></span>
             <span class="vibe-detail-value">${context.viewport.width}w</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--map-pin"></span>
+            <span class="vibe-icon vibe-icon--map-pin"></span>
             <span class="vibe-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--arrows-pointing-out"></span>
+            <span class="vibe-icon vibe-icon--arrows-pointing-out"></span>
             <span class="vibe-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
           </div>
         </div>
@@ -1202,12 +1202,12 @@ class VibeAnnotations {
         </div>
         
         <div class="vibe-comment-actions">
-          <button class="vibe-btn claude-btn-icon" id="delete-comment" title="Delete annotation">
-            <span class="vibe-icon claude-icon--trash"></span>
+          <button class="vibe-btn vibe-btn-icon" id="delete-comment" title="Delete annotation">
+            <span class="vibe-icon vibe-icon--trash"></span>
           </button>
           <div class="vibe-btn-group">
-            <button class="vibe-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
-            <button class="vibe-btn claude-btn-primary" id="save-comment" disabled>Save Changes</button>
+            <button class="vibe-btn vibe-btn-secondary" id="cancel-comment">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary" id="save-comment" disabled>Save Changes</button>
           </div>
         </div>
       </div>
@@ -1257,19 +1257,19 @@ class VibeAnnotations {
         
         <div class="vibe-element-details">
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--code-bracket-square"></span>
+            <span class="vibe-icon vibe-icon--code-bracket-square"></span>
             <span class="vibe-detail-value">${context.selector}</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--computer-desktop"></span>
+            <span class="vibe-icon vibe-icon--computer-desktop"></span>
             <span class="vibe-detail-value">${context.viewport.width}w</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--map-pin"></span>
+            <span class="vibe-icon vibe-icon--map-pin"></span>
             <span class="vibe-detail-value">${Math.round(context.position.x)}, ${Math.round(context.position.y)}</span>
           </div>
           <div class="vibe-detail-item">
-            <span class="vibe-icon claude-icon--arrows-pointing-out"></span>
+            <span class="vibe-icon vibe-icon--arrows-pointing-out"></span>
             <span class="vibe-detail-value">${Math.round(context.position.width)}×${Math.round(context.position.height)}</span>
           </div>
         </div>
@@ -1285,8 +1285,8 @@ class VibeAnnotations {
         </div>
         
         <div class="vibe-comment-actions">
-          <button class="vibe-btn claude-btn-secondary" id="cancel-comment">Cancel</button>
-          <button class="vibe-btn claude-btn-primary" id="save-comment" disabled>Save Annotation</button>
+          <button class="vibe-btn vibe-btn-secondary" id="cancel-comment">Cancel</button>
+          <button class="vibe-btn vibe-btn-primary" id="save-comment" disabled>Save Annotation</button>
         </div>
       </div>
     `;
@@ -1580,7 +1580,7 @@ class VibeAnnotations {
         if (newTestElement !== element) {
           console.error('Even regenerated selector fails. Using fallback approach.');
           // Add data attribute as fallback
-          const dataId = `claude-annotation-${Date.now()}`;
+          const dataId = `vibe-annotation-${Date.now()}`;
           element.setAttribute('data-vibe-id', dataId);
           context.selector = `[data-vibe-id="${dataId}"]`;
         }
@@ -2001,10 +2001,10 @@ class VibeAnnotations {
 
   generateElementId(element) {
     // Generate unique ID for element if it doesn't have one
-    if (!element.dataset.claudeAnnotationId) {
-      element.dataset.claudeAnnotationId = 'vibe-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    if (!element.dataset.vibeAnnotationId) {
+      element.dataset.vibeAnnotationId = 'vibe-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
-    return element.dataset.claudeAnnotationId;
+    return element.dataset.vibeAnnotationId;
   }
 
 
