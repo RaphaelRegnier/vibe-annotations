@@ -26,4 +26,9 @@ mcp-server/logs/
 # Session files
 session-combined.md
 session*.md
+SESSION.md
 CLAUDE.md
+
+# Local development files
+UPDATE_NPM_PACKAGE.md
+update-npm.sh
