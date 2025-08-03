@@ -407,6 +407,43 @@
 
       <!-- Annotations List -->
       <div id="annotations-list" class="annotations-list"></div>
+
+      <!-- Settings Screen -->
+      <div id="settings-screen" class="settings-screen" style="display: none;">
+        <div class="settings-content">
+          <div class="settings-header">
+            <button id="back-from-settings-btn" class="icon-btn">
+              <iconify-icon icon="lucide:arrow-left" width="16" height="16"></iconify-icon>
+            </button>
+            <h2>Settings</h2>
+          </div>
+          
+          <div class="settings-body">
+            <div class="setting-group">
+              <label for="theme-select">Theme</label>
+              <div class="theme-select-wrapper">
+                <select id="theme-select" class="theme-select">
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="setting-group">
+              <label for="screenshot-toggle">Enhanced Context</label>
+              <div class="toggle-setting">
+                <span class="toggle-description">Capture element screenshots</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="screenshot-toggle" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <p class="setting-note">Include visual context with annotations to help AI agents better identify elements</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
     
     <footer class="footer">
@@ -426,28 +463,6 @@
         </div>
       </div>
     </footer>
-
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="modal-overlay" style="display: none;">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Settings</h3>
-          <button id="close-settings" class="icon-btn">
-            <iconify-icon icon="lucide:x" width="16" height="16"></iconify-icon>
-          </button>
-        </div>
-        <div class="modal-content">
-          <div class="setting-group">
-            <label for="theme-select">Theme</label>
-            <select id="theme-select" class="theme-select">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
   <script src="iconify-icon.min.js"></script>
   <script src="themes.js"></script>

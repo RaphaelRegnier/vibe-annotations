@@ -16,6 +16,9 @@ class VibeAnnotations {
     // Set up theme
     await this.initTheme();
     
+    // Inject font face with correct extension URL
+    this.injectFontFace();
+    
     // Set up message listener
     this.setupMessageListener();
     
@@ -117,6 +120,28 @@ class VibeAnnotations {
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     return this.currentTheme || 'light';
+  }
+
+  injectFontFace() {
+    // Create a style element for the font face
+    const fontStyle = document.createElement('style');
+    fontStyle.setAttribute('data-vibe-font', 'true');
+    
+    // Get the extension URL for the font file
+    const fontUrl = chrome.runtime.getURL('assets/fonts/InterVariable.woff2');
+    
+    // Create the font face CSS
+    fontStyle.textContent = `
+      @font-face {
+        font-family: 'Inter';
+        src: url('${fontUrl}') format('woff2-variations');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+    `;
+    
+    // Inject into document head
+    document.head.appendChild(fontStyle);
   }
 
   setupMessageListener() {
@@ -381,14 +406,14 @@ class VibeAnnotations {
     // Temporarily disable annotation mode while modal is open
     this.tempDisableAnnotationMode();
     
-    // Generate element context
-    const context = this.generateElementContext(element);
+    // Generate element context (now async for screenshot capture)
+    const context = await this.generateElementContext(element);
     
     // Show comment modal
     this.showCommentModal(element, context);
   }
 
-  generateElementContext(element) {
+  async generateElementContext(element) {
     // Generate CSS selector
     const selector = this.generateSelector(element);
     
@@ -422,6 +447,22 @@ class VibeAnnotations {
     // Get source mapping information
     const sourceMapping = this.generateSourceMapping(element);
     
+    // Capture screenshot if enabled
+    let screenshot = null;
+    try {
+      const result = await chrome.storage.local.get(['screenshotEnabled']);
+      const screenshotEnabled = result.screenshotEnabled !== undefined ? result.screenshotEnabled : true;
+      
+      if (screenshotEnabled) {
+        screenshot = await this.captureElementScreenshot(element);
+      }
+    } catch (error) {
+      console.warn('Failed to capture screenshot:', error);
+    }
+
+    // Get parent chain context for better element disambiguation
+    const parentChain = this.getParentChainContext(element);
+    
     return {
       selector,
       tag: element.tagName.toLowerCase(),
@@ -430,8 +471,104 @@ class VibeAnnotations {
       styles: relevantStyles,
       position,
       viewport,
-      source_mapping: sourceMapping
+      source_mapping: sourceMapping,
+      screenshot: screenshot,
+      parent_chain: parentChain
     };
+  }
+
+  async captureElementScreenshot(element) {
+    try {
+      // Get element bounds for cropping
+      const rect = element.getBoundingClientRect();
+      const padding = 20; // Add some padding around the element
+      
+      // Calculate crop area with padding, but constrain to viewport
+      const cropArea = {
+        x: Math.max(0, rect.left - padding),
+        y: Math.max(0, rect.top - padding),
+        width: Math.min(window.innerWidth - Math.max(0, rect.left - padding), rect.width + (padding * 2)),
+        height: Math.min(window.innerHeight - Math.max(0, rect.top - padding), rect.height + (padding * 2))
+      };
+      
+      // Create canvas for screenshot
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Set canvas size to crop area
+      canvas.width = cropArea.width;
+      canvas.height = cropArea.height;
+      
+      // Use html2canvas-like approach for cross-browser compatibility
+      const elementStyle = window.getComputedStyle(element);
+      
+      // Create a simplified visual representation
+      ctx.fillStyle = elementStyle.backgroundColor || '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add element outline
+      ctx.strokeStyle = '#d97757'; // Vibe orange
+      ctx.lineWidth = 2;
+      const elementX = Math.max(0, rect.left - cropArea.x);
+      const elementY = Math.max(0, rect.top - cropArea.y);
+      ctx.strokeRect(elementX, elementY, rect.width, rect.height);
+      
+      // Add element text if available
+      const text = element.textContent.trim().substring(0, 50);
+      if (text) {
+        ctx.fillStyle = elementStyle.color || '#000000';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText(text + (element.textContent.length > 50 ? '...' : ''), elementX + 5, elementY + 15);
+      }
+      
+      // Convert to WebP with compression for smaller file size
+      const dataUrl = canvas.toDataURL('image/webp', 0.8);
+      
+      // Return metadata about the screenshot
+      return {
+        data_url: dataUrl,
+        crop_area: cropArea,
+        element_bounds: {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height
+        },
+        timestamp: new Date().toISOString(),
+        compression: 'webp_80'
+      };
+      
+    } catch (error) {
+      console.warn('Failed to capture element screenshot:', error);
+      return null;
+    }
+  }
+
+  getParentChainContext(element, maxDepth = 3) {
+    const parentChain = [];
+    let current = element.parentElement;
+    let depth = 0;
+    
+    while (current && depth < maxDepth && current.tagName !== 'BODY') {
+      const parentInfo = {
+        tag: current.tagName.toLowerCase(),
+        classes: Array.from(current.classList),
+        id: current.id || null,
+        role: current.getAttribute('role') || null,
+        text_sample: current.textContent.substring(0, 50).trim()
+      };
+      
+      // Only include meaningful parents (not just divs without context)
+      if (parentInfo.classes.length > 0 || parentInfo.id || parentInfo.role || 
+          ['nav', 'header', 'footer', 'main', 'section', 'article', 'aside'].includes(parentInfo.tag)) {
+        parentChain.push(parentInfo);
+      }
+      
+      current = current.parentElement;
+      depth++;
+    }
+    
+    return parentChain.length > 0 ? parentChain : null;
   }
 
   generateSourceMapping(element) {
@@ -1161,7 +1298,14 @@ class VibeAnnotations {
           </button>
         </div>
         
-        ${!apiStatus.connected ? `
+        ${this.isFileProtocol() ? `
+          <div class="vibe-api-status-warning">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Local file mode - API server access via extension background</span>
+          </div>
+        ` : !apiStatus.connected ? `
           <div class="vibe-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
@@ -1244,7 +1388,14 @@ class VibeAnnotations {
           </button>
         </div>
         
-        ${!apiStatus.connected ? `
+        ${this.isFileProtocol() ? `
+          <div class="vibe-api-status-warning">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Local file mode - API server access via extension background</span>
+          </div>
+        ` : !apiStatus.connected ? `
           <div class="vibe-api-status-warning">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
@@ -1285,8 +1436,10 @@ class VibeAnnotations {
         </div>
         
         <div class="vibe-comment-actions">
-          <button class="vibe-btn vibe-btn-secondary" id="cancel-comment">Cancel</button>
-          <button class="vibe-btn vibe-btn-primary" id="save-comment" disabled>Save Annotation</button>
+          <div class="vibe-btn-group">
+            <button class="vibe-btn vibe-btn-secondary" id="cancel-comment">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary" id="save-comment" disabled>Save Annotation</button>
+          </div>
         </div>
       </div>
     `;
@@ -1301,40 +1454,88 @@ class VibeAnnotations {
     textarea.focus();
   }
 
+  // Helper method to detect if we're on a file:// URL
+  isFileProtocol() {
+    return window.location.protocol === 'file:';
+  }
+
+  // Cache API status to prevent repeated calls
+  apiStatusCache = null;
+  apiStatusCacheTime = 0;
+  apiStatusCacheDuration = 2000; // Cache for 2 seconds
+
+  // Clear API status cache
+  clearAPIStatusCache() {
+    this.apiStatusCache = null;
+    this.apiStatusCacheTime = 0;
+  }
+
   async checkAPIStatus() {
-    try {
-      // Try direct fetch first
-      const response = await fetch('http://localhost:3846/health', {
-        method: 'GET',
-        signal: AbortSignal.timeout(2000), // 2 second timeout
-        mode: 'cors', // Explicitly set CORS mode
-        credentials: 'omit' // Don't send credentials for localhost
-      });
-      
-      if (response.ok) {
-        return { connected: true };
-      } else {
-        return { connected: false, error: `Server returned ${response.status}` };
-      }
-    } catch (error) {
-      // If direct fetch fails (e.g., on file:// URLs due to CORS), try via background script
-      console.warn('Direct API check failed, trying via background script:', error);
-      
+    // Check cache first
+    const now = Date.now();
+    if (this.apiStatusCache && (now - this.apiStatusCacheTime) < this.apiStatusCacheDuration) {
+      return this.apiStatusCache;
+    }
+
+    let status;
+
+    // If we're on file:// protocol, skip direct fetch and use background script immediately
+    if (this.isFileProtocol()) {
       try {
         const bgResponse = await chrome.runtime.sendMessage({
           action: 'checkMCPStatus'
         });
         
         if (bgResponse && bgResponse.success && bgResponse.status) {
-          return { connected: bgResponse.status.connected };
+          status = { connected: bgResponse.status.connected };
         } else {
-          return { connected: false, error: 'Background check failed' };
+          status = { connected: false, error: 'Background check failed' };
         }
       } catch (bgError) {
-        console.error('Background API check also failed:', bgError);
-        return { connected: false, error: error.message };
+        console.error('Background API check failed on file:// protocol:', bgError);
+        status = { connected: false, error: 'Cannot connect to API server from local file' };
+      }
+    } else {
+      // For localhost URLs, try direct fetch first
+      try {
+        const response = await fetch('http://localhost:3846/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(2000), // 2 second timeout
+          mode: 'cors', // Explicitly set CORS mode
+          credentials: 'omit' // Don't send credentials for localhost
+        });
+        
+        if (response.ok) {
+          status = { connected: true };
+        } else {
+          status = { connected: false, error: `Server returned ${response.status}` };
+        }
+      } catch (error) {
+        // If direct fetch fails, try via background script as fallback
+        console.warn('Direct API check failed, trying via background script:', error);
+        
+        try {
+          const bgResponse = await chrome.runtime.sendMessage({
+            action: 'checkMCPStatus'
+          });
+          
+          if (bgResponse && bgResponse.success && bgResponse.status) {
+            status = { connected: bgResponse.status.connected };
+          } else {
+            status = { connected: false, error: 'Background check failed' };
+          }
+        } catch (bgError) {
+          console.error('Background API check also failed:', bgError);
+          status = { connected: false, error: error.message };
+        }
       }
     }
+
+    // Cache the result
+    this.apiStatusCache = status;
+    this.apiStatusCacheTime = now;
+
+    return status;
   }
 
   setupEditModalListeners(modal, element, context, annotation) {
@@ -1525,34 +1726,54 @@ class VibeAnnotations {
 
   async updateAnnotation(annotation, newComment) {
     try {
-      // Update the annotation in storage
-      const result = await chrome.storage.local.get(['annotations']);
-      const allAnnotations = result.annotations || [];
+      // Update annotation through background script
+      const updates = {
+        comment: newComment,
+        updated_at: new Date().toISOString()
+      };
       
-      // Find and update the annotation
-      const index = allAnnotations.findIndex(a => a.id === annotation.id);
-      if (index !== -1) {
-        allAnnotations[index].comment = newComment;
-        allAnnotations[index].updated_at = new Date().toISOString();
+      try {
+        const bgResponse = await chrome.runtime.sendMessage({
+          action: 'updateAnnotation',
+          id: annotation.id,
+          updates: updates
+        });
         
-        // Save back to storage
-        await chrome.storage.local.set({ annotations: allAnnotations });
+        if (!bgResponse || !bgResponse.success) {
+          throw new Error(bgResponse?.error || 'Failed to update annotation');
+        }
         
         // Update local array
         const localIndex = this.annotations.findIndex(a => a.id === annotation.id);
         if (localIndex !== -1) {
-          this.annotations[localIndex] = allAnnotations[index];
+          this.annotations[localIndex] = { ...this.annotations[localIndex], ...updates };
         }
-        
-        // Update the tooltip content
-        const element = document.querySelector(annotation.selector);
-        if (element) {
-          const badge = element.querySelector('.vibe-annotation-badge');
-          if (badge) {
-            const tooltip = badge.querySelector('.vibe-pin-tooltip');
-            if (tooltip) {
-              tooltip.textContent = newComment;
-            }
+      } catch (error) {
+        console.error('Error updating annotation via background script:', error);
+        // Fallback to direct storage update
+        const result = await chrome.storage.local.get(['annotations']);
+        const allAnnotations = result.annotations || [];
+        const index = allAnnotations.findIndex(a => a.id === annotation.id);
+        if (index !== -1) {
+          allAnnotations[index] = { ...allAnnotations[index], ...updates };
+          await chrome.storage.local.set({ annotations: allAnnotations });
+          
+          // Update local array
+          const localIndex = this.annotations.findIndex(a => a.id === annotation.id);
+          if (localIndex !== -1) {
+            this.annotations[localIndex] = allAnnotations[index];
+          }
+        }
+      }
+      
+      // Update the tooltip content
+      const element = document.querySelector(annotation.selector);
+      if (element) {
+        const badge = element.querySelector('.vibe-annotation-badge');
+        if (badge) {
+          const tooltip = badge.querySelector('.vibe-pin-tooltip');
+          if (tooltip) {
+            tooltip.textContent = newComment;
           }
         }
       }
@@ -1605,23 +1826,35 @@ class VibeAnnotations {
         url_path: context.source_mapping?.url_path || window.location.pathname,
         source_map_available: context.source_mapping?.source_map_available || false,
         context_hints: context.source_mapping?.context_hints || null,
+        screenshot: context.screenshot || null,
+        parent_chain: context.parent_chain || null,
         status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
-      // Get existing annotations from storage
-      const result = await chrome.storage.local.get(['annotations']);
-      const allAnnotations = result.annotations || [];
-      
-      // Add new annotation
-      allAnnotations.push(annotation);
-      
-      // Save back to storage
-      await chrome.storage.local.set({ annotations: allAnnotations });
-      
-      // Add to local array
-      this.annotations.push(annotation);
+      // Save annotation through background script
+      try {
+        const bgResponse = await chrome.runtime.sendMessage({
+          action: 'saveAnnotation',
+          annotation: annotation
+        });
+        
+        if (!bgResponse || !bgResponse.success) {
+          throw new Error(bgResponse?.error || 'Failed to save annotation');
+        }
+        
+        // Add to local array
+        this.annotations.push(annotation);
+      } catch (error) {
+        console.error('Error saving annotation via background script:', error);
+        // Fallback to direct storage save
+        const result = await chrome.storage.local.get(['annotations']);
+        const allAnnotations = result.annotations || [];
+        allAnnotations.push(annotation);
+        await chrome.storage.local.set({ annotations: allAnnotations });
+        this.annotations.push(annotation);
+      }
       
       // Show visual indicator on element with correct index
       const sortedAnnotations = [...this.annotations].sort((a, b) => 
@@ -2012,8 +2245,8 @@ class VibeAnnotations {
     // Temporarily disable annotation mode while modal is open
     this.tempDisableAnnotationMode();
     
-    // Generate fresh element context
-    const context = this.generateElementContext(element);
+    // Generate fresh element context (now async for screenshot capture)
+    const context = await this.generateElementContext(element);
     
     // Show comment modal in edit mode
     this.showEditModal(element, context, annotation);

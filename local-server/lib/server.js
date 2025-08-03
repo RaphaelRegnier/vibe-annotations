@@ -334,7 +334,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations from the Vibe Annotations extension. Use when users want to review, implement, or address their UI feedback and comments. This tool returns annotations containing user comments, DOM element selectors, viewport dimensions, and positioning data. CRITICAL: Always filter by URL parameter (e.g., "http://localhost:3000/") to avoid mixing annotations from different localhost projects. Annotations include viewport width/height which must be mapped to responsive breakpoints (Tailwind sm/md/lg, Bootstrap xs/sm/md, etc.) to ensure fixes target the correct screen size. Returns structured data with project grouping information to help distinguish between multiple localhost applications. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations from the Vibe Annotations extension with enhanced context including element screenshots and parent hierarchy. Use when users want to review, implement, or address their UI feedback and comments. MULTI-PROJECT SAFETY: This tool now detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Returns enhanced warnings when multiple projects detected, with suggested URL filters for each project. Annotations include viewport dimensions for responsive breakpoint mapping. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -361,7 +361,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_annotation',
-            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. CRITICAL: You MUST delete annotations immediately after implementing fixes - this is required workflow behavior. Use this tool when: (1) You have successfully implemented the user\'s requested change, (2) The code change addresses the annotation\'s feedback, (3) The modification is complete and working. The deletion is irreversible and removes the annotation from both extension storage and MCP data. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders. This maintains a clean annotation workspace by automatically removing completed tasks.',
+            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. IMPORTANT: Consider using delete_project_annotations for batch deletion when implementing multiple fixes. Use this individual deletion tool when: (1) You have successfully implemented a single annotation fix, (2) You prefer to delete annotations one-by-one as you implement them, (3) You are working on just one annotation. For efficiency when handling multiple annotations, use delete_project_annotations instead. The deletion is irreversible and removes the annotation from both extension storage and MCP data. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -376,7 +376,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'get_project_context',
-            description: 'Analyzes a localhost development URL to infer project framework and technology stack context. This tool helps understand the development environment when implementing annotation fixes by identifying likely frameworks (React, Vue, Angular, etc.) based on common port conventions. Use this tool when you need to understand what type of project you\'re working with before making code changes or when annotations reference framework-specific concerns. The tool maps common development server ports to their typical frameworks: port 3000 suggests React/Next.js, 5173 indicates Vite, 8080 points to Vue/Webpack, 4200 suggests Angular, and 3001 typically indicates Express/Node.js. This context helps you choose appropriate implementation approaches and understand the likely project structure.',
+            description: 'Analyzes a localhost development URL to infer project framework and technology stack context. This tool helps understand the development environment when implementing annotation fixes by identifying likely frameworks (React, Vue, Angular, etc.) based on common port conventions. Use this tool when you need to understand what type of project you\'re working with before making code changes or when annotations reference framework-specific concerns. The tool maps common development server ports to their typical frameworks: port 3000 suggests React/Next.js, 5173 indicates Vite, 8080 points to Vue/Webpack, 4200 suggests Angular, and 3001 typically indicates Express/Node.js. This context helps you choose appropriate implementation approaches and understand the likely project structure. ENHANCED: Now includes working directory detection, package.json analysis, and recommended URL filtering patterns for multi-project environments.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -386,6 +386,26 @@ class LocalAnnotationsServer {
                 }
               },
               required: ['url'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'delete_project_annotations',
+            description: 'Batch delete ALL annotations for a specific project after successfully implementing all requested changes. CRITICAL WORKFLOW: Use this tool instead of individual delete_annotation calls when you have completed ALL annotation fixes for a project. This implements the efficient "read all → implement all → delete all" workflow. SAFETY: Requires URL pattern (like "http://localhost:3000/*") to prevent accidental deletion across projects. Always confirm the count of annotations to be deleted before proceeding. Use this tool when: (1) You have successfully implemented ALL annotation fixes for a project, (2) All code changes are complete and working, (3) You want to clean up all annotations for the project at once. This is more efficient than deleting annotations one-by-one.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url_pattern: {
+                  type: 'string',
+                  description: 'URL pattern to match annotations for deletion (e.g., "http://localhost:3000/*" or "http://localhost:3000/" for all annotations from that project)'
+                },
+                confirm: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Set to true to confirm batch deletion. First call without confirm=true to see how many annotations would be deleted.'
+                }
+              },
+              required: ['url_pattern'],
               additionalProperties: false
             }
           }
@@ -401,7 +421,7 @@ class LocalAnnotationsServer {
         switch (name) {
           case 'read_annotations': {
             const result = await this.readAnnotations(args || {});
-            const { annotations, projectInfo } = result;
+            const { annotations, projectInfo, multiProjectWarning } = result;
             
             return {
               content: [
@@ -413,6 +433,7 @@ class LocalAnnotationsServer {
                     data: annotations,
                     count: annotations.length,
                     projects: projectInfo,
+                    multi_project_warning: multiProjectWarning,
                     filter_applied: args?.url || 'none',
                     timestamp: new Date().toISOString()
                   }, null, 2)
@@ -448,6 +469,23 @@ class LocalAnnotationsServer {
                     tool: 'get_project_context',
                     status: 'success',
                     data: context,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'delete_project_annotations': {
+            const result = await this.deleteProjectAnnotations(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'delete_project_annotations',
+                    status: 'success',
+                    data: result,
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -584,20 +622,32 @@ class LocalAnnotationsServer {
     
     // Add project context to response
     const projectCount = Object.keys(groupedByProject).length;
+    let multiProjectWarning = null;
+    
     if (projectCount > 1 && !url) {
-      console.warn(`Found annotations from ${projectCount} different projects. Consider using the 'url' parameter to filter.`);
+      const projectSuggestions = Object.keys(groupedByProject).map(baseUrl => `"${baseUrl}/*"`).join(' or ');
+      multiProjectWarning = {
+        warning: `MULTI-PROJECT DETECTED: Found annotations from ${projectCount} different projects. This may cause cross-project contamination.`,
+        recommendation: `Use the 'url' parameter to filter annotations for your current project.`,
+        suggested_filters: Object.keys(groupedByProject).map(baseUrl => `${baseUrl}/*`),
+        guidance: `Example: Use url: "${Object.keys(groupedByProject)[0]}/*" to filter for the first project.`,
+        projects_detected: Object.keys(groupedByProject)
+      };
+      console.warn(`MULTI-PROJECT WARNING: Found annotations from ${projectCount} different projects. Use url parameter: ${projectSuggestions}`);
     }
     
     // Build project info for better context
     const projectInfo = Object.entries(groupedByProject).map(([baseUrl, annotations]) => ({
       base_url: baseUrl,
       annotation_count: annotations.length,
-      paths: [...new Set(annotations.map(a => new URL(a.url).pathname))].slice(0, 5) // Show up to 5 unique paths
+      paths: [...new Set(annotations.map(a => new URL(a.url).pathname))].slice(0, 5), // Show up to 5 unique paths
+      recommended_filter: `${baseUrl}/*`
     }));
     
     return {
       annotations: filtered.slice(0, limit),
-      projectInfo: projectInfo
+      projectInfo: projectInfo,
+      multiProjectWarning: multiProjectWarning
     };
   }
 
@@ -624,12 +674,83 @@ class LocalAnnotationsServer {
     };
   }
 
+  async deleteProjectAnnotations(args) {
+    const { url_pattern, confirm = false } = args;
+    
+    const annotations = await this.loadAnnotations();
+    
+    // Filter annotations matching the URL pattern
+    let matchingAnnotations;
+    if (url_pattern.includes('*') || url_pattern.endsWith('/')) {
+      // Pattern matching: "http://localhost:3000/*" or "http://localhost:3000/"
+      const baseUrl = url_pattern.replace('*', '').replace(/\/$/, '');
+      matchingAnnotations = annotations.filter(a => a.url.startsWith(baseUrl));
+    } else {
+      // Exact URL matching
+      matchingAnnotations = annotations.filter(a => a.url === url_pattern);
+    }
+    
+    if (matchingAnnotations.length === 0) {
+      return {
+        url_pattern,
+        count: 0,
+        message: 'No annotations found matching the URL pattern',
+        deleted: false
+      };
+    }
+    
+    // If confirm is false, return preview of what would be deleted
+    if (!confirm) {
+      const projectInfo = matchingAnnotations.reduce((acc, annotation) => {
+        const url = annotation.url;
+        if (!acc[url]) {
+          acc[url] = [];
+        }
+        acc[url].push({
+          id: annotation.id,
+          comment: annotation.comment.substring(0, 100) + (annotation.comment.length > 100 ? '...' : ''),
+          created_at: annotation.created_at
+        });
+        return acc;
+      }, {});
+      
+      return {
+        url_pattern,
+        count: matchingAnnotations.length,
+        preview: projectInfo,
+        message: `Found ${matchingAnnotations.length} annotation(s) that would be deleted. Set confirm=true to proceed with deletion.`,
+        deleted: false,
+        urls_affected: Object.keys(projectInfo)
+      };
+    }
+    
+    // Proceed with deletion
+    const remainingAnnotations = annotations.filter(a => !matchingAnnotations.find(m => m.id === a.id));
+    await this.saveAnnotations(remainingAnnotations);
+    
+    const deletedInfo = matchingAnnotations.map(a => ({
+      id: a.id,
+      url: a.url,
+      comment: a.comment.substring(0, 100) + (a.comment.length > 100 ? '...' : '')
+    }));
+    
+    return {
+      url_pattern,
+      count: matchingAnnotations.length,
+      deleted: true,
+      message: `Successfully deleted ${matchingAnnotations.length} annotation(s) for project ${url_pattern}`,
+      deleted_annotations: deletedInfo,
+      remaining_total: remainingAnnotations.length
+    };
+  }
+
   async getProjectContext(args) {
     const { url } = args;
     
     // Parse localhost URL to infer project structure
     const urlObj = new URL(url);
     const port = urlObj.port;
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
     
     const commonPorts = {
       '3000': 'React/Next.js',
@@ -639,10 +760,60 @@ class LocalAnnotationsServer {
       '3001': 'Express/Node.js'
     };
     
+    // Get current working directory context
+    const cwd = process.cwd();
+    const workingDirectory = {
+      path: cwd,
+      name: path.basename(cwd)
+    };
+    
+    // Try to read package.json for additional context
+    let packageInfo = null;
+    try {
+      const packageJsonPath = path.join(cwd, 'package.json');
+      if (existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+        packageInfo = {
+          name: packageJson.name,
+          scripts: Object.keys(packageJson.scripts || {}),
+          dependencies: Object.keys(packageJson.dependencies || {}),
+          devDependencies: Object.keys(packageJson.devDependencies || {})
+        };
+      }
+    } catch (error) {
+      // Package.json not found or invalid, continue without it
+    }
+    
+    // Get all annotations to provide project mapping context
+    const annotations = await this.loadAnnotations();
+    const projectUrls = [...new Set(annotations.map(a => {
+      try {
+        const aUrl = new URL(a.url);
+        return `${aUrl.protocol}//${aUrl.host}`;
+      } catch (e) {
+        return null;
+      }
+    }).filter(Boolean))];
+    
+    // Recommend URL filter pattern for this project
+    const recommendedFilter = `${baseUrl}/*`;
+    
+    // Check if current project matches working directory context
+    const isCurrentProject = url.includes(baseUrl);
+    
     return {
       url,
       port,
+      base_url: baseUrl,
       likely_framework: commonPorts[port] || 'Unknown',
+      working_directory: workingDirectory,
+      package_info: packageInfo,
+      recommended_filter: recommendedFilter,
+      all_project_urls: projectUrls,
+      is_current_project: isCurrentProject,
+      annotation_guidance: projectUrls.length > 1 
+        ? `Multiple projects detected (${projectUrls.length}). Use url parameter: "${recommendedFilter}" to filter annotations for this specific project.`
+        : 'Single project detected. No URL filtering needed.',
       timestamp: new Date().toISOString()
     };
   }
