@@ -60,7 +60,7 @@ async function checkPort() {
 program
   .name('vibe-annotations-server')
   .description('Global MCP server for Vibe Annotations browser extension')
-  .version('0.1.0');
+  .version('0.1.1');
 
 program
   .command('start')
