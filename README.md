@@ -1,6 +1,25 @@
 # Vibe Annotations
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green)](https://chrome.google.com/webstore)
+[![npm version](https://img.shields.io/npm/v/vibe-annotations-server)](https://www.npmjs.com/package/vibe-annotations-server)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let your AI coding agent implement the fixes automatically.
+
+## How it Works
+
+![Default State](docs/images/default-state.webp)
+*1. Extension popup shows setup instructions and current page status*
+
+![Creating New Annotation](docs/images/new-annotation.webp)
+*2. Click elements on your localhost page to create annotations with feedback*
+
+![Annotation Management](docs/images/annotation-index.webp)
+*3. Manage all your annotations from the extension popup*
+
+![AI Processing](docs/images/annotation-processing.webp)
+*4. AI coding agents automatically implement your requested fixes*
 
 ## Features
 
@@ -111,6 +130,27 @@ vibe-annotations-server restart
 
 See `/extension` directory for browser extension development. The server package will be published separately as `vibe-annotations-server`.
 
+## Troubleshooting
+
+Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-annotations/issues) or create a new one.
+
+### Common Issues
+
+- **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
+- **Extension not working**: Check that you're on a localhost URL (localhost, 127.0.0.1, or 0.0.0.0)
+- **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
+
+## Contributing
+
+We love contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Contributors
+
+Thanks to everyone who has contributed to making Vibe Annotations better!
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE) for details
