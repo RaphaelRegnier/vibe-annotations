@@ -7,6 +7,8 @@
 
 AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let your AI coding agent implement the fixes automatically.
 
+https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
+
 ## How it Works
 
 ![Default State](docs/images/default-state.webp)
