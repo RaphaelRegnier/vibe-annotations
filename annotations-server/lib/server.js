@@ -542,20 +542,67 @@ class LocalAnnotationsServer {
 
   async saveAnnotations(annotations) {
     try {
-      await this.ensureDataFile();
       console.log(`Saving ${annotations.length} annotations to disk`);
       const jsonData = JSON.stringify(annotations, null, 2);
       
+      // Ensure directory exists right before operations  
+      const dataDir = path.dirname(DATA_FILE);
+      if (!existsSync(dataDir)) {
+        console.log(`Creating data directory: ${dataDir}`);
+        await mkdir(dataDir, { recursive: true });
+      }
+      
+      // Double-check directory exists after creation
+      if (!existsSync(dataDir)) {
+        throw new Error(`Failed to create data directory: ${dataDir}`);
+      }
+      
       // Atomic write: write to temp file first, then rename
       const tempFile = DATA_FILE + '.tmp';
+      console.log(`Writing temp file: ${tempFile}`);
       await writeFile(tempFile, jsonData);
       
+      // Verify temp file was created successfully
+      if (!existsSync(tempFile)) {
+        throw new Error(`Temp file was not created: ${tempFile}`);
+      }
+      
       // Rename temp file to actual file (atomic operation)
+      console.log(`Renaming ${tempFile} to ${DATA_FILE}`);
       const fs = await import('fs');
       await fs.promises.rename(tempFile, DATA_FILE);
-      console.log(`Successfully saved ${annotations.length} annotations`);
+      
+      // Verify final file exists
+      if (!existsSync(DATA_FILE)) {
+        throw new Error(`Final file was not created: ${DATA_FILE}`);
+      }
+      
+      console.log(`Successfully saved ${annotations.length} annotations to ${DATA_FILE}`);
     } catch (error) {
       console.error('Error saving annotations:', error);
+      
+      // Clean up temp file if it exists
+      const tempFile = DATA_FILE + '.tmp';
+      try {
+        if (existsSync(tempFile)) {
+          const fs = await import('fs');
+          await fs.promises.unlink(tempFile);
+          console.log(`Cleaned up temp file: ${tempFile}`);
+        }
+      } catch (cleanupError) {
+        console.warn(`Failed to clean up temp file: ${cleanupError.message}`);
+      }
+      
+      // Fallback: try direct write without atomic operation
+      console.log('Attempting fallback direct write...');
+      try {
+        await writeFile(DATA_FILE, jsonData);
+        console.log(`Fallback write successful: ${DATA_FILE}`);
+        return;
+      } catch (fallbackError) {
+        console.error('Fallback write also failed:', fallbackError);
+      }
+      
       throw error;
     }
   }

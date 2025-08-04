@@ -256,8 +256,8 @@ class VibeAnnotations {
     // Clear highlights
     this.clearHighlights();
     
-    // Show existing annotations again to ensure they remain visible
-    this.showExistingAnnotations();
+    // Note: No need to rebuild all badges here since they persist after annotation mode
+    // Badges are created immediately when annotations are saved in saveAnnotation()
   }
 
   tempDisableAnnotationMode() {
