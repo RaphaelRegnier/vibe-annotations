@@ -91,10 +91,12 @@ function uninstallServer() {
   }
 }
 
+let childProcess = null;
+
 function runCommand(args) {
-  const child = spawn(COMMAND_NAME, args, { stdio: 'inherit' });
+  childProcess = spawn(COMMAND_NAME, args, { stdio: 'inherit' });
   
-  child.on('error', (error) => {
+  childProcess.on('error', (error) => {
     if (error.code === 'ENOENT') {
       log('❌ Command not found. Installation may have failed.', colors.yellow);
     } else {
@@ -102,8 +104,9 @@ function runCommand(args) {
     }
   });
 
-  child.on('exit', (code) => {
-    process.exit(code);
+  childProcess.on('exit', (code) => {
+    childProcess = null;
+    process.exit(code || 0);
   });
 }
 
@@ -150,10 +153,21 @@ function main() {
   runCommand(finalArgs);
 }
 
-// Handle Ctrl+C gracefully
-process.on('SIGINT', () => {
-  log('\n👋 Shutting down...', colors.yellow);
-  process.exit(0);
+// Set up signal handlers
+const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+signals.forEach(signal => {
+  process.on(signal, () => {
+    if (childProcess) {
+      // Forward signal to child process
+      childProcess.kill(signal);
+    } else {
+      // No child process, exit gracefully
+      if (signal === 'SIGINT') {
+        log('\n👋 Shutting down...', colors.yellow);
+      }
+      process.exit(0);
+    }
+  });
 });
 
 main();
