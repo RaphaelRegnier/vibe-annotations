@@ -57,24 +57,15 @@
             <div class="rich-text-content">
               <p>To read your annotations, your AI coding agent needs to communicate to an MCP + HTTP API server that will run on your local machine.</p>
               
-              <h3>1. Download and install the npm server globally by running:</h3>
+              <h3>1. Start the server (automatically installs if needed):</h3>
               <div class="command-code">
-                <code>npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git</code>
-                <button class="copy-btn" data-command="npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git" title="Copy command">
+                <code>npx vibe-annotations-server</code>
+                <button class="copy-btn" data-command="npx vibe-annotations-server" title="Copy command">
                   <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                 </button>
               </div>
               
-              <h3>2. Start the server on your local machine:</h3>
-              <div class="command-code">
-                <code>vibe-annotations-server start --daemon</code>
-                <button class="copy-btn" data-command="vibe-annotations-server start --daemon" title="Copy command">
-                  <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
-                </button>
-              </div>
-              <p>This will keep the server running in the background</p>
-              
-              <h3>3. Connect your AI coding agent to the server:</h3>
+              <h3>2. Connect your AI coding agent to the server:</h3>
               
               <!-- AI Agent Tabs -->
               <div class="agent-tabs">
@@ -321,15 +312,9 @@
               <h3>One-Time Setup:</h3>
               <ol class="instruction-list">
                 <li>
-                  <strong>Install the server globally:</strong>
+                  <strong>Start the server (auto-installs if needed):</strong>
                   <div class="code-block">
-                    <code>npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git</code>
-                  </div>
-                </li>
-                <li>
-                  <strong>Start the server:</strong>
-                  <div class="code-block">
-                    <code>vibe-annotations-server start</code>
+                    <code>npx vibe-annotations-server</code>
                   </div>
                   <p class="instruction-note">The server will run in the background globally</p>
                 </li>

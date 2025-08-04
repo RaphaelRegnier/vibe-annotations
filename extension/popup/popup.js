@@ -975,8 +975,7 @@ class AnnotationsPopup {
     if (copyAllBtn) {
       copyAllBtn.addEventListener('click', async () => {
         const commands = [
-          'npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git',
-          'vibe-annotations-server start',
+          'npx vibe-annotations-server',
           'claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse'
         ];
         const allCommands = commands.join('\n');
