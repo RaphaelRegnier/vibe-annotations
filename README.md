@@ -45,17 +45,26 @@ Go to your chromium browser extension page, and click "Load unpacked" then selec
 
 [Coming soon] Install the `vibe-annotations` extension from the Chrome Web Store.
 
-### 2. Install the Global Server
+### 2. Install and Start the Server
+
+#### Option A: Using npx (Recommended)
 ```bash
-npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
+npx vibe-annotations-server
 ```
 
-### 3. Start the Server
+#### Option B: Global Installation
 ```bash
+# Install globally
+npm install -g vibe-annotations-server
+
+# Or install from GitHub directly
+npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
+
+# Start the server
 vibe-annotations-server start
 ```
 
-### 4. Connect Your AI Coding Agent
+### 3. Connect Your AI Coding Agent
 Choose your AI coding agent and follow the setup:
 
 #### Claude Code
@@ -106,7 +115,7 @@ Install an AI extension that supports MCP, then add this configuration to your M
 }
 ```
 
-### 5. Start Using Annotations
+### 4. Start Using Annotations
 - Open the extension popup for detailed setup instructions
 - Start annotating your localhost projects!
 - Use your AI coding agent to automatically implement fixes

@@ -1,0 +1,38 @@
+{
+  "name": "vibe-annotations-server",
+  "version": "0.1.0",
+  "description": "MCP server for Vibe Annotations - AI-powered localhost development feedback",
+  "main": "index.js",
+  "bin": {
+    "vibe-annotations-server": "./index.js"
+  },
+  "scripts": {
+    "test": "node index.js --version"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "annotations",
+    "localhost",
+    "development",
+    "ai-tools",
+    "claude",
+    "cursor",
+    "windsurf",
+    "chrome-extension"
+  ],
+  "author": "Raphaël Régnier",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RaphaelRegnier/vibe-annotations-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RaphaelRegnier/vibe-annotations/issues"
+  },
+  "homepage": "https://github.com/RaphaelRegnier/vibe-annotations",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "preferGlobal": true
+}
