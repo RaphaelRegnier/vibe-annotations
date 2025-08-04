@@ -40,7 +40,9 @@ Vibe Annotations uses a two-piece architecture:
 ## Quick Start
 
 ### 1. Install the Browser Extension
-Install the `vibe-annotations` extension from the Chrome Web Store.
+Go to your chromium browser extension page, and click "Load unpacked" then select /extension directory.
+
+[Coming soon] Install the `vibe-annotations` extension from the Chrome Web Store.
 
 ### 2. Install the Global Server
 ```bash
