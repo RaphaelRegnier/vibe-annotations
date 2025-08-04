@@ -6,6 +6,7 @@ class VibeAnnotations {
     this.annotations = [];
     this.currentTooltip = null;
     this.hoveredElement = null;
+    this.isLocalSave = false; // Flag to prevent badge rebuild after our own saves
     this.init();
   }
 
@@ -186,6 +187,12 @@ class VibeAnnotations {
     // Listen for storage changes to update annotations
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (namespace === 'local' && changes.annotations) {
+        // Skip rebuild if we just saved locally (prevents badge renumbering)
+        if (this.isLocalSave) {
+          this.isLocalSave = false; // Reset flag
+          return;
+        }
+        
         this.loadAnnotations().then(() => {
           this.showExistingAnnotations();
         });
@@ -1733,6 +1740,9 @@ class VibeAnnotations {
       };
       
       try {
+        // Set flag before updating to prevent storage listener from rebuilding badges
+        this.isLocalSave = true;
+        
         const bgResponse = await chrome.runtime.sendMessage({
           action: 'updateAnnotation',
           id: annotation.id,
@@ -1756,6 +1766,9 @@ class VibeAnnotations {
         const index = allAnnotations.findIndex(a => a.id === annotation.id);
         if (index !== -1) {
           allAnnotations[index] = { ...allAnnotations[index], ...updates };
+          
+          // Still set flag for fallback save
+          this.isLocalSave = true;
           await chrome.storage.local.set({ annotations: allAnnotations });
           
           // Update local array
@@ -1835,6 +1848,9 @@ class VibeAnnotations {
       
       // Save annotation through background script
       try {
+        // Set flag before saving to prevent storage listener from rebuilding badges
+        this.isLocalSave = true;
+        
         const bgResponse = await chrome.runtime.sendMessage({
           action: 'saveAnnotation',
           annotation: annotation
@@ -1852,6 +1868,9 @@ class VibeAnnotations {
         const result = await chrome.storage.local.get(['annotations']);
         const allAnnotations = result.annotations || [];
         allAnnotations.push(annotation);
+        
+        // Still set flag for fallback save
+        this.isLocalSave = true;
         await chrome.storage.local.set({ annotations: allAnnotations });
         this.annotations.push(annotation);
       }

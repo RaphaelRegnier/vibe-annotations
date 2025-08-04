@@ -41,6 +41,7 @@ class LocalAnnotationsServer {
     this.handlersSetup = false;
     this.transports = {}; // Track transport sessions
     this.connections = new Set(); // Track HTTP connections
+    this.saveLock = Promise.resolve(); // Serialize save operations to prevent race conditions
     
     this.setupExpress();
     this.setupMCP();
@@ -126,9 +127,19 @@ class LocalAnnotationsServer {
           return res.status(400).json({ error: 'annotations must be an array' });
         }
 
-        // Get current annotation count for logging
+        // Get current annotations for comparison
         const currentAnnotations = await this.loadAnnotations();
         console.log(`Sync request: replacing ${currentAnnotations.length} annotations with ${annotations.length} annotations`);
+
+        // Check if data is actually different to avoid redundant saves
+        const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
+        const newJson = JSON.stringify(annotations.sort((a, b) => a.id.localeCompare(b.id)));
+        
+        if (currentJson === newJson) {
+          console.log(`Sync skipped: data is identical`);
+          res.json({ success: true, count: annotations.length, skipped: true });
+          return;
+        }
 
         // Replace all annotations with the new set
         await this.saveAnnotations(annotations);
@@ -541,10 +552,20 @@ class LocalAnnotationsServer {
   }
 
   async saveAnnotations(annotations) {
+    // Serialize all save operations to prevent race conditions
+    this.saveLock = this.saveLock.then(async () => {
+      return this._saveAnnotationsInternal(annotations);
+    });
+    
+    return this.saveLock;
+  }
+
+  async _saveAnnotationsInternal(annotations) {
+    // Move jsonData outside try block to make it accessible in catch
+    console.log(`Saving ${annotations.length} annotations to disk`);
+    const jsonData = JSON.stringify(annotations, null, 2);
+    
     try {
-      console.log(`Saving ${annotations.length} annotations to disk`);
-      const jsonData = JSON.stringify(annotations, null, 2);
-      
       // Ensure directory exists right before operations  
       const dataDir = path.dirname(DATA_FILE);
       if (!existsSync(dataDir)) {
@@ -552,30 +573,15 @@ class LocalAnnotationsServer {
         await mkdir(dataDir, { recursive: true });
       }
       
-      // Double-check directory exists after creation
-      if (!existsSync(dataDir)) {
-        throw new Error(`Failed to create data directory: ${dataDir}`);
-      }
-      
       // Atomic write: write to temp file first, then rename
       const tempFile = DATA_FILE + '.tmp';
       console.log(`Writing temp file: ${tempFile}`);
       await writeFile(tempFile, jsonData);
       
-      // Verify temp file was created successfully
-      if (!existsSync(tempFile)) {
-        throw new Error(`Temp file was not created: ${tempFile}`);
-      }
-      
       // Rename temp file to actual file (atomic operation)
       console.log(`Renaming ${tempFile} to ${DATA_FILE}`);
       const fs = await import('fs');
       await fs.promises.rename(tempFile, DATA_FILE);
-      
-      // Verify final file exists
-      if (!existsSync(DATA_FILE)) {
-        throw new Error(`Final file was not created: ${DATA_FILE}`);
-      }
       
       console.log(`Successfully saved ${annotations.length} annotations to ${DATA_FILE}`);
     } catch (error) {
