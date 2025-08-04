@@ -13,6 +13,9 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Read version from package.json automatically
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+
 const execAsync = promisify(exec);
 const program = new Command();
 
@@ -60,7 +63,7 @@ async function checkPort() {
 program
   .name('vibe-annotations-server')
   .description('Global MCP server for Vibe Annotations browser extension')
-  .version('0.1.2');
+  .version(packageJson.version);
 
 program
   .command('start')
