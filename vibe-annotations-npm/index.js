@@ -97,9 +97,12 @@ function main() {
     }
   }
 
+  // If no arguments provided, default to 'start'
+  const finalArgs = args.length === 0 ? ['start'] : args;
+  
   // Run the actual command
   log('🚀 Starting server...', colors.cyan);
-  runCommand(args);
+  runCommand(finalArgs);
 }
 
 // Handle Ctrl+C gracefully
