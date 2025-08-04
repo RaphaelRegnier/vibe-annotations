@@ -59,9 +59,10 @@ function uninstallServer() {
   // First try to stop the server if it's running
   try {
     log('   Stopping server first...', colors.dim);
-    execSync(`${COMMAND_NAME} stop`, { stdio: 'ignore' });
+    execSync(`${COMMAND_NAME} stop`, { stdio: 'ignore', timeout: 5000 });
   } catch {
-    // Server might not be running, continue
+    // Server might not be running or stop command failed, continue
+    log('   (Server stop completed or not running)', colors.dim);
   }
   
   // Check if server is currently installed
