@@ -53,6 +53,43 @@ function installFromGitHub() {
   }
 }
 
+function uninstallServer() {
+  log('🗑️  Uninstalling vibe-annotations-server...', colors.cyan);
+  
+  // First try to stop the server if it's running
+  try {
+    log('   Stopping server first...', colors.dim);
+    execSync(`${COMMAND_NAME} stop`, { stdio: 'ignore' });
+  } catch {
+    // Server might not be running, continue
+  }
+  
+  // Check if server is currently installed
+  if (!checkIfInstalled()) {
+    log('ℹ️  vibe-annotations-server is not globally installed', colors.yellow);
+    return true;
+  }
+  
+  // Attempt to uninstall
+  try {
+    execSync('npm uninstall -g vibe-annotations-server', { stdio: 'inherit' });
+    
+    // Verify uninstallation worked
+    if (!checkIfInstalled()) {
+      log('✅ Successfully uninstalled vibe-annotations-server!', colors.green);
+      log('   Server command is no longer available', colors.dim);
+      return true;
+    } else {
+      log('⚠️  Uninstall command ran, but server still appears to be installed', colors.yellow);
+      return false;
+    }
+  } catch (error) {
+    log('❌ Failed to uninstall. Please try manually:', colors.yellow);
+    log('   npm uninstall -g vibe-annotations-server', colors.dim);
+    return false;
+  }
+}
+
 function runCommand(args) {
   const child = spawn(COMMAND_NAME, args, { stdio: 'inherit' });
   
@@ -77,6 +114,13 @@ function main() {
     const packageJson = require('./package.json');
     log(`npm wrapper version: ${packageJson.version}`, colors.dim);
     return;
+  }
+
+  // Handle uninstall command
+  if (args[0] === 'uninstall') {
+    log('🌟 Vibe Annotations Server - Uninstall', colors.bright);
+    const success = uninstallServer();
+    process.exit(success ? 0 : 1);
   }
 
   log('🌟 Vibe Annotations Server', colors.bright);
