@@ -1,0 +1,8 @@
+services:
+  annotations-server:
+    build: .
+    volumes:
+      - ./data:/root/.vibe-annotations
+    ports:
+      - "3846:3846"
+
