@@ -131,9 +131,64 @@ vibe-annotations-server stop
 vibe-annotations-server restart
 ```
 
+## Uninstallation
+
+To completely remove Vibe Annotations from your system:
+
+### 1. Remove MCP Server from Your AI Coding Agent
+
+#### Claude Code
+```bash
+claude mcp remove vibe-annotations
+```
+
+#### Cursor
+Go to Cursor → Settings → Cursor Settings → Tools & Integrations tab and remove the vibe-annotations server configuration.
+
+#### Windsurf
+Go to Windsurf → Settings → Advanced Settings → Cascade section and remove the vibe-annotations server from your MCP configuration.
+
+#### Other Editors
+Remove the vibe-annotations server from your editor's MCP configuration settings.
+
+### 2. Uninstall the Global Server
+```bash
+npm uninstall -g vibe-annotations-server
+```
+
+### 3. Remove Data Files
+```bash
+rm -rf ~/.vibe-annotations
+```
+
+### 4. Remove Browser Extension
+Go to Chrome Extensions (`chrome://extensions/`) and remove the Vibe Annotations extension.
+
 ## Development
 
-See `/extension` directory for browser extension development. The server package will be published separately as `vibe-annotations-server`.
+### Local Server Development (Advanced)
+
+If you're developing Vibe Annotations or prefer to run the server locally instead of the global installation:
+
+```bash
+# Clone the repository
+git clone https://github.com/RaphaelRegnier/vibe-annotations.git
+cd vibe-annotations/annotations-server
+
+# Install dependencies
+npm install
+
+# Run the server locally
+npm run start
+# or for development with auto-restart:
+npm run dev
+```
+
+**Note**: Running locally ties the server to this specific directory. Most users should use the global installation method shown above.
+
+### Extension Development
+
+See `/extension` directory for browser extension development. Load the extension in Chrome as unpacked extension.
 
 ## Troubleshooting
 
