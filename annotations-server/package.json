@@ -1,6 +1,6 @@
 {
   "name": "vibe-annotations-server",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Global MCP server for Vibe Annotations browser extension",
   "main": "lib/server.js",
   "type": "module",
