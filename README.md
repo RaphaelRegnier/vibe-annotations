@@ -49,7 +49,7 @@ Go to your chromium browser extension page, and click "Load unpacked" then selec
 
 #### Option A: Using npx (Recommended)
 ```bash
-npx vibe-annotations-server
+npx vibe-annotations-server start
 ```
 
 #### Option B: Global Installation
@@ -139,6 +139,43 @@ vibe-annotations-server stop
 # Restart server
 vibe-annotations-server restart
 ```
+
+## Uninstalling
+
+### 1. Remove MCP Connection
+
+Remove vibe-annotations from your AI coding agent:
+
+**Claude Code:**
+```bash
+claude mcp remove vibe-annotations
+```
+
+**Cursor/Windsurf/VS Code:**
+Remove the vibe-annotations server from your MCP configuration settings.
+
+### 2. Stop and Remove Server
+
+```bash
+# Stop the server
+vibe-annotations-server stop
+
+# If you installed globally, uninstall it
+npm uninstall -g vibe-annotations-server
+```
+
+**Note:** If you only used `npx vibe-annotations-server`, no global uninstall is needed.
+
+### 3. Clean Up Data
+
+```bash
+# Remove annotation data
+rm -rf ~/.vibe-annotations
+```
+
+### 4. Remove Browser Extension
+
+Delete the extension from Chrome's extension management page.
 
 ## Development
 
