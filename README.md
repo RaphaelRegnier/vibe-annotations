@@ -157,14 +157,15 @@ Remove the vibe-annotations server from your MCP configuration settings.
 ### 2. Stop and Remove Server
 
 ```bash
-# Stop the server
-vibe-annotations-server stop
+# Easy uninstall with clear feedback
+npx vibe-annotations-server uninstall
 
-# Uninstall the globally installed server
-npm uninstall -g vibe-annotations-server
+# Or manually:
+# vibe-annotations-server stop
+# npm uninstall -g vibe-annotations-server
 ```
 
-**Note:** The server is installed globally regardless of whether you used `npx` or `npm install`.
+**Note:** The `npx vibe-annotations-server uninstall` command provides clear feedback and verification, unlike the standard npm uninstall which can show misleading messages.
 
 ### 3. Clean Up Data
 

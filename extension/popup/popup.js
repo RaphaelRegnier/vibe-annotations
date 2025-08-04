@@ -975,7 +975,7 @@ class AnnotationsPopup {
     if (copyAllBtn) {
       copyAllBtn.addEventListener('click', async () => {
         const commands = [
-          'npx vibe-annotations-server',
+          'npx vibe-annotations-server start',
           'claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse'
         ];
         const allCommands = commands.join('\n');
