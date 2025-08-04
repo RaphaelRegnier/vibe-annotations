@@ -7,7 +7,6 @@ extension/dist/
 extension/*.zip
 
 # MCP Server
-mcp-server/data/annotations.json
 mcp-server/logs/
 
 # Development
