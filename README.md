@@ -26,6 +26,7 @@ https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
 ## Features
 
 - 🏠 **Localhost-focused**: Works on your development projects
+- 📑 **Multi-page annotations**: Create feedback across multiple routes in your app, then bulk-process all annotations at once for efficient fixes
 - 🤖 **AI-powered**: Integrates with AI coding agents via MCP
 - ⚡ **Instant feedback**: Click, comment, bulk-fix
 - 👨‍💻 **Developer-friendly**: Built for modern web development
