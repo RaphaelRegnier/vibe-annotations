@@ -34,7 +34,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd annotations-server
-        npm ci
+        npm install
 
     - name: Bump version and publish
       run: |
