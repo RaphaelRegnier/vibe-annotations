@@ -43,12 +43,25 @@ jobs:
       run: |
         cd annotations-server
         
-        # Bump patch version (0.1.6 -> 0.1.7)
-        npm version patch --no-git-tag-version
+        # Get current version from package.json
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        echo "Current version: $CURRENT_VERSION"
         
-        # Get the new version
+        # Get latest published version from NPM (fallback to current if not found)
+        PUBLISHED_VERSION=$(npm view vibe-annotations-server version 2>/dev/null || echo "$CURRENT_VERSION")
+        echo "Published version: $PUBLISHED_VERSION"
+        
+        # Compare versions and determine if we need to bump
+        if [ "$CURRENT_VERSION" = "$PUBLISHED_VERSION" ]; then
+          echo "Need to bump version..."
+          npm version patch --no-git-tag-version
+        else
+          echo "Version already bumped from published version"
+        fi
+        
+        # Get the final version to publish
         NEW_VERSION=$(node -p "require('./package.json').version")
-        echo "New version: $NEW_VERSION"
+        echo "Publishing version: $NEW_VERSION"
         
         # Publish to NPM
         npm publish
