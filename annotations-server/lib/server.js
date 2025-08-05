@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Final test with fixed permissions and synced version
+// Test simplified workflow using NPM as version source
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
