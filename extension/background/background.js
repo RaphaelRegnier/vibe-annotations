@@ -793,17 +793,13 @@ class VibeAnnotationsBackground {
   }
 
   getChangelogForVersion(version) {
-    // Simple changelog mapping - in a real app, this could fetch from a file
+    // Real changelog mapping for actual versions
     const changelogs = {
-      '1.0.1': [
-        'Added update notifications',
-        'Improved server stability',
-        'Fixed badge numbering issues'
-      ],
-      '1.1.0': [
-        'New feature: Batch annotation processing',
-        'Enhanced MCP integration',
-        'Performance improvements'
+      '1.0.0': [
+        'Initial release of Vibe Annotations',
+        'Visual annotation system for localhost development',
+        'MCP integration for AI coding agents',
+        'Light/dark theme support with system preference detection'
       ]
     };
     

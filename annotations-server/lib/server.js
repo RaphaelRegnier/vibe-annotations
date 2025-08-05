@@ -996,7 +996,17 @@ class LocalAnnotationsServer {
         }
       });
       
-      if (!response.ok) return;
+      // If no releases exist yet (404), skip update check
+      if (response.status === 404) {
+        console.log('[Update Check] No releases found yet - this is normal for initial development');
+        await writeFile(updateCacheFile, Date.now().toString());
+        return;
+      }
+      
+      if (!response.ok) {
+        console.log(`[Update Check] GitHub API error: ${response.status}`);
+        return;
+      }
       
       const data = await response.json();
       const latestVersion = data.tag_name?.replace('v', '') || packageJson.version;
@@ -1030,7 +1040,8 @@ class LocalAnnotationsServer {
       // Save last check timestamp
       await writeFile(updateCacheFile, Date.now().toString());
     } catch (error) {
-      // Silently fail - don't disrupt user experience
+      // Log error for debugging but don't disrupt user experience
+      console.log(`[Update Check] Failed: ${error.message}`);
     }
   }
 
