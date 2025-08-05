@@ -10,6 +10,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allow pushing commits and tags
+      id-token: write  # For NPM publishing
     
     steps:
     - name: Checkout code
@@ -17,7 +20,7 @@ jobs:
       with:
         # Fetch full history for proper versioning
         fetch-depth: 0
-        # Use a token that can push back to the repo
+        # Use GITHUB_TOKEN for checkout
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
@@ -53,7 +56,10 @@ jobs:
         # Commit the version bump
         git add package.json
         git commit -m "chore: bump annotations-server version to $NEW_VERSION [skip ci]"
-        git push
+        
+        # Push with explicit token (may need write permissions in repo settings)
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        git push origin HEAD:${{ github.ref_name }}
         
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
