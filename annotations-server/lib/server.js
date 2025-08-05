@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// Test automated NPM publishing with fixed permissions
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
