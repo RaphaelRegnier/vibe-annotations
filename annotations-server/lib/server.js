@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Test simplified automated NPM publishing workflow
+// Final test with fixed permissions and synced version
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
