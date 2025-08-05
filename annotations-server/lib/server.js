@@ -10,13 +10,17 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Read version from package.json automatically
+const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
 
 // Configuration
 const PORT = 3846;
@@ -54,9 +58,14 @@ class LocalAnnotationsServer {
     }));
     this.app.use(express.json());
 
-    // Health check
+    // Health check with version info
     this.app.get('/health', (req, res) => {
-      res.json({ status: 'ok', timestamp: new Date().toISOString() });
+      res.json({ 
+        status: 'ok', 
+        version: packageJson.version,
+        minExtensionVersion: '1.0.0', // Minimum compatible extension version
+        timestamp: new Date().toISOString() 
+      });
     });
 
     // API endpoints for Chrome extension
@@ -962,11 +971,77 @@ class LocalAnnotationsServer {
     });
   }
 
+  async checkForUpdates() {
+    try {
+      // Check cache first (24hr TTL)
+      const updateCacheFile = path.join(DATA_DIR, '.update-check');
+      let lastCheck = 0;
+      
+      try {
+        if (existsSync(updateCacheFile)) {
+          const cacheData = await readFile(updateCacheFile, 'utf8');
+          lastCheck = parseInt(cacheData, 10) || 0;
+        }
+      } catch (error) {
+        // Ignore cache read errors
+      }
+      
+      // Only check once per day
+      if (Date.now() - lastCheck < 86400000) return;
+      
+      // Fetch latest version from GitHub
+      const response = await fetch('https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/releases/latest', {
+        headers: {
+          'User-Agent': 'vibe-annotations-server'
+        }
+      });
+      
+      if (!response.ok) return;
+      
+      const data = await response.json();
+      const latestVersion = data.tag_name?.replace('v', '') || packageJson.version;
+      
+      // Simple version comparison (assuming semantic versioning)
+      const currentParts = packageJson.version.split('.').map(Number);
+      const latestParts = latestVersion.split('.').map(Number);
+      
+      let hasUpdate = false;
+      for (let i = 0; i < 3; i++) {
+        if ((latestParts[i] || 0) > (currentParts[i] || 0)) {
+          hasUpdate = true;
+          break;
+        }
+        if ((latestParts[i] || 0) < (currentParts[i] || 0)) {
+          break;
+        }
+      }
+      
+      if (hasUpdate) {
+        console.log(chalk.yellow(`
+╔════════════════════════════════════════════════════════════════╗
+║  Update available: ${packageJson.version} → ${latestVersion}                          ║
+║  Run: npm uninstall -g vibe-annotations-server                 ║
+║       npm install -g git+https://github.com/RaphaelRegnier/    ║
+║                      vibe-annotations-server.git               ║
+╚════════════════════════════════════════════════════════════════╝
+        `));
+      }
+      
+      // Save last check timestamp
+      await writeFile(updateCacheFile, Date.now().toString());
+    } catch (error) {
+      // Silently fail - don't disrupt user experience
+    }
+  }
+
   async start() {
     await this.ensureDataFile();
     
     // Set up process handlers only once
     this.setupProcessHandlers();
+    
+    // Check for updates (non-blocking)
+    this.checkForUpdates().catch(() => {});
     
     this.server = this.app.listen(PORT, () => {
       console.log(`Vibe Annotations server running on http://127.0.0.1:${PORT}`);

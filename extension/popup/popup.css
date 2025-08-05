@@ -602,6 +602,75 @@ input:checked + .toggle-slider:before {
   line-height: 1.4;
 }
 
+/* Update Banner */
+.update-banner {
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.08) 0%, rgba(217, 119, 87, 0.04) 100%);
+  border-bottom: 1px solid var(--theme-border);
+  padding: 8px 12px;
+}
+
+.update-banner-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  color: var(--theme-text-primary);
+  font-size: 13px;
+}
+
+.update-banner-text iconify-icon {
+  color: var(--theme-accent);
+  flex-shrink: 0;
+}
+
+.update-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--theme-accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  font-family: inherit;
+}
+
+.link-btn:hover {
+  background: var(--theme-bg-secondary);
+}
+
+.icon-btn-sm {
+  background: none;
+  border: none;
+  color: var(--theme-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn-sm:hover {
+  background: var(--theme-bg-secondary);
+  color: var(--theme-text-primary);
+}
+
 /* Welcome Screen (offline state) */
 .welcome-screen {
   display: flex;

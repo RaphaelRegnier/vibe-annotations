@@ -52,6 +52,24 @@ class VibeAnnotationsBackground {
     
     // Handle any migration logic here
     try {
+      const currentVersion = chrome.runtime.getManifest().version;
+      
+      // Store update info for popup to display
+      await chrome.storage.local.set({
+        updateInfo: {
+          hasUpdate: true,
+          previousVersion,
+          currentVersion,
+          timestamp: Date.now(),
+          changelog: this.getChangelogForVersion(currentVersion)
+        }
+      });
+      
+      // Set badge to notify user
+      chrome.action.setBadgeText({ text: 'NEW' });
+      chrome.action.setBadgeBackgroundColor({ color: '#d97757' }); // Vibe orange
+      
+      // Also update settings
       const result = await chrome.storage.local.get(['settings']);
       const settings = result.settings || {};
       
@@ -571,10 +589,35 @@ class VibeAnnotationsBackground {
       if (response.ok) {
         const data = await response.json();
         this.apiConnected = true;
+        
+        // Check version compatibility
+        const extensionVersion = chrome.runtime.getManifest().version;
+        let versionCompatible = true;
+        let compatibilityMessage = null;
+        
+        if (data.minExtensionVersion) {
+          const extensionParts = extensionVersion.split('.').map(Number);
+          const minParts = data.minExtensionVersion.split('.').map(Number);
+          
+          for (let i = 0; i < 3; i++) {
+            if ((extensionParts[i] || 0) < (minParts[i] || 0)) {
+              versionCompatible = false;
+              compatibilityMessage = `Extension update required. Minimum version: ${data.minExtensionVersion}`;
+              break;
+            }
+            if ((extensionParts[i] || 0) > (minParts[i] || 0)) {
+              break;
+            }
+          }
+        }
+        
         return {
           connected: true,
           server_url: this.apiServerUrl,
+          server_version: data.version,
           server_status: data.status,
+          version_compatible: versionCompatible,
+          compatibility_message: compatibilityMessage,
           last_check: new Date().toISOString()
         };
       } else {
@@ -747,6 +790,24 @@ class VibeAnnotationsBackground {
   // Utility function for generating IDs
   generateId() {
     return 'vibe_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  getChangelogForVersion(version) {
+    // Simple changelog mapping - in a real app, this could fetch from a file
+    const changelogs = {
+      '1.0.1': [
+        'Added update notifications',
+        'Improved server stability',
+        'Fixed badge numbering issues'
+      ],
+      '1.1.0': [
+        'New feature: Batch annotation processing',
+        'Enhanced MCP integration',
+        'Performance improvements'
+      ]
+    };
+    
+    return changelogs[version] || ['Various improvements and bug fixes'];
   }
 }
 

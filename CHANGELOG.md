@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Vibe Annotations extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,38 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of Vibe Annotations
-- Chrome extension for creating annotations on localhost development projects
-- Persistent inspection mode for creating multiple annotations
+- Update notification system for extension updates
+- Version compatibility checking between extension and server
+- Server update check with GitHub API integration
+- Update banner UI in extension popup
+
+## [1.0.0] - 2025-08-04
+
+### Added
+- Initial release of Vibe Annotations Chrome extension
+- Visual annotation system for localhost development
+- MCP integration for AI coding agents
+- Light/dark theme support with system preference detection
+- Persistent inspection mode for multiple annotations
 - Pin-based annotation system with numbered badges
-- Click-to-edit functionality for existing annotations
-- Route-scoped annotations (only show current page annotations)
-- Complete theme system (light/dark/system themes)
-- External server detection via health checks
-- Setup instructions with command copying
-- MCP integration via SSE transport
-- Support for Claude Code, Cursor, Windsurf, and VS Code
-- Local file support (file:// protocol)
-- Cross-component theme synchronization
+- Route-scoped annotation management
+- Chrome Storage API integration
+- Real-time synchronization with external server
+- File protocol support for local HTML files
+- Iconify integration with 200k+ icons
 - Zero layout shift editing experience
 
-### Architecture
-- Two-piece architecture: Chrome extension + external npm server
-- Global server installation via npm
-- Shared JSON storage for annotations
-- Real-time synchronization between components
+### Fixed
+- Server race conditions causing ENOENT errors
+- Badge numbering inconsistencies
+- Variable scope issues in error handling
+- Redundant sync operations
 
-### Developer Experience
-- Complete onboarding flow
-- Server status detection and management UI
-- Iconify integration with 200k+ icons
-- Professional UI with Vibe Orange branding
-
-## [1.0.0] - TBD
-
-- First stable release
-- Chrome Web Store publication
-- NPM package publication for vibe-annotations-server
-
-[Unreleased]: https://github.com/RaphaelRegnier/vibe-annotations/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v1.0.0
+### Security
+- Localhost-only operation for development focus
+- Minimal permissions model
+- No external network requests from extension

@@ -14,6 +14,9 @@ class AnnotationsPopup {
     this.themeManager = new ThemeManager();
     await this.themeManager.init();
     
+    // Check for update notification
+    await this.checkForUpdateNotification();
+    
     // Set current route subtitle
     await this.setCurrentRoute();
     
@@ -37,6 +40,26 @@ class AnnotationsPopup {
     
     // Update button text based on annotation mode status
     this.updateAnnotationButton();
+  }
+
+  async checkForUpdateNotification() {
+    try {
+      const result = await chrome.storage.local.get(['updateInfo']);
+      const updateInfo = result.updateInfo;
+      
+      if (updateInfo && updateInfo.hasUpdate) {
+        const updateBanner = document.getElementById('update-banner');
+        const updateMessage = document.getElementById('update-banner-message');
+        
+        updateMessage.textContent = `Extension updated to v${updateInfo.currentVersion}`;
+        updateBanner.style.display = 'block';
+        
+        // Clear the "NEW" badge since user is viewing the popup
+        chrome.action.setBadgeText({ text: '' });
+      }
+    } catch (error) {
+      console.error('Error checking for update notification:', error);
+    }
   }
 
   async setCurrentRoute() {
@@ -190,6 +213,21 @@ class AnnotationsPopup {
     settingsBtn.addEventListener('click', () => {
       this.openSettings();
     });
+
+    // Update banner buttons
+    const viewChangelogBtn = document.getElementById('view-changelog-btn');
+    if (viewChangelogBtn) {
+      viewChangelogBtn.addEventListener('click', () => {
+        this.showChangelog();
+      });
+    }
+    
+    const dismissUpdateBtn = document.getElementById('dismiss-update-btn');
+    if (dismissUpdateBtn) {
+      dismissUpdateBtn.addEventListener('click', () => {
+        this.dismissUpdateBanner();
+      });
+    }
 
     // Theme selector
     const themeSelect = document.getElementById('theme-select');
@@ -1115,6 +1153,34 @@ class AnnotationsPopup {
       button.innerHTML = originalContent;
       button.style.color = '';
     }, 1000);
+  }
+
+  async showChangelog() {
+    try {
+      const result = await chrome.storage.local.get(['updateInfo']);
+      const updateInfo = result.updateInfo;
+      
+      if (updateInfo && updateInfo.changelog) {
+        // For now, just show an alert. In a real app, you'd open a modal or new tab
+        const changes = updateInfo.changelog.join('\n• ');
+        alert(`What's new in v${updateInfo.currentVersion}:\n\n• ${changes}`);
+      }
+    } catch (error) {
+      console.error('Error showing changelog:', error);
+    }
+  }
+
+  async dismissUpdateBanner() {
+    try {
+      // Hide the banner
+      const updateBanner = document.getElementById('update-banner');
+      updateBanner.style.display = 'none';
+      
+      // Clear the update info from storage
+      await chrome.storage.local.remove(['updateInfo']);
+    } catch (error) {
+      console.error('Error dismissing update banner:', error);
+    }
   }
 }
 
