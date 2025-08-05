@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// Vibe Annotations MCP Server - Automated NPM publishing test
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
