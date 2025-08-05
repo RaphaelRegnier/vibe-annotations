@@ -39,34 +39,24 @@ jobs:
         cd annotations-server
         npm install
 
-    - name: Bump version and publish
+    - name: Get NPM version and publish
       run: |
         cd annotations-server
         
-        # Always bump version for new commits
-        echo "Bumping patch version..."
+        # Get latest published version from NPM
+        LATEST_NPM_VERSION=$(npm view vibe-annotations-server version 2>/dev/null || echo "0.1.0")
+        echo "Latest NPM version: $LATEST_NPM_VERSION"
+        
+        # Set the package.json to the latest NPM version, then bump
+        npm version $LATEST_NPM_VERSION --no-git-tag-version
         npm version patch --no-git-tag-version
         
-        # Get the final version to publish
+        # Get the new version to publish
         NEW_VERSION=$(node -p "require('./package.json').version")
-        echo "Publishing version: $NEW_VERSION"
+        echo "Publishing new version: $NEW_VERSION"
         
         # Publish to NPM
         npm publish
         
-        # Commit the version bump
-        git add package.json
-        git commit -m "chore: bump annotations-server version to $NEW_VERSION [skip ci]"
-        
-        # Push with explicit token
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
-        
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Create release tag
-      run: |
-        cd annotations-server
-        NEW_VERSION=$(node -p "require('./package.json').version")
-        git tag "server-v$NEW_VERSION"
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git "server-v$NEW_VERSION"
