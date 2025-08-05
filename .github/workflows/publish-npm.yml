@@ -58,9 +58,8 @@ jobs:
         git add package.json
         git commit -m "chore: bump annotations-server version to $NEW_VERSION [skip ci]"
         
-        # Push with explicit token (may need write permissions in repo settings)
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-        git push origin HEAD:${{ github.ref_name }}
+        # Push with explicit token
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
         
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -70,4 +69,4 @@ jobs:
         cd annotations-server
         NEW_VERSION=$(node -p "require('./package.json').version")
         git tag "server-v$NEW_VERSION"
-        git push origin "server-v$NEW_VERSION"
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git "server-v$NEW_VERSION"
