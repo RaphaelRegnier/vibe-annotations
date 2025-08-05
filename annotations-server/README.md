@@ -5,7 +5,7 @@ Global MCP server for Vibe Annotations browser extension.
 ## Installation
 
 ```bash
-npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
+npm install -g vibe-annotations-server
 ```
 
 ## Usage

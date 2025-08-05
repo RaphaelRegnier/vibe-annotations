@@ -79,15 +79,15 @@ getChangelogForVersion(version) {
 
 ### How It Works
 
-The server automatically checks GitHub releases for newer versions on startup.
+The server automatically checks NPM registry for newer versions on startup.
 
 **File**: `annotations-server/lib/server.js`
 
 ```javascript
 async checkForUpdates() {
-  // Check GitHub API for latest release
+  // Check NPM registry for latest version
   const response = await fetch(
-    'https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/releases/latest'
+    'https://registry.npmjs.org/vibe-annotations-server/latest'
   );
   
   // Compare versions and notify if newer available
@@ -95,9 +95,7 @@ async checkForUpdates() {
     console.log(chalk.yellow(`
 ╔════════════════════════════════════════════════════════════════╗
 ║  Update available: ${currentVersion} → ${latestVersion}        ║
-║  Run: npm uninstall -g vibe-annotations-server                 ║
-║       npm install -g git+https://github.com/RaphaelRegnier/    ║
-║                      vibe-annotations-server.git               ║
+║  Run: npm update -g vibe-annotations-server                    ║
 ╚════════════════════════════════════════════════════════════════╝
     `));
   }
@@ -106,33 +104,30 @@ async checkForUpdates() {
 
 ### Update Check Features
 
-- **24-Hour Cache** - Prevents spamming GitHub API (stored in `~/.vibe-annotations/.update-check`)
+- **24-Hour Cache** - Prevents spamming NPM registry (stored in `~/.vibe-annotations/.update-check`)
 - **Beautiful Console Notifications** - Formatted update messages with exact commands
 - **Graceful Failure** - Handles API errors and missing releases without disrupting service
 - **Version Comparison** - Semantic version comparison to determine if update needed
 
-### GitHub API Integration
+### NPM Registry Integration
 
-The system calls the GitHub Releases API:
+The system calls the NPM Registry API:
 ```
-GET https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/releases/latest
+GET https://registry.npmjs.org/vibe-annotations-server/latest
 ```
 
 **Response handling**:
 - **200 OK** - Compare versions and show update if available
-- **404 Not Found** - No releases yet (normal during initial development)
+- **404 Not Found** - Package not found in registry
 - **Other errors** - Log error but continue server operation
 
 ### Update Commands
 
-When an update is available, users get exact installation commands:
+When an update is available, users get a simple update command:
 
 ```bash
-# Uninstall current version
-npm uninstall -g vibe-annotations-server
-
-# Install latest version from GitHub
-npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
+# Update to latest version
+npm update -g vibe-annotations-server
 ```
 
 ## Version Compatibility System
@@ -235,7 +230,7 @@ Update notifications can be configured in the extension:
 **Update Check Settings**:
 - Cache duration: 24 hours (86400000 ms)
 - Cache file: `~/.vibe-annotations/.update-check`
-- GitHub API endpoint: `/repos/RaphaelRegnier/vibe-annotations-server/releases/latest`
+- NPM Registry endpoint: `https://registry.npmjs.org/vibe-annotations-server/latest`
 
 ## Development Guidelines
 
@@ -250,8 +245,7 @@ Update notifications can be configured in the extension:
 2. **Server Updates**:
    - Update `package.json` version
    - Update `CHANGELOG.md`
-   - Create GitHub release with version tag
-   - Push to npm package repository
+   - Publish to NPM registry with `npm publish`
 
 ### Testing Updates
 
@@ -286,11 +280,11 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ## Error Handling
 
-### GitHub API Failures
+### NPM Registry Failures
 
 - **Rate Limiting**: 24-hour cache prevents excessive requests
 - **Network Errors**: Logged but don't prevent server startup
-- **404 Not Found**: Normal during initial development, handled gracefully
+- **404 Not Found**: Package not found in registry, handled gracefully
 - **Invalid JSON**: Fallback to current version, log error
 
 ### Extension Errors
@@ -303,8 +297,8 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### API Security
 
-- Uses HTTPS for all GitHub API calls
-- No authentication tokens required (public repository)  
+- Uses HTTPS for all NPM Registry calls
+- No authentication tokens required (public package)  
 - User-Agent header identifies the application
 - No sensitive data transmitted
 
@@ -324,8 +318,8 @@ Follow [Semantic Versioning](https://semver.org/):
 # Check cache file exists
 ls -la ~/.vibe-annotations/.update-check
 
-# Check GitHub API manually  
-curl https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/releases/latest
+# Check NPM Registry manually  
+curl https://registry.npmjs.org/vibe-annotations-server/latest
 ```
 
 **Extension badge not clearing**:
@@ -342,7 +336,7 @@ curl https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/release
 ### Planned Features
 
 - **Automatic Server Updates**: Optional auto-update for server package
-- **Release Notes Integration**: Fetch changelogs from GitHub releases
+- **Release Notes Integration**: Fetch changelogs from package metadata
 - **Update Scheduling**: Allow users to schedule update checks
 - **Multiple Update Channels**: Support beta/stable release channels
 

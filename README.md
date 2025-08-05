@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green)](https://chrome.google.com/webstore)
-[![Server Package](https://img.shields.io/badge/Server-GitHub-blue)](https://github.com/RaphaelRegnier/vibe-annotations-server)
+[![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let your AI coding agent implement the fixes automatically.
@@ -47,7 +47,7 @@ Go to your chromium browser extension page, and click "Load unpacked" then selec
 
 ### 2. Install the Global Server
 ```bash
-npm install -g git+https://github.com/RaphaelRegnier/vibe-annotations-server.git
+npm install -g vibe-annotations-server
 ```
 
 ### 3. Start the Server

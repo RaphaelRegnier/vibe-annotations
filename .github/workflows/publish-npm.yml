@@ -1,0 +1,66 @@
+name: Publish NPM Package
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'annotations-server/**'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # Fetch full history for proper versioning
+        fetch-depth: 0
+        # Use a token that can push back to the repo
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+    - name: Install dependencies
+      run: |
+        cd annotations-server
+        npm ci
+
+    - name: Bump version and publish
+      run: |
+        cd annotations-server
+        
+        # Bump patch version (0.1.6 -> 0.1.7)
+        npm version patch --no-git-tag-version
+        
+        # Get the new version
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        echo "New version: $NEW_VERSION"
+        
+        # Publish to NPM
+        npm publish
+        
+        # Commit the version bump
+        git add package.json
+        git commit -m "chore: bump annotations-server version to $NEW_VERSION [skip ci]"
+        git push
+        
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create release tag
+      run: |
+        cd annotations-server
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        git tag "server-v$NEW_VERSION"
+        git push origin "server-v$NEW_VERSION"

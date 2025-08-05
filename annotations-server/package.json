@@ -1,6 +1,6 @@
 {
   "name": "vibe-annotations-server",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "description": "Global MCP server for Vibe Annotations browser extension",
   "main": "lib/server.js",
   "type": "module",
@@ -18,27 +18,40 @@
     "prepublishOnly": "npm test",
     "test": "echo \"No tests specified\" && exit 0"
   },
-  "keywords": ["mcp", "vibe", "annotations", "sse", "http", "claude-code"],
+  "keywords": [
+    "mcp",
+    "vibe",
+    "annotations",
+    "sse",
+    "http",
+    "claude-code",
+    "localhost",
+    "development"
+  ],
   "author": "Raphaël Régnier",
   "license": "MIT",
-  "private": true,
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "commander": "^11.1.0",
     "chalk": "^5.3.0",
-    "node-persist": "^3.1.3"
+    "commander": "^11.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-persist": "^3.1.3",
+    "vibe-annotations-server": "^0.1.6"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/RaphaelRegnier/vibe-annotations-server.git"
+    "url": "git+https://github.com/RaphaelRegnier/vibe-annotations.git",
+    "directory": "annotations-server"
   },
-  "homepage": "https://github.com/RaphaelRegnier/vibe-annotations-server#readme",
+  "homepage": "https://github.com/RaphaelRegnier/vibe-annotations#readme",
   "bugs": {
-    "url": "https://github.com/RaphaelRegnier/vibe-annotations-server/issues"
+    "url": "https://github.com/RaphaelRegnier/vibe-annotations/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+// Vibe Annotations MCP Server - Automated NPM publishing test
 import express from 'express';
 import cors from 'cors';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -989,27 +990,27 @@ class LocalAnnotationsServer {
       // Only check once per day
       if (Date.now() - lastCheck < 86400000) return;
       
-      // Fetch latest version from GitHub
-      const response = await fetch('https://api.github.com/repos/RaphaelRegnier/vibe-annotations-server/releases/latest', {
+      // Fetch latest version from NPM registry
+      const response = await fetch('https://registry.npmjs.org/vibe-annotations-server/latest', {
         headers: {
           'User-Agent': 'vibe-annotations-server'
         }
       });
       
-      // If no releases exist yet (404), skip update check
+      // If package not found (404), skip update check
       if (response.status === 404) {
-        console.log('[Update Check] No releases found yet - this is normal for initial development');
+        console.log('[Update Check] Package not found in NPM registry yet');
         await writeFile(updateCacheFile, Date.now().toString());
         return;
       }
       
       if (!response.ok) {
-        console.log(`[Update Check] GitHub API error: ${response.status}`);
+        console.log(`[Update Check] NPM Registry error: ${response.status}`);
         return;
       }
       
       const data = await response.json();
-      const latestVersion = data.tag_name?.replace('v', '') || packageJson.version;
+      const latestVersion = data.version || packageJson.version;
       
       // Simple version comparison (assuming semantic versioning)
       const currentParts = packageJson.version.split('.').map(Number);
@@ -1030,9 +1031,7 @@ class LocalAnnotationsServer {
         console.log(chalk.yellow(`
 ╔════════════════════════════════════════════════════════════════╗
 ║  Update available: ${packageJson.version} → ${latestVersion}                          ║
-║  Run: npm uninstall -g vibe-annotations-server                 ║
-║       npm install -g git+https://github.com/RaphaelRegnier/    ║
-║                      vibe-annotations-server.git               ║
+║  Run: npm update -g vibe-annotations-server                    ║
 ╚════════════════════════════════════════════════════════════════╝
         `));
       }
