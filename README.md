@@ -190,6 +190,11 @@ npm run dev
 
 See `/extension` directory for browser extension development. Load the extension in Chrome as unpacked extension.
 
+## Documentation
+
+- **[Update System](docs/UPDATE_SYSTEM.md)** - Comprehensive guide to extension and server update notifications
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development setup and guidelines
+
 ## Troubleshooting
 
 Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-annotations/issues) or create a new one.
