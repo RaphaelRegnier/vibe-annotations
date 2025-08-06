@@ -6,9 +6,7 @@
   "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [
     "activeTab",
-    "storage",
-    "scripting",
-    "downloads"
+    "storage"
   ],
   "host_permissions": [
     "http://localhost/*",
