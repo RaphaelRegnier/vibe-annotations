@@ -204,6 +204,16 @@
                 </div>
               </div>
               
+              <h3>4. (Optional) Enable Local File Access</h3>
+              <p>To annotate local HTML files (file:// URLs) instead of localhost, you need to grant permission:</p>
+              <ol style="margin-left: 20px; line-height: 1.8;">
+                <li>Go to <code>chrome://extensions/</code></li>
+                <li>Find "Vibe Annotations" and click "Details"</li>
+                <li>Enable "Allow access to file URLs"</li>
+                <li>Refresh your local HTML file</li>
+              </ol>
+              <p style="font-size: 12px; color: var(--theme-text-secondary); margin-top: 8px;">Note: This is only needed for local files, not for localhost development servers.</p>
+              
               <h2>How it works</h2>
               <p>Vibe Annotations only works when your local server is on, and the project host is localhost, 127.0.0.1, 0.0.0.0, or *.local. It recognizes common localhost and HTML local files.</p>
               

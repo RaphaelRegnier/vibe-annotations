@@ -41,9 +41,12 @@ Vibe Annotations uses a two-piece architecture:
 ## Quick Start
 
 ### 1. Install the Browser Extension
-Go to your chromium browser extension page, and click "Load unpacked" then select /extension directory.
 
-[Coming soon] Install the `vibe-annotations` extension from the Chrome Web Store.
+**From Chrome Web Store:**
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
+
+**For Development:**
+Go to your chromium browser extension page, and click "Load unpacked" then select /extension directory.
 
 ### 2. Install the Global Server
 ```bash
@@ -110,6 +113,17 @@ Install an AI extension that supports MCP, then add this configuration to your M
 - Open the extension popup for detailed setup instructions
 - Start annotating your localhost projects!
 - Use your AI coding agent to automatically implement fixes
+
+### 6. (Optional) Enable Local File Support
+
+To annotate local HTML files (file:// URLs) instead of localhost:
+
+1. Go to `chrome://extensions/`
+2. Find "Vibe Annotations" and click "Details"
+3. Enable "Allow access to file URLs"
+4. Refresh your local HTML file
+
+**Note:** This is only needed for local files. Localhost development servers work without this step.
 
 ## User Experience Flow
 

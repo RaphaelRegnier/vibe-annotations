@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vibe Annotations",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered development annotations for localhost projects and local HTML files",
   "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [

@@ -800,6 +800,13 @@ class VibeAnnotationsBackground {
         'Visual annotation system for localhost development',
         'MCP integration for AI coding agents',
         'Light/dark theme support with system preference detection'
+      ],
+      '1.0.1': [
+        'Added Chrome Web Store download link',
+        'Enhanced documentation for local file support (file:// URLs)',
+        'Added step-by-step instructions for enabling local file access',
+        'Improved error messages for file access permissions',
+        'Backwards compatible with current server version'
       ]
     };
     
