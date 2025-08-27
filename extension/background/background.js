@@ -814,6 +814,13 @@ class VibeAnnotationsBackground {
         'Added step-by-step instructions for enabling local file access',
         'Improved error messages for file access permissions',
         'Backwards compatible with current server version'
+      ],
+      '1.0.2': [
+        'Added support for .local, .test, and .localhost development domains',
+        'WordPress development compatibility (*.local domains)',
+        'Laravel Valet compatibility (*.test domains)',
+        'Custom localhost setups (*.localhost domains)',
+        'Expanded local development environment support'
       ]
     };
     
