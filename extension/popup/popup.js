@@ -390,7 +390,7 @@ class AnnotationsPopup {
       
       // Check if it's a localhost or local file URL
       if (!this.isLocalhostUrl(tab.url)) {
-        alert('Vibe Annotations only works on localhost URLs and local HTML files for security reasons.');
+        alert('Vibe Annotations only works on local development URLs (.local, .test, .localhost, localhost) and local HTML files for security reasons.');
         return;
       }
 
@@ -413,7 +413,7 @@ class AnnotationsPopup {
           alert('Content script not ready. Please refresh the page and try again.');
         }
       } else {
-        alert('Error: Make sure you are on a localhost page and refresh if needed.');
+        alert('Error: Make sure you are on a local development page and refresh if needed.');
       }
     }
   }
@@ -800,6 +800,13 @@ class AnnotationsPopup {
       if (urlObj.hostname === 'localhost' || 
           urlObj.hostname === '127.0.0.1' || 
           urlObj.hostname === '0.0.0.0') {
+        return true;
+      }
+      
+      // Check .local, .test, .localhost development domains
+      if (urlObj.hostname.endsWith('.local') || 
+          urlObj.hostname.endsWith('.test') || 
+          urlObj.hostname.endsWith('.localhost')) {
         return true;
       }
       

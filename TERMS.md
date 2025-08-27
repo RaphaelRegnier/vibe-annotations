@@ -13,8 +13,8 @@ Vibe Annotations is licensed under the MIT License. Subject to your compliance w
 ## 3. Description of Service
 
 Vibe Annotations is a developer tool that:
-- Enables visual annotation of localhost development projects and local HTML files
-- Operates exclusively on local development environments (localhost, 127.0.0.1, 0.0.0.0, file://)
+- Enables visual annotation of local development projects (.local, .test, .localhost, localhost) and local HTML files
+- Operates exclusively on local development environments (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost, file://)
 - Integrates with AI coding agents via Model Context Protocol (MCP)
 - Stores annotation data locally on your machine
 

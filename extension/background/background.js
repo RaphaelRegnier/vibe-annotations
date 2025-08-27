@@ -736,6 +736,13 @@ class VibeAnnotationsBackground {
         return true;
       }
       
+      // Check .local, .test, .localhost development domains
+      if (urlObj.hostname.endsWith('.local') || 
+          urlObj.hostname.endsWith('.test') || 
+          urlObj.hostname.endsWith('.localhost')) {
+        return true;
+      }
+      
       // Check file URLs - only allow HTML files
       if (urlObj.protocol === 'file:') {
         const path = urlObj.pathname.toLowerCase();

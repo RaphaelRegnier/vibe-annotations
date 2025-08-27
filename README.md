@@ -5,7 +5,7 @@
 [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-AI-powered development annotations for localhost projects. Drop comments on your localhost apps and let your AI coding agent implement the fixes automatically.
+AI-powered development annotations for local development projects. Drop comments on your local development apps and let your AI coding agent implement the fixes automatically.
 
 https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
 
@@ -15,7 +15,7 @@ https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
 *1. Extension popup shows setup instructions and current page status*
 
 ![Creating New Annotation](docs/images/new-annotation.webp)
-*2. Click elements on your localhost page to create annotations with feedback*
+*2. Click elements on your local development page to create annotations with feedback*
 
 ![Annotation Management](docs/images/annotation-index.webp)
 *3. Manage all your annotations from the extension popup*
@@ -25,7 +25,7 @@ https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
 
 ## Features
 
-- 🏠 **Localhost-focused**: Works on your development projects
+- 🏠 **Local development focused**: Works on localhost, .local, .test, .localhost domains
 - 📑 **Multi-page annotations**: Create feedback across multiple routes in your app, then bulk-process all annotations at once for efficient fixes
 - 🤖 **AI-powered**: Integrates with AI coding agents via MCP
 - ⚡ **Instant feedback**: Click, comment, bulk-fix
@@ -111,7 +111,7 @@ Install an AI extension that supports MCP, then add this configuration to your M
 
 ### 5. Start Using Annotations
 - Open the extension popup for detailed setup instructions
-- Start annotating your localhost projects!
+- Start annotating your local development projects!
 - Use your AI coding agent to automatically implement fixes
 
 ### 6. (Optional) Enable Local File Support
@@ -216,7 +216,7 @@ Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-
 ### Common Issues
 
 - **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
-- **Extension not working**: Check that you're on a localhost URL (localhost, 127.0.0.1, or 0.0.0.0)
+- **Extension not working**: Check that you're on a local development URL (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost)
 - **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
 
 ## Contributing

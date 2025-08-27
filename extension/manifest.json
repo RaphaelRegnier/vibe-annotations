@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vibe Annotations",
   "version": "1.0.1",
-  "description": "AI-powered development annotations for localhost projects and local HTML files",
+  "description": "AI-powered development annotations for local development projects and HTML files",
   "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [
     "activeTab",
@@ -12,6 +12,12 @@
     "http://localhost/*",
     "http://127.0.0.1/*",
     "http://0.0.0.0/*",
+    "http://*.local/*",
+    "https://*.local/*",
+    "http://*.test/*",
+    "https://*.test/*",
+    "http://*.localhost/*",
+    "https://*.localhost/*",
     "file:///*"
   ],
   "icons": {
@@ -30,6 +36,12 @@
         "http://localhost/*",
         "http://127.0.0.1/*", 
         "http://0.0.0.0/*",
+        "http://*.local/*",
+        "https://*.local/*",
+        "http://*.test/*",
+        "https://*.test/*",
+        "http://*.localhost/*",
+        "https://*.localhost/*",
         "file:///*"
       ],
       "js": ["content/content.js"],
@@ -46,6 +58,12 @@
         "http://localhost/*",
         "http://127.0.0.1/*", 
         "http://0.0.0.0/*",
+        "http://*.local/*",
+        "https://*.local/*",
+        "http://*.test/*",
+        "https://*.test/*",
+        "http://*.localhost/*",
+        "https://*.localhost/*",
         "file:///*"
       ]
     }
