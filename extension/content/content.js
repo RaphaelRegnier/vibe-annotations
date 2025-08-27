@@ -1505,7 +1505,7 @@ class VibeAnnotations {
     } else {
       // For localhost URLs, try direct fetch first
       try {
-        const response = await fetch('http://localhost:3846/health', {
+        const response = await fetch('http://127.0.0.1:3846/health', {
           method: 'GET',
           signal: AbortSignal.timeout(2000), // 2 second timeout
           mode: 'cors', // Explicitly set CORS mode
