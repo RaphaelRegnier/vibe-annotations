@@ -50,7 +50,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 The update banner appears at the top of the extension popup with:
 - ✨ Sparkles icon indicating new features
-- Version update message (e.g., "Extension updated to v1.0.2")
+- Version update message (e.g., "Extension updated to v1.0.3")
 - "What's new" button to view changelog
 - Dismiss button to hide banner
 
@@ -255,7 +255,7 @@ Update notifications can be configured in the extension:
 chrome.storage.local.set({
   updateInfo: {
     hasUpdate: true,
-    currentVersion: "1.0.2",
+    currentVersion: "1.0.3",
     changelog: ["Test feature"]
   }
 });
