@@ -821,6 +821,13 @@ class VibeAnnotationsBackground {
         'Laravel Valet compatibility (*.test domains)',
         'Custom localhost setups (*.localhost domains)',
         'Expanded local development environment support'
+      ],
+      '1.0.3': [
+        'Added HTTPS support for localhost development servers',
+        'Support for https://localhost (Vite, Next.js, CRA with SSL)',
+        'Support for https://127.0.0.1 and https://0.0.0.0',
+        'Compatible with mkcert and other local SSL setups',
+        'Complete HTTP + HTTPS coverage for all development environments'
       ]
     };
     
