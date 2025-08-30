@@ -1022,7 +1022,7 @@ class AnnotationsPopup {
         const commands = [
           'npm install -g vibe-annotations-server',
           'vibe-annotations-server start',
-          'claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse'
+          'claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp'
         ];
         const allCommands = commands.join('\n');
         try {

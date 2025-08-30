@@ -104,7 +104,15 @@
                 
                 <!-- Claude Code Tab -->
                 <div class="tab-content active" data-agent="claude">
-                  <p>Go to your project directory and run:</p>
+                  <p>Go to your project directory and run (recommended):</p>
+                  <div class="command-code">
+                    <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+                    <button class="copy-btn" data-command="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp" title="Copy command">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  
+                  <p>Alternative (if experiencing connection issues):</p>
                   <div class="command-code">
                     <code>claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse</code>
                     <button class="copy-btn" data-command="claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse" title="Copy command">
@@ -126,11 +134,11 @@
                     <code>{
   "mcpServers": {
     "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }</code>
-                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}' title="Copy configuration">
                       <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                     </button>
                   </div>
@@ -148,11 +156,11 @@
                     <code>{
   "mcpServers": {
     "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/sse"
+      "serverUrl": "http://127.0.0.1:3846/mcp"
     }
   }
 }</code>
-                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/mcp"}}}' title="Copy configuration">
                       <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                     </button>
                   </div>
@@ -166,18 +174,17 @@
                     <li>Go to Code → Settings → Settings or use the shortcut ⌘,</li>
                     <li>In the search bar, type "MCP"</li>
                     <li>Look for MCP server configurations in your AI extension settings</li>
-                    <li>Add the following SSE configuration:</li>
+                    <li>Add the following configuration:</li>
                   </ol>
                   <div class="command-code">
                     <code>{
   "mcpServers": {
     "vibe-annotations": {
-      "type": "sse",
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }</code>
-                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"type":"sse","url":"http://127.0.0.1:3846/sse"}}}' title="Copy configuration">
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}' title="Copy configuration">
                       <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                     </button>
                   </div>
@@ -186,8 +193,22 @@
                 
                 <!-- Other Editors Tab -->
                 <div class="tab-content" data-agent="other">
-                  <p>Other code editors and tools that support SSE (Server-Sent Events) can also connect to the Vibe Annotations MCP server.</p>
-                  <p>If you're using a different editor or tool, check its documentation to confirm it supports SSE-based communication. If it does, you can manually add the server using this configuration:</p>
+                  <p>Other code editors and tools that support MCP can connect to the Vibe Annotations server using either HTTP or SSE transport.</p>
+                  <p><strong>Recommended (HTTP transport):</strong></p>
+                  <div class="command-code">
+                    <code>{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}</code>
+                    <button class="copy-btn" data-command='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}' title="Copy configuration">
+                      <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
+                    </button>
+                  </div>
+                  
+                  <p><strong>Alternative (SSE transport):</strong></p>
                   <div class="command-code">
                     <code>{
   "mcpServers": {
@@ -200,7 +221,7 @@
                       <iconify-icon icon="lucide:copy" width="14" height="14"></iconify-icon>
                     </button>
                   </div>
-                  <p><strong>Note:</strong> The Vibe Annotations MCP server communicates over the SSE protocol. Use your editor's steps for setting up an SSE-compatible MCP server, and use the URL: <code>http://127.0.0.1:3846/sse</code></p>
+                  <p><strong>Note:</strong> Use HTTP transport for better stability. If experiencing connection issues with SSE, switch to the HTTP endpoint.</p>
                 </div>
               </div>
               

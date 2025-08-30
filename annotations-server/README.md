@@ -46,13 +46,17 @@ vibe-annotations-server logs -f
 
 ## AI Coding Agent Integration
 
-After starting the server, connect it to your AI coding agent. The server supports multiple agents via the MCP (Model Context Protocol) using SSE (Server-Sent Events) transport.
+After starting the server, connect it to your AI coding agent. The server supports multiple agents via MCP (Model Context Protocol) using both HTTP and SSE transports.
 
 ### Claude Code
 
 In your project directory, run:
 
 ```bash
+# Recommended (HTTP transport - more stable)
+claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+
+# Alternative (SSE transport - for compatibility)
 claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 ```
 
@@ -67,7 +71,7 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 {
   "mcpServers": {
     "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }
@@ -84,7 +88,7 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 {
   "mcpServers": {
     "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/sse"
+      "serverUrl": "http://127.0.0.1:3846/mcp"
     }
   }
 }
@@ -103,7 +107,7 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
   "mcpServers": {
     "vibe-annotations": {
       "type": "sse",
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }
@@ -119,13 +123,13 @@ Other code editors and tools that support SSE (Server-Sent Events) can also conn
 {
   "mcpServers": {
     "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }
 ```
 
-**Note:** The Vibe Annotations MCP server communicates over the SSE protocol. Use your editor's steps for setting up an SSE-compatible MCP server, and use the URL: `http://127.0.0.1:3846/sse`
+**Note:** The Vibe Annotations MCP server supports both HTTP and SSE transports. HTTP transport is recommended for better stability. Use the URL: `http://127.0.0.1:3846/mcp` (HTTP) or `http://127.0.0.1:3846/sse` (SSE).
 
 ## Architecture
 

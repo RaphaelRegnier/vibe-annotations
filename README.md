@@ -66,6 +66,10 @@ Choose your AI coding agent and follow the setup:
 #### Claude Code
 In your project directory:
 ```bash
+# Recommended (HTTP transport - more stable)
+claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+
+# Alternative (SSE transport - for compatibility)
 claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 ```
 
@@ -74,6 +78,17 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 2. Go to the Tools & Integrations tab
 3. Click + Add new global MCP server
 4. Add this configuration:
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+**Alternative (SSE transport):**
 ```json
 {
   "mcpServers": {
@@ -92,6 +107,17 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 {
   "mcpServers": {
     "vibe-annotations": {
+      "serverUrl": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+**Alternative (SSE transport):**
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
       "serverUrl": "http://127.0.0.1:3846/sse"
     }
   }
@@ -104,7 +130,18 @@ Install an AI extension that supports MCP, then add this configuration to your M
 {
   "mcpServers": {
     "vibe-annotations": {
-      "type": "sse",
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+**Alternative (SSE transport):**
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "type": "sse", 
       "url": "http://127.0.0.1:3846/sse"
     }
   }
@@ -220,6 +257,7 @@ Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-
 - **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
 - **Extension not working**: Check that you're on a local development URL (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost)
 - **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
+- **SSE connection drops/timeouts**: If experiencing "TypeError: terminated" or frequent disconnections, switch to HTTP transport (replace `/sse` with `/mcp` in your configuration)
 
 ## Contributing
 
