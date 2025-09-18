@@ -44,10 +44,10 @@
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 
-- [ ] T003 [P] Create test for update_annotation_status tool in annotations-server/test/test-status-update.js
-- [ ] T004 [P] Create test for bulk_update_status tool in annotations-server/test/test-bulk-update.js
-- [ ] T005 [P] Create test for pagination (offset parameter) in annotations-server/test/test-pagination.js
-- [ ] T006 [P] Create test for screenshot optimization in annotations-server/test/test-screenshot.js
+- [x] T003 [P] Create test for update_annotation_status tool in annotations-server/test/test-status-update.js
+- [x] T004 [P] Create test for bulk_update_status tool in annotations-server/test/test-bulk-update.js
+- [x] T005 [P] Create test for pagination (offset parameter) in annotations-server/test/test-pagination.js
+- [x] T006 [P] Create test for screenshot optimization in annotations-server/test/test-screenshot.js
 
 ## Phase 3.3: Core Features (Tools)
 
