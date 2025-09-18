@@ -440,19 +440,10 @@ class LocalAnnotationsServer {
           },
           {
             name: 'update_annotation_status',
-            description: 'Updates the status of one or more annotations to track processing lifecycle (pending/completed/archived). Supports both single and bulk operations in one unified tool. For single updates, provide id and status. For bulk updates, provide updates array. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
+            description: 'Updates the status of one or more annotations to track processing lifecycle (pending/completed/archived). Always provide an array of updates, even for single annotations. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
             inputSchema: {
               type: 'object',
               properties: {
-                id: {
-                  type: 'string',
-                  description: 'Annotation ID to update (for single update)'
-                },
-                status: {
-                  type: 'string',
-                  enum: ['pending', 'completed', 'archived'],
-                  description: 'New status value (for single update)'
-                },
                 updates: {
                   type: 'array',
                   items: {
@@ -471,19 +462,11 @@ class LocalAnnotationsServer {
                     required: ['id', 'status'],
                     additionalProperties: false
                   },
-                  description: 'Array of updates for bulk operation'
+                  minItems: 1,
+                  description: 'Array of status updates to apply. For single annotation updates, provide an array with one item.'
                 }
               },
-              oneOf: [
-                {
-                  required: ['id', 'status'],
-                  not: { required: ['updates'] }
-                },
-                {
-                  required: ['updates'],
-                  not: { anyOf: [{ required: ['id'] }, { required: ['status'] }] }
-                }
-              ],
+              required: ['updates'],
               additionalProperties: false
             }
           },
@@ -885,144 +868,103 @@ class LocalAnnotationsServer {
 
   /**
    * Update the status of one or more annotations
-   * Supports both single update (id, status) and bulk update (updates array)
+   * Always accepts an array of updates for consistency
    *
    * @param {Object} args - Arguments object
-   * @param {string} [args.id] - Annotation ID to update (single mode)
-   * @param {string} [args.status] - New status value (single mode)
-   * @param {Array} [args.updates] - Array of {id, status} objects (bulk mode)
+   * @param {Array} args.updates - Array of {id, status} objects
    * @returns {Object} Success response with updated annotation(s) or error details
    */
   async updateAnnotationStatus(args) {
-    const { id, status, updates } = args;
+    const { updates } = args;
     const validStatuses = ['pending', 'completed', 'archived'];
 
-    // Determine if this is single or bulk mode
-    const isBulkMode = updates && Array.isArray(updates);
-
-    if (isBulkMode) {
-      // Bulk mode validation
-      if (updates.length === 0) {
-        return {
-          success: false,
-          updated: [],
-          failed: [],
-          message: 'Invalid updates: must be a non-empty array'
-        };
-      }
-
-      // Use applyAnnotationsUpdate to prevent race conditions
-      return await this.applyAnnotationsUpdate((annotations) => {
-        // Build a map for efficient lookups
-        const annotationMap = new Map();
-        annotations.forEach((annotation, index) => {
-          annotationMap.set(annotation.id, { annotation, index });
-        });
-
-        const results = {
-          success: true,
-          updated: [],
-          failed: [],
-          message: ''
-        };
-
-        // Process each update
-        for (const update of updates) {
-          const { id: updateId, status: updateStatus } = update;
-
-          if (!updateId || typeof updateId !== 'string') {
-            results.failed.push({
-              id: updateId,
-              reason: 'Invalid ID: must be a non-empty string'
-            });
-            continue;
-          }
-
-          if (!validStatuses.includes(updateStatus)) {
-            results.failed.push({
-              id: updateId,
-              reason: `Invalid status: must be one of ${validStatuses.join(', ')}`
-            });
-            continue;
-          }
-
-          const entry = annotationMap.get(updateId);
-          if (!entry) {
-            results.failed.push({
-              id: updateId,
-              reason: 'Annotation not found'
-            });
-            continue;
-          }
-
-          const { annotation } = entry;
-          const oldStatus = annotation.status;
-
-          // Update the annotation
-          annotation.status = updateStatus;
-          annotation.updated_at = new Date().toISOString();
-
-          results.updated.push({
-            id: updateId,
-            old_status: oldStatus,
-            new_status: updateStatus
-          });
-        }
-
-        // Determine overall success
-        if (results.failed.length > 0) {
-          results.success = false;
-          results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
-        } else {
-          results.message = `Successfully updated ${results.updated.length} annotations`;
-        }
-
-        return results;
-      });
-    } else {
-      // Single mode validation
-      if (!id || typeof id !== 'string') {
-        return {
-          success: false,
-          message: 'Invalid annotation ID: must be a non-empty string'
-        };
-      }
-
-      if (!validStatuses.includes(status)) {
-        return {
-          success: false,
-          message: `Invalid status: must be one of ${validStatuses.join(', ')}`
-        };
-      }
-
-      // Use applyAnnotationsUpdate to prevent race conditions
-      return await this.applyAnnotationsUpdate((annotations) => {
-        // Find annotation by ID
-        const annotationIndex = annotations.findIndex(a => a.id === id);
-
-        if (annotationIndex === -1) {
-          return {
-            success: false,
-            message: `Annotation not found: ${id}`
-          };
-        }
-
-        // Update status and timestamp
-        const oldStatus = annotations[annotationIndex].status;
-        annotations[annotationIndex].status = status;
-        annotations[annotationIndex].updated_at = new Date().toISOString();
-
-        return {
-          success: true,
-          annotation: {
-            id: annotations[annotationIndex].id,
-            status: annotations[annotationIndex].status,
-            updated_at: annotations[annotationIndex].updated_at
-          },
-          message: `Status updated from '${oldStatus}' to '${status}'`
-        };
-      });
+    // Validation
+    if (!updates || !Array.isArray(updates)) {
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: 'Invalid updates: must be an array'
+      };
     }
+
+    if (updates.length === 0) {
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: 'Invalid updates: must be a non-empty array'
+      };
+    }
+
+    // Use applyAnnotationsUpdate to prevent race conditions
+    return await this.applyAnnotationsUpdate((annotations) => {
+      // Build a map for efficient lookups
+      const annotationMap = new Map();
+      annotations.forEach((annotation, index) => {
+        annotationMap.set(annotation.id, { annotation, index });
+      });
+
+      const results = {
+        success: true,
+        updated: [],
+        failed: [],
+        message: ''
+      };
+
+      // Process each update
+      for (const update of updates) {
+        const { id: updateId, status: updateStatus } = update;
+
+        if (!updateId || typeof updateId !== 'string') {
+          results.failed.push({
+            id: updateId,
+            reason: 'Invalid ID: must be a non-empty string'
+          });
+          continue;
+        }
+
+        if (!validStatuses.includes(updateStatus)) {
+          results.failed.push({
+            id: updateId,
+            reason: `Invalid status: must be one of ${validStatuses.join(', ')}`
+          });
+          continue;
+        }
+
+        const entry = annotationMap.get(updateId);
+        if (!entry) {
+          results.failed.push({
+            id: updateId,
+            reason: 'Annotation not found'
+          });
+          continue;
+        }
+
+        const { annotation } = entry;
+        const oldStatus = annotation.status;
+
+        // Update the annotation
+        annotation.status = updateStatus;
+        annotation.updated_at = new Date().toISOString();
+
+        results.updated.push({
+          id: updateId,
+          old_status: oldStatus,
+          new_status: updateStatus
+        });
+      }
+
+      // Determine overall success
+      if (results.failed.length > 0) {
+        results.success = false;
+        results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
+      } else {
+        results.message = `Successfully updated ${results.updated.length} annotations`;
+      }
+
+      return results;
+    });
   }
 
 
