@@ -349,79 +349,9 @@ class LocalAnnotationsServer {
   }
 
   /**
-   * MCP Tool Architecture Documentation
-   *
-   * This method sets up MCP (Model Context Protocol) tool handlers for the server.
-   * MCP tools provide a standardized way for AI agents to interact with the annotation system.
-   *
-   * ARCHITECTURE OVERVIEW:
-   * 1. Tool Registration: Tools are defined in the ListToolsRequestSchema handler
-   * 2. Tool Execution: Tool calls are handled in the CallToolRequestSchema handler
-   * 3. Response Format: All tools return standardized JSON responses with metadata
-   *
-   * ADDING NEW TOOLS - Follow this pattern:
-   *
-   * Step 1: Add tool definition to the tools array (lines 355-433)
-   * {
-   *   name: 'your_tool_name',
-   *   description: 'Clear description of what the tool does and when to use it',
-   *   inputSchema: {
-   *     type: 'object',
-   *     properties: {
-   *       param_name: {
-   *         type: 'string|number|boolean',
-   *         description: 'Parameter description',
-   *         // Optional: enum, default, minimum, maximum
-   *       }
-   *     },
-   *     required: ['required_param_names'],
-   *     additionalProperties: false
-   *   }
-   * }
-   *
-   * Step 2: Add case handler in the switch statement (lines 442-515)
-   * case 'your_tool_name': {
-   *   const result = await this.yourMethodName(args);
-   *   return {
-   *     content: [{
-   *       type: 'text',
-   *       text: JSON.stringify({
-   *         tool: 'your_tool_name',
-   *         status: 'success',
-   *         data: result,
-   *         timestamp: new Date().toISOString()
-   *       }, null, 2)
-   *     }]
-   *   };
-   * }
-   *
-   * Step 3: Implement the method (after line 714)
-   * async yourMethodName(args) {
-   *   // Validate arguments
-   *   // Perform business logic
-   *   // Return result data
-   * }
-   *
-   * CONVENTIONS:
-   * - Tool names use snake_case (e.g., 'read_annotations', 'update_status')
-   * - Method names use camelCase (e.g., readAnnotations, updateStatus)
-   * - All tools return standardized JSON with: tool, status, data, timestamp
-   * - Use descriptive error messages for validation failures
-   * - Include input validation in the method implementations
-   * - Set additionalProperties: false to prevent unexpected parameters
-   *
-   * RESPONSE FORMAT:
-   * All tools return this structure:
-   * {
-   *   tool: 'tool_name',           // Echo the tool name
-   *   status: 'success|error',     // Operation status
-   *   data: {},                    // Tool-specific response data
-   *   timestamp: 'ISO_STRING'      // When the operation completed
-   * }
+   * Set up MCP tool handlers for this server instance
    */
   setupMCPHandlersForServer(server) {
-    // List tools - This handler tells AI agents what tools are available
-    // Each tool definition includes name, description, and input schema validation
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
@@ -510,42 +440,50 @@ class LocalAnnotationsServer {
           },
           {
             name: 'update_annotation_status',
-            description: 'Updates the status of a single annotation to track processing lifecycle (pending/completed/archived). Use this tool to mark annotations as completed after implementing fixes, or to archive annotations that are no longer relevant. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
+            description: 'Updates the status of one or more annotations to track processing lifecycle (pending/completed/archived). Supports both single and bulk operations in one unified tool. For single updates, provide id and status. For bulk updates, provide updates array. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
             inputSchema: {
               type: 'object',
               properties: {
                 id: {
                   type: 'string',
-                  description: 'Annotation ID to update'
+                  description: 'Annotation ID to update (for single update)'
                 },
                 status: {
                   type: 'string',
                   enum: ['pending', 'completed', 'archived'],
-                  description: 'New status value'
-                }
-              },
-              required: ['id', 'status'],
-              additionalProperties: false
-            }
-          },
-          {
-            name: 'bulk_update_status',
-            description: 'Updates the status of multiple annotations in a single operation for efficient batch processing. Use this tool when you need to update many annotations at once, such as marking multiple completed fixes or archiving a batch of outdated annotations. This is more efficient than multiple individual update_annotation_status calls and ensures atomic updates. Status changes are persisted to disk and immediately available to the extension.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                ids: {
+                  description: 'New status value (for single update)'
+                },
+                updates: {
                   type: 'array',
-                  items: { type: 'string' },
-                  description: 'Array of annotation IDs to update'
-                },
-                status: {
-                  type: 'string',
-                  enum: ['pending', 'completed', 'archived'],
-                  description: 'New status value for all annotations'
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: {
+                        type: 'string',
+                        description: 'Annotation ID to update'
+                      },
+                      status: {
+                        type: 'string',
+                        enum: ['pending', 'completed', 'archived'],
+                        description: 'New status value'
+                      }
+                    },
+                    required: ['id', 'status'],
+                    additionalProperties: false
+                  },
+                  description: 'Array of updates for bulk operation'
                 }
               },
-              required: ['ids', 'status'],
+              oneOf: [
+                {
+                  required: ['id', 'status'],
+                  not: { required: ['updates'] }
+                },
+                {
+                  required: ['updates'],
+                  not: { anyOf: [{ required: ['id'] }, { required: ['status'] }] }
+                }
+              ],
               additionalProperties: false
             }
           },
@@ -568,66 +506,28 @@ class LocalAnnotationsServer {
       };
     });
 
-    /**
-     * Tool Call Handler
-     *
-     * This handler processes actual tool invocations from AI agents.
-     * It receives the tool name and arguments, then dispatches to the appropriate method.
-     *
-     * HANDLER PATTERN:
-     * 1. Extract tool name and arguments from the request
-     * 2. Use switch statement to route to appropriate method
-     * 3. Call the corresponding class method with arguments
-     * 4. Wrap response in standardized MCP format
-     * 5. Handle errors uniformly
-     *
-     * When adding new tools, add a new case following this exact pattern:
-     * case 'your_tool_name': {
-     *   const result = await this.yourMethodName(args);
-     *   return {
-     *     content: [{
-     *       type: 'text',
-     *       text: JSON.stringify({
-     *         tool: 'your_tool_name',
-     *         status: 'success',
-     *         data: result,
-     *         timestamp: new Date().toISOString()
-     *       }, null, 2)
-     *     }]
-     *   };
-     * }
-     *
-     * ERROR HANDLING:
-     * - Individual method errors are caught and re-thrown with context
-     * - The outer try/catch ensures all tool errors are handled uniformly
-     * - Always include the tool name in error messages for debugging
-     */
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
         switch (name) {
-          // TOOL HANDLER EXAMPLE: read_annotations
-          // This demonstrates the standard pattern for MCP tool handlers
           case 'read_annotations': {
-            // 1. Call the corresponding method with arguments (use empty object as fallback)
             const result = await this.readAnnotations(args || {});
             const { annotations, projectInfo, multiProjectWarning } = result;
 
-            // 2. Return standardized MCP response format
             return {
               content: [
                 {
                   type: 'text',
                   text: JSON.stringify({
-                    tool: 'read_annotations',           // Always echo the tool name
-                    status: 'success',                  // success/error status
-                    data: annotations,                  // Primary response data
-                    count: annotations.length,          // Additional metadata (tool-specific)
-                    projects: projectInfo,              // Additional metadata (tool-specific)
-                    multi_project_warning: multiProjectWarning, // Additional metadata (tool-specific)
-                    filter_applied: args?.url || 'none', // Additional metadata (tool-specific)
-                    timestamp: new Date().toISOString() // Always include timestamp
+                    tool: 'read_annotations',
+                    status: 'success',
+                    data: annotations,
+                    count: annotations.length,
+                    projects: projectInfo,
+                    multi_project_warning: multiProjectWarning,
+                    filter_applied: args?.url || 'none',
+                    timestamp: new Date().toISOString()
                   }, null, 2)
                 }
               ]
@@ -702,23 +602,6 @@ class LocalAnnotationsServer {
             };
           }
 
-          case 'bulk_update_status': {
-            const result = await this.bulkUpdateStatus(args);
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    tool: 'bulk_update_status',
-                    status: 'success',
-                    data: result,
-                    timestamp: new Date().toISOString()
-                  }, null, 2)
-                }
-              ]
-            };
-          }
-
           case 'get_annotation_screenshot': {
             const result = await this.getAnnotationScreenshot(args);
             return {
@@ -736,15 +619,10 @@ class LocalAnnotationsServer {
             };
           }
 
-          // DEFAULT CASE: Handle unknown tools
-          // This ensures we get clear error messages for typos or unregistered tools
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
-        // CENTRALIZED ERROR HANDLING
-        // All tool errors are caught here and wrapped with additional context
-        // The MCP protocol will handle the error response format
         throw new Error(`Tool execution failed: ${error.message}`);
       }
     });
@@ -1006,143 +884,147 @@ class LocalAnnotationsServer {
   }
 
   /**
-   * Update the status of a single annotation
+   * Update the status of one or more annotations
+   * Supports both single update (id, status) and bulk update (updates array)
    *
    * @param {Object} args - Arguments object
-   * @param {string} args.id - Annotation ID to update
-   * @param {string} args.status - New status value (pending, completed, archived)
-   * @returns {Object} Success response with updated annotation or error details
+   * @param {string} [args.id] - Annotation ID to update (single mode)
+   * @param {string} [args.status] - New status value (single mode)
+   * @param {Array} [args.updates] - Array of {id, status} objects (bulk mode)
+   * @returns {Object} Success response with updated annotation(s) or error details
    */
   async updateAnnotationStatus(args) {
-    const { id, status } = args;
-
-    // Validate inputs
-    if (!id || typeof id !== 'string') {
-      return {
-        success: false,
-        message: 'Invalid annotation ID: must be a non-empty string'
-      };
-    }
-
+    const { id, status, updates } = args;
     const validStatuses = ['pending', 'completed', 'archived'];
-    if (!validStatuses.includes(status)) {
-      return {
-        success: false,
-        message: `Invalid status: must be one of ${validStatuses.join(', ')}`
-      };
-    }
 
-    // Use applyAnnotationsUpdate to prevent race conditions
-    return await this.applyAnnotationsUpdate((annotations) => {
-      // Find annotation by ID
-      const annotationIndex = annotations.findIndex(a => a.id === id);
+    // Determine if this is single or bulk mode
+    const isBulkMode = updates && Array.isArray(updates);
 
-      if (annotationIndex === -1) {
+    if (isBulkMode) {
+      // Bulk mode validation
+      if (updates.length === 0) {
         return {
           success: false,
-          message: `Annotation not found: ${id}`
+          updated: [],
+          failed: [],
+          message: 'Invalid updates: must be a non-empty array'
         };
       }
 
-      // Update status and timestamp
-      const oldStatus = annotations[annotationIndex].status;
-      annotations[annotationIndex].status = status;
-      annotations[annotationIndex].updated_at = new Date().toISOString();
-
-      return {
-        success: true,
-        annotation: {
-          id: annotations[annotationIndex].id,
-          status: annotations[annotationIndex].status,
-          updated_at: annotations[annotationIndex].updated_at
-        },
-        message: `Status updated from '${oldStatus}' to '${status}'`
-      };
-    });
-  }
-
-  async bulkUpdateStatus(args) {
-    const { ids, status } = args;
-
-    // Validate inputs
-    if (!Array.isArray(ids) || ids.length === 0) {
-      return {
-        success: false,
-        updated: [],
-        failed: [],
-        message: 'Invalid ids: must be a non-empty array'
-      };
-    }
-
-    const validStatuses = ['pending', 'completed', 'archived'];
-    if (!validStatuses.includes(status)) {
-      return {
-        success: false,
-        updated: [],
-        failed: [],
-        message: `Invalid status: must be one of ${validStatuses.join(', ')}`
-      };
-    }
-
-    // Use applyAnnotationsUpdate to prevent race conditions
-    return await this.applyAnnotationsUpdate((annotations) => {
-      // Build a map for efficient lookups
-      const annotationMap = new Map();
-      annotations.forEach((annotation, index) => {
-        annotationMap.set(annotation.id, { annotation, index });
-      });
-
-      const results = {
-        success: true,
-        updated: [],
-        failed: [],
-        message: ''
-      };
-
-      // Process each ID
-      for (const id of ids) {
-        if (!id || typeof id !== 'string') {
-          results.failed.push({
-            id: id,
-            reason: 'Invalid ID: must be a non-empty string'
-          });
-          continue;
-        }
-
-        const entry = annotationMap.get(id);
-        if (!entry) {
-          results.failed.push({
-            id: id,
-            reason: 'Annotation not found'
-          });
-          continue;
-        }
-
-        const { annotation } = entry;
-        const oldStatus = annotation.status;
-
-        // Update the annotation
-        annotation.status = status;
-        annotation.updated_at = new Date().toISOString();
-
-        results.updated.push({
-          id: id,
-          old_status: oldStatus,
-          new_status: status
+      // Use applyAnnotationsUpdate to prevent race conditions
+      return await this.applyAnnotationsUpdate((annotations) => {
+        // Build a map for efficient lookups
+        const annotationMap = new Map();
+        annotations.forEach((annotation, index) => {
+          annotationMap.set(annotation.id, { annotation, index });
         });
+
+        const results = {
+          success: true,
+          updated: [],
+          failed: [],
+          message: ''
+        };
+
+        // Process each update
+        for (const update of updates) {
+          const { id: updateId, status: updateStatus } = update;
+
+          if (!updateId || typeof updateId !== 'string') {
+            results.failed.push({
+              id: updateId,
+              reason: 'Invalid ID: must be a non-empty string'
+            });
+            continue;
+          }
+
+          if (!validStatuses.includes(updateStatus)) {
+            results.failed.push({
+              id: updateId,
+              reason: `Invalid status: must be one of ${validStatuses.join(', ')}`
+            });
+            continue;
+          }
+
+          const entry = annotationMap.get(updateId);
+          if (!entry) {
+            results.failed.push({
+              id: updateId,
+              reason: 'Annotation not found'
+            });
+            continue;
+          }
+
+          const { annotation } = entry;
+          const oldStatus = annotation.status;
+
+          // Update the annotation
+          annotation.status = updateStatus;
+          annotation.updated_at = new Date().toISOString();
+
+          results.updated.push({
+            id: updateId,
+            old_status: oldStatus,
+            new_status: updateStatus
+          });
+        }
+
+        // Determine overall success
+        if (results.failed.length > 0) {
+          results.success = false;
+          results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
+        } else {
+          results.message = `Successfully updated ${results.updated.length} annotations`;
+        }
+
+        return results;
+      });
+    } else {
+      // Single mode validation
+      if (!id || typeof id !== 'string') {
+        return {
+          success: false,
+          message: 'Invalid annotation ID: must be a non-empty string'
+        };
       }
 
-      // Determine overall success
-      if (results.failed.length > 0) {
-        results.success = false;
-        results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
-      } else {
-        results.message = `Successfully updated ${results.updated.length} annotations`;
+      if (!validStatuses.includes(status)) {
+        return {
+          success: false,
+          message: `Invalid status: must be one of ${validStatuses.join(', ')}`
+        };
       }
 
-      return results;
-    });
+      // Use applyAnnotationsUpdate to prevent race conditions
+      return await this.applyAnnotationsUpdate((annotations) => {
+        // Find annotation by ID
+        const annotationIndex = annotations.findIndex(a => a.id === id);
+
+        if (annotationIndex === -1) {
+          return {
+            success: false,
+            message: `Annotation not found: ${id}`
+          };
+        }
+
+        // Update status and timestamp
+        const oldStatus = annotations[annotationIndex].status;
+        annotations[annotationIndex].status = status;
+        annotations[annotationIndex].updated_at = new Date().toISOString();
+
+        return {
+          success: true,
+          annotation: {
+            id: annotations[annotationIndex].id,
+            status: annotations[annotationIndex].status,
+            updated_at: annotations[annotationIndex].updated_at
+          },
+          message: `Status updated from '${oldStatus}' to '${status}'`
+        };
+      });
+    }
   }
+
 
   /**
    * Get screenshot data for a specific annotation
