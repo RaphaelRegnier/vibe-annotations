@@ -40,7 +40,7 @@
 ## Phase 3.1: Setup
 
 - [x] T001 Create test data file with sample annotations at annotations-server/test/test-data.json (A real world example can be copied from `~/.vibe-annotations/annotations.json`)
-- [ ] T002 [P] Document existing MCP tool structure in annotations-server/lib/server.js (lines 353-435)
+- [x] T002 [P] Document existing MCP tool structure in annotations-server/lib/server.js (lines 353-435)
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 

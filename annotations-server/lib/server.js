@@ -348,8 +348,80 @@ class LocalAnnotationsServer {
     return server;
   }
 
+  /**
+   * MCP Tool Architecture Documentation
+   *
+   * This method sets up MCP (Model Context Protocol) tool handlers for the server.
+   * MCP tools provide a standardized way for AI agents to interact with the annotation system.
+   *
+   * ARCHITECTURE OVERVIEW:
+   * 1. Tool Registration: Tools are defined in the ListToolsRequestSchema handler
+   * 2. Tool Execution: Tool calls are handled in the CallToolRequestSchema handler
+   * 3. Response Format: All tools return standardized JSON responses with metadata
+   *
+   * ADDING NEW TOOLS - Follow this pattern:
+   *
+   * Step 1: Add tool definition to the tools array (lines 355-433)
+   * {
+   *   name: 'your_tool_name',
+   *   description: 'Clear description of what the tool does and when to use it',
+   *   inputSchema: {
+   *     type: 'object',
+   *     properties: {
+   *       param_name: {
+   *         type: 'string|number|boolean',
+   *         description: 'Parameter description',
+   *         // Optional: enum, default, minimum, maximum
+   *       }
+   *     },
+   *     required: ['required_param_names'],
+   *     additionalProperties: false
+   *   }
+   * }
+   *
+   * Step 2: Add case handler in the switch statement (lines 442-515)
+   * case 'your_tool_name': {
+   *   const result = await this.yourMethodName(args);
+   *   return {
+   *     content: [{
+   *       type: 'text',
+   *       text: JSON.stringify({
+   *         tool: 'your_tool_name',
+   *         status: 'success',
+   *         data: result,
+   *         timestamp: new Date().toISOString()
+   *       }, null, 2)
+   *     }]
+   *   };
+   * }
+   *
+   * Step 3: Implement the method (after line 714)
+   * async yourMethodName(args) {
+   *   // Validate arguments
+   *   // Perform business logic
+   *   // Return result data
+   * }
+   *
+   * CONVENTIONS:
+   * - Tool names use snake_case (e.g., 'read_annotations', 'update_status')
+   * - Method names use camelCase (e.g., readAnnotations, updateStatus)
+   * - All tools return standardized JSON with: tool, status, data, timestamp
+   * - Use descriptive error messages for validation failures
+   * - Include input validation in the method implementations
+   * - Set additionalProperties: false to prevent unexpected parameters
+   *
+   * RESPONSE FORMAT:
+   * All tools return this structure:
+   * {
+   *   tool: 'tool_name',           // Echo the tool name
+   *   status: 'success|error',     // Operation status
+   *   data: {},                    // Tool-specific response data
+   *   timestamp: 'ISO_STRING'      // When the operation completed
+   * }
+   */
   setupMCPHandlersForServer(server) {
-    // List tools
+    // List tools - This handler tells AI agents what tools are available
+    // Each tool definition includes name, description, and input schema validation
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
@@ -434,29 +506,66 @@ class LocalAnnotationsServer {
       };
     });
 
-    // Handle tool calls
+    /**
+     * Tool Call Handler
+     *
+     * This handler processes actual tool invocations from AI agents.
+     * It receives the tool name and arguments, then dispatches to the appropriate method.
+     *
+     * HANDLER PATTERN:
+     * 1. Extract tool name and arguments from the request
+     * 2. Use switch statement to route to appropriate method
+     * 3. Call the corresponding class method with arguments
+     * 4. Wrap response in standardized MCP format
+     * 5. Handle errors uniformly
+     *
+     * When adding new tools, add a new case following this exact pattern:
+     * case 'your_tool_name': {
+     *   const result = await this.yourMethodName(args);
+     *   return {
+     *     content: [{
+     *       type: 'text',
+     *       text: JSON.stringify({
+     *         tool: 'your_tool_name',
+     *         status: 'success',
+     *         data: result,
+     *         timestamp: new Date().toISOString()
+     *       }, null, 2)
+     *     }]
+     *   };
+     * }
+     *
+     * ERROR HANDLING:
+     * - Individual method errors are caught and re-thrown with context
+     * - The outer try/catch ensures all tool errors are handled uniformly
+     * - Always include the tool name in error messages for debugging
+     */
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
         switch (name) {
+          // TOOL HANDLER EXAMPLE: read_annotations
+          // This demonstrates the standard pattern for MCP tool handlers
           case 'read_annotations': {
+            // 1. Call the corresponding method with arguments (use empty object as fallback)
             const result = await this.readAnnotations(args || {});
             const { annotations, projectInfo, multiProjectWarning } = result;
-            
+
+            // 2. Return standardized MCP response format
             return {
               content: [
                 {
                   type: 'text',
                   text: JSON.stringify({
-                    tool: 'read_annotations',
-                    status: 'success',
-                    data: annotations,
-                    count: annotations.length,
-                    projects: projectInfo,
-                    multi_project_warning: multiProjectWarning,
-                    filter_applied: args?.url || 'none',
-                    timestamp: new Date().toISOString()
+                    tool: 'read_annotations',           // Always echo the tool name
+                    status: 'success',                  // success/error status
+                    data: annotations,                  // Primary response data
+                    count: annotations.length,          // Additional metadata (tool-specific)
+                    projects: projectInfo,              // Additional metadata (tool-specific)
+                    multi_project_warning: multiProjectWarning, // Additional metadata (tool-specific)
+                    filter_applied: args?.url || 'none', // Additional metadata (tool-specific)
+                    timestamp: new Date().toISOString() // Always include timestamp
                   }, null, 2)
                 }
               ]
@@ -514,10 +623,15 @@ class LocalAnnotationsServer {
             };
           }
 
+          // DEFAULT CASE: Handle unknown tools
+          // This ensures we get clear error messages for typos or unregistered tools
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
+        // CENTRALIZED ERROR HANDLING
+        // All tool errors are caught here and wrapped with additional context
+        // The MCP protocol will handle the error response format
         throw new Error(`Tool execution failed: ${error.message}`);
       }
     });
