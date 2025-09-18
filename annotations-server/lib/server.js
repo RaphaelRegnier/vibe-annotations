@@ -521,6 +521,27 @@ class LocalAnnotationsServer {
               required: ['id', 'status'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'bulk_update_status',
+            description: 'Updates the status of multiple annotations in a single operation for efficient batch processing. Use this tool when you need to update many annotations at once, such as marking multiple completed fixes or archiving a batch of outdated annotations. This is more efficient than multiple individual update_annotation_status calls and ensures atomic updates. Status changes are persisted to disk and immediately available to the extension.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                ids: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Array of annotation IDs to update'
+                },
+                status: {
+                  type: 'string',
+                  enum: ['pending', 'completed', 'archived'],
+                  description: 'New status value for all annotations'
+                }
+              },
+              required: ['ids', 'status'],
+              additionalProperties: false
+            }
           }
         ]
       };
