@@ -427,7 +427,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations from the Vibe Annotations extension with enhanced context including element screenshots and parent hierarchy. Use when users want to review, implement, or address their UI feedback and comments. MULTI-PROJECT SAFETY: This tool now detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Returns enhanced warnings when multiple projects detected, with suggested URL filters for each project. Annotations include viewport dimensions for responsive breakpoint mapping. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -443,6 +443,12 @@ class LocalAnnotationsServer {
                   minimum: 1,
                   maximum: 200,
                   description: 'Maximum number of annotations to return'
+                },
+                offset: {
+                  type: 'number',
+                  default: 0,
+                  minimum: 0,
+                  description: 'Number of annotations to skip for pagination'
                 },
                 url: {
                   type: 'string',
