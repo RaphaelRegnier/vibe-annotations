@@ -913,6 +913,73 @@ class LocalAnnotationsServer {
     };
   }
 
+  /**
+   * Update the status of a single annotation
+   *
+   * @param {Object} args - Arguments object
+   * @param {string} args.id - Annotation ID to update
+   * @param {string} args.status - New status value (pending, completed, archived)
+   * @returns {Object} Success response with updated annotation or error details
+   */
+  async updateAnnotationStatus(args) {
+    const { id, status } = args;
+
+    // Validate inputs
+    if (!id || typeof id !== 'string') {
+      return {
+        success: false,
+        message: 'Invalid annotation ID: must be a non-empty string'
+      };
+    }
+
+    const validStatuses = ['pending', 'completed', 'archived'];
+    if (!validStatuses.includes(status)) {
+      return {
+        success: false,
+        message: `Invalid status: must be one of ${validStatuses.join(', ')}`
+      };
+    }
+
+    try {
+      // Load current annotations
+      const annotations = await this.loadAnnotations();
+
+      // Find annotation by ID
+      const annotationIndex = annotations.findIndex(a => a.id === id);
+
+      if (annotationIndex === -1) {
+        return {
+          success: false,
+          message: `Annotation not found: ${id}`
+        };
+      }
+
+      // Update status and timestamp
+      const oldStatus = annotations[annotationIndex].status;
+      annotations[annotationIndex].status = status;
+      annotations[annotationIndex].updated_at = new Date().toISOString();
+
+      // Save changes using atomic write
+      await this.saveAnnotations(annotations);
+
+      return {
+        success: true,
+        annotation: {
+          id: annotations[annotationIndex].id,
+          status: annotations[annotationIndex].status,
+          updated_at: annotations[annotationIndex].updated_at
+        },
+        message: `Status updated from '${oldStatus}' to '${status}'`
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to update annotation: ${error.message}`
+      };
+    }
+  }
+
   async deleteProjectAnnotations(args) {
     const { url_pattern, confirm = false } = args;
     
