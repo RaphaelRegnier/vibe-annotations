@@ -60,19 +60,19 @@
 
 - [x] T011 Implement updateAnnotationStatus method in server.js (after line 714)
 - [x] T012 Implement bulkUpdateStatus method in server.js (after line 714)
-- [ ] T013 Implement getAnnotationScreenshot method in server.js (after line 714)
-- [ ] T014 Enhance readAnnotations method to support offset and strip screenshots (server.js lines 649-714)
+- [x] T013 Implement getAnnotationScreenshot method in server.js (after line 714)
+- [x] T014 Enhance readAnnotations method to support offset and strip screenshots (server.js lines 649-714)
 
 ## Phase 3.5: Integration (Wire up handlers)
 
-- [ ] T015 Add handler case for update_annotation_status in CallToolRequestSchema (server.js lines 437-523)
-- [ ] T016 Add handler case for bulk_update_status in CallToolRequestSchema (server.js lines 437-523)
-- [ ] T017 Add handler case for get_annotation_screenshot in CallToolRequestSchema (server.js lines 437-523)
+- [x] T015 Add handler case for update_annotation_status in CallToolRequestSchema (server.js lines 437-523)
+- [x] T016 Add handler case for bulk_update_status in CallToolRequestSchema (server.js lines 437-523)
+- [x] T017 Add handler case for get_annotation_screenshot in CallToolRequestSchema (server.js lines 437-523)
 
 ## Phase 3.6: Polish & Validation
 
-- [ ] T018 [P] Run manual validation tests from quickstart.md
-- [ ] T019 [P] Update package.json version to reflect new features
+- [x] T018 [P] Run manual validation tests from quickstart.md
+- [x] T019 [P] Update package.json version to reflect new features
 
 ## Task Dependencies
 

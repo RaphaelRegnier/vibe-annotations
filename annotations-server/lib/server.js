@@ -951,7 +951,7 @@ class LocalAnnotationsServer {
       const { screenshot, ...annotationWithoutScreenshot } = annotation;
       return {
         ...annotationWithoutScreenshot,
-        has_screenshot: !!(screenshot && screenshot.data)
+        has_screenshot: !!(screenshot && screenshot.data_url)
       };
     });
 
@@ -1185,7 +1185,7 @@ class LocalAnnotationsServer {
       }
 
       // Check if annotation has screenshot data
-      if (!annotation.screenshot || !annotation.screenshot.data) {
+      if (!annotation.screenshot || !annotation.screenshot.data_url) {
         return {
           annotation_id: id,
           screenshot: null,
@@ -1197,9 +1197,11 @@ class LocalAnnotationsServer {
       return {
         annotation_id: id,
         screenshot: {
-          data_url: annotation.screenshot.data,
-          width: annotation.screenshot.width,
-          height: annotation.screenshot.height,
+          data_url: annotation.screenshot.data_url,
+          compression: annotation.screenshot.compression,
+          crop_area: annotation.screenshot.crop_area,
+          element_bounds: annotation.screenshot.element_bounds,
+          timestamp: annotation.screenshot.timestamp,
           viewport: annotation.viewport || null
         },
         message: 'Screenshot retrieved successfully'
