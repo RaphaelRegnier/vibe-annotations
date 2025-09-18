@@ -51,7 +51,7 @@
 
 ## Phase 3.3: Core Features (Tools)
 
-- [ ] T007 Add update_annotation_status tool definition to tool list (server.js lines 355-433)
+- [x] T007 Add update_annotation_status tool definition to tool list (server.js lines 355-433)
 - [ ] T008 Add bulk_update_status tool definition to tool list (server.js lines 355-433)
 - [ ] T009 Add get_annotation_screenshot tool definition to tool list (server.js lines 355-433)
 - [ ] T010 Enhance read_annotations tool definition with offset parameter (server.js line 356)

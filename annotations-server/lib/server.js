@@ -501,6 +501,26 @@ class LocalAnnotationsServer {
               required: ['url_pattern'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'update_annotation_status',
+            description: 'Updates the status of a single annotation to track processing lifecycle (pending/completed/archived). Use this tool to mark annotations as completed after implementing fixes, or to archive annotations that are no longer relevant. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  description: 'Annotation ID to update'
+                },
+                status: {
+                  type: 'string',
+                  enum: ['pending', 'completed', 'archived'],
+                  description: 'New status value'
+                }
+              },
+              required: ['id', 'status'],
+              additionalProperties: false
+            }
           }
         ]
       };
