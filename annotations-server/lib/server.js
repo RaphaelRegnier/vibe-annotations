@@ -824,14 +824,14 @@ class LocalAnnotationsServer {
   // MCP Tool implementations
   async readAnnotations(args) {
     const annotations = await this.loadAnnotations();
-    const { status = 'pending', limit = 50, url } = args;
-    
+    const { status = 'pending', limit = 50, offset = 0, url } = args;
+
     let filtered = annotations;
-    
+
     if (status !== 'all') {
       filtered = filtered.filter(a => a.status === status);
     }
-    
+
     if (url) {
       // Support both exact URL matching and base URL pattern matching
       if (url.includes('*') || url.endsWith('/')) {
@@ -843,7 +843,7 @@ class LocalAnnotationsServer {
         filtered = filtered.filter(a => a.url === url);
       }
     }
-    
+
     // Group annotations by base URL for better context
     const groupedByProject = {};
     filtered.forEach(annotation => {
@@ -858,11 +858,11 @@ class LocalAnnotationsServer {
         // Handle invalid URLs gracefully
       }
     });
-    
+
     // Add project context to response
     const projectCount = Object.keys(groupedByProject).length;
     let multiProjectWarning = null;
-    
+
     if (projectCount > 1 && !url) {
       const projectSuggestions = Object.keys(groupedByProject).map(baseUrl => `"${baseUrl}/*"`).join(' or ');
       multiProjectWarning = {
@@ -874,7 +874,7 @@ class LocalAnnotationsServer {
       };
       console.warn(`MULTI-PROJECT WARNING: Found annotations from ${projectCount} different projects. Use url parameter: ${projectSuggestions}`);
     }
-    
+
     // Build project info for better context
     const projectInfo = Object.entries(groupedByProject).map(([baseUrl, annotations]) => ({
       base_url: baseUrl,
@@ -882,9 +882,31 @@ class LocalAnnotationsServer {
       paths: [...new Set(annotations.map(a => new URL(a.url).pathname))].slice(0, 5), // Show up to 5 unique paths
       recommended_filter: `${baseUrl}/*`
     }));
-    
+
+    // Apply pagination with offset
+    const total = filtered.length;
+    const paginatedResults = filtered.slice(offset, offset + limit);
+
+    // Calculate pagination metadata
+    const pagination = {
+      total: total,
+      limit: limit,
+      offset: offset,
+      has_more: (offset + limit) < total
+    };
+
+    // Transform annotations to strip screenshot data and add has_screenshot flag
+    const annotationsWithScreenshotFlag = paginatedResults.map(annotation => {
+      const { screenshot, ...annotationWithoutScreenshot } = annotation;
+      return {
+        ...annotationWithoutScreenshot,
+        has_screenshot: !!(screenshot && screenshot.data)
+      };
+    });
+
     return {
-      annotations: filtered.slice(0, limit),
+      annotations: annotationsWithScreenshotFlag,
+      pagination: pagination,
       projectInfo: projectInfo,
       multiProjectWarning: multiProjectWarning
     };
