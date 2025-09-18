@@ -53,7 +53,7 @@
 
 - [x] T007 Add update_annotation_status tool definition to tool list (server.js lines 355-433)
 - [x] T008 Add bulk_update_status tool definition to tool list (server.js lines 355-433)
-- [ ] T009 Add get_annotation_screenshot tool definition to tool list (server.js lines 355-433)
+- [x] T009 Add get_annotation_screenshot tool definition to tool list (server.js lines 355-433)
 - [ ] T010 Enhance read_annotations tool definition with offset parameter (server.js line 356)
 
 ## Phase 3.4: Implementation (Handlers)

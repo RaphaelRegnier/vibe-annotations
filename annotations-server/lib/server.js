@@ -542,6 +542,21 @@ class LocalAnnotationsServer {
               required: ['ids', 'status'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'get_annotation_screenshot',
+            description: 'Retrieves the screenshot data for a specific annotation when visual context is needed. Use this tool to access the full screenshot information that was captured when the annotation was created. This provides visual context that can help understand the user\'s feedback and implement appropriate fixes. The screenshot includes viewport dimensions and element positioning data. Only call this tool when you need to see the visual context - the read_annotations tool provides a has_screenshot flag to indicate if screenshot data is available.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  description: 'Annotation ID to get screenshot for'
+                }
+              },
+              required: ['id'],
+              additionalProperties: false
+            }
           }
         ]
       };
