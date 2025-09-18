@@ -702,6 +702,23 @@ class LocalAnnotationsServer {
             };
           }
 
+          case 'bulk_update_status': {
+            const result = await this.bulkUpdateStatus(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'bulk_update_status',
+                    status: 'success',
+                    data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
           // DEFAULT CASE: Handle unknown tools
           // This ensures we get clear error messages for typos or unregistered tools
           default:
