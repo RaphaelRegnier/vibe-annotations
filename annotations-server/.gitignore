@@ -64,3 +64,4 @@ Thumbs.db
 data/
 *.json
 !package.json
+!test/test-data.json
