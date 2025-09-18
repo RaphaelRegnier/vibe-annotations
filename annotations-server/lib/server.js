@@ -685,6 +685,23 @@ class LocalAnnotationsServer {
             };
           }
 
+          case 'update_annotation_status': {
+            const result = await this.updateAnnotationStatus(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'update_annotation_status',
+                    status: 'success',
+                    data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
           // DEFAULT CASE: Handle unknown tools
           // This ensures we get clear error messages for typos or unregistered tools
           default:
