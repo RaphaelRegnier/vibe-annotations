@@ -719,6 +719,23 @@ class LocalAnnotationsServer {
             };
           }
 
+          case 'get_annotation_screenshot': {
+            const result = await this.getAnnotationScreenshot(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'get_annotation_screenshot',
+                    status: 'success',
+                    data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
           // DEFAULT CASE: Handle unknown tools
           // This ensures we get clear error messages for typos or unregistered tools
           default:
