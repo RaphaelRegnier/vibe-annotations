@@ -980,6 +980,104 @@ class LocalAnnotationsServer {
     }
   }
 
+  async bulkUpdateStatus(args) {
+    const { ids, status } = args;
+
+    // Validate inputs
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: 'Invalid ids: must be a non-empty array'
+      };
+    }
+
+    const validStatuses = ['pending', 'completed', 'archived'];
+    if (!validStatuses.includes(status)) {
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: `Invalid status: must be one of ${validStatuses.join(', ')}`
+      };
+    }
+
+    try {
+      // Load current annotations
+      const annotations = await this.loadAnnotations();
+
+      // Build a map for efficient lookups
+      const annotationMap = new Map();
+      annotations.forEach((annotation, index) => {
+        annotationMap.set(annotation.id, { annotation, index });
+      });
+
+      const results = {
+        success: true,
+        updated: [],
+        failed: [],
+        message: ''
+      };
+
+      // Process each ID
+      for (const id of ids) {
+        if (!id || typeof id !== 'string') {
+          results.failed.push({
+            id: id,
+            reason: 'Invalid ID: must be a non-empty string'
+          });
+          continue;
+        }
+
+        const entry = annotationMap.get(id);
+        if (!entry) {
+          results.failed.push({
+            id: id,
+            reason: 'Annotation not found'
+          });
+          continue;
+        }
+
+        const { annotation, index } = entry;
+        const oldStatus = annotation.status;
+
+        // Update the annotation
+        annotation.status = status;
+        annotation.updated_at = new Date().toISOString();
+
+        results.updated.push({
+          id: id,
+          old_status: oldStatus,
+          new_status: status
+        });
+      }
+
+      // Determine overall success
+      if (results.failed.length > 0) {
+        results.success = false;
+        results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
+      } else {
+        results.message = `Successfully updated ${results.updated.length} annotations`;
+      }
+
+      // Save changes atomically if any updates were made
+      if (results.updated.length > 0) {
+        await this.saveAnnotations(annotations);
+      }
+
+      return results;
+
+    } catch (error) {
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: `Failed to update annotations: ${error.message}`
+      };
+    }
+  }
+
   async deleteProjectAnnotations(args) {
     const { url_pattern, confirm = false } = args;
     

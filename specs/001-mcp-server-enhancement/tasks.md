@@ -59,7 +59,7 @@
 ## Phase 3.4: Implementation (Handlers)
 
 - [x] T011 Implement updateAnnotationStatus method in server.js (after line 714)
-- [ ] T012 Implement bulkUpdateStatus method in server.js (after line 714)
+- [x] T012 Implement bulkUpdateStatus method in server.js (after line 714)
 - [ ] T013 Implement getAnnotationScreenshot method in server.js (after line 714)
 - [ ] T014 Enhance readAnnotations method to support offset and strip screenshots (server.js lines 649-714)
 
