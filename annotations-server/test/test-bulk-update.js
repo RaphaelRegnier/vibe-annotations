@@ -24,7 +24,8 @@ const __dirname = path.dirname(__filename);
 
 // Import test data
 const testDataPath = path.join(__dirname, 'test-data.json');
-const testData = JSON.parse(await readFile(testDataPath, 'utf8'));
+const testDataRaw = await readFile(testDataPath, 'utf8');
+const testData = JSON.parse(testDataRaw);
 
 // Simulate the server's annotation storage methods
 class MockAnnotationsStorage {
@@ -32,6 +33,7 @@ class MockAnnotationsStorage {
     this.annotations = [];
     this.dataDir = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations-test');
     this.dataFile = path.join(this.dataDir, 'annotations.json');
+    this.saveLock = Promise.resolve(); // Add saveLock to simulate server's concurrency protection
   }
 
   async ensureDataDir() {
@@ -53,34 +55,53 @@ class MockAnnotationsStorage {
     return this.annotations;
   }
 
-  async saveAnnotations() {
+  async saveAnnotations(annotations) {
+    // Serialize all save operations to prevent race conditions (like the server)
+    this.saveLock = this.saveLock.then(async () => {
+      return this._saveAnnotationsInternal(annotations || this.annotations);
+    });
+
+    return this.saveLock;
+  }
+
+  async _saveAnnotationsInternal(annotations) {
     await this.ensureDataDir();
+    this.annotations = annotations;
 
     // Atomic write using temporary file
     const tempFile = this.dataFile + '.tmp';
-    await writeFile(tempFile, JSON.stringify(this.annotations, null, 2));
+    await writeFile(tempFile, JSON.stringify(annotations, null, 2));
 
-    // On Windows, we need to handle the rename differently
+    // Simple rename for test environment
     if (existsSync(this.dataFile)) {
-      await writeFile(this.dataFile, JSON.stringify(this.annotations, null, 2));
+      await writeFile(this.dataFile, JSON.stringify(annotations, null, 2));
     } else {
-      await writeFile(this.dataFile, JSON.stringify(this.annotations, null, 2));
+      await writeFile(this.dataFile, JSON.stringify(annotations, null, 2));
     }
   }
 
   async setupTestData() {
-    // Use a subset of test data with different statuses
+    // Use a subset of test data with different statuses and fix screenshot structure
     this.annotations = testData.slice(0, 5).map(annotation => ({
       ...annotation,
+      // Fix screenshot structure to match server expectations
+      screenshot: annotation.screenshot ? {
+        data_url: annotation.screenshot.data || annotation.screenshot.data_url,
+        compression: annotation.screenshot.compression || 'high',
+        crop_area: annotation.screenshot.crop_area || null,
+        element_bounds: annotation.screenshot.element_bounds || null,
+        timestamp: annotation.screenshot.timestamp || new Date().toISOString()
+      } : null,
       // Reset IDs for consistent testing
       id: annotation.id,
       updated_at: new Date().toISOString()
     }));
-    await this.saveAnnotations();
+    await this.saveAnnotations(this.annotations);
   }
 
   async cleanup() {
     try {
+      this.annotations = [];
       if (existsSync(this.dataFile)) {
         await writeFile(this.dataFile, '[]');
       }
@@ -89,78 +110,110 @@ class MockAnnotationsStorage {
     }
   }
 
-  // Implement the bulk update status method
+  /**
+   * Apply an annotations update using serialized read→mutate→save operations
+   * This prevents race conditions during concurrent operations by chaining
+   * all updates onto the existing saveLock Promise (like the server implementation).
+   */
+  async applyAnnotationsUpdate(mutator) {
+    // Chain onto saveLock to serialize read→mutate→save
+    this.saveLock = this.saveLock.then(async () => {
+      const current = await this.loadAnnotations();
+      const result = await mutator(current);
+      await this._saveAnnotationsInternal(current);
+      return result;
+    });
+    return this.saveLock;
+  }
+
+  // Implement the bulk update status method using the concurrency protection
   async bulkUpdateStatus(ids, newStatus) {
     const startTime = Date.now();
 
     // Validate status
     const validStatuses = ['pending', 'completed', 'archived'];
     if (!validStatuses.includes(newStatus)) {
-      throw new Error(`Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`);
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: `Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`
+      };
     }
 
     // Validate ids
     if (!Array.isArray(ids) || ids.length === 0) {
-      throw new Error('ids must be a non-empty array');
+      return {
+        success: false,
+        updated: [],
+        failed: [],
+        message: 'ids must be a non-empty array'
+      };
     }
 
-    await this.loadAnnotations();
+    // Use applyAnnotationsUpdate to prevent race conditions (like the server)
+    const result = await this.applyAnnotationsUpdate((annotations) => {
+      const results = {
+        success: true,
+        updated: [],
+        failed: [],
+        message: ''
+      };
 
-    const results = {
-      success: true,
-      updated: [],
-      failed: [],
-      message: ''
-    };
+      // Build a map for efficient lookups
+      const annotationMap = new Map();
+      annotations.forEach((annotation, index) => {
+        annotationMap.set(annotation.id, { annotation, index });
+      });
 
-    // Track which annotations exist
-    const annotationMap = new Map();
-    this.annotations.forEach(annotation => {
-      annotationMap.set(annotation.id, annotation);
-    });
+      // Process each ID
+      for (const id of ids) {
+        if (!id || typeof id !== 'string') {
+          results.failed.push({
+            id: id,
+            reason: 'Invalid ID: must be a non-empty string'
+          });
+          continue;
+        }
 
-    // Process each ID
-    for (const id of ids) {
-      const annotation = annotationMap.get(id);
+        const entry = annotationMap.get(id);
+        if (!entry) {
+          results.failed.push({
+            id: id,
+            reason: 'Annotation not found'
+          });
+          continue;
+        }
 
-      if (!annotation) {
-        results.failed.push({
+        const { annotation } = entry;
+        const oldStatus = annotation.status;
+
+        // Update the annotation
+        annotation.status = newStatus;
+        annotation.updated_at = new Date().toISOString();
+
+        results.updated.push({
           id: id,
-          reason: 'Annotation not found'
+          old_status: oldStatus,
+          new_status: newStatus
         });
-        continue;
       }
 
-      const oldStatus = annotation.status;
+      // Determine overall success
+      if (results.failed.length > 0) {
+        results.success = false;
+        results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
+      } else {
+        results.message = `Successfully updated ${results.updated.length} annotations`;
+      }
 
-      // Update the annotation
-      annotation.status = newStatus;
-      annotation.updated_at = new Date().toISOString();
-
-      results.updated.push({
-        id: id,
-        old_status: oldStatus,
-        new_status: newStatus
-      });
-    }
-
-    // Determine overall success
-    if (results.failed.length > 0) {
-      results.success = false;
-      results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
-    } else {
-      results.message = `Successfully updated ${results.updated.length} annotations`;
-    }
-
-    // Save changes atomically
-    if (results.updated.length > 0) {
-      await this.saveAnnotations();
-    }
+      return results;
+    });
 
     const endTime = Date.now();
-    results.performance = endTime - startTime;
+    result.performance = endTime - startTime;
 
-    return results;
+    return result;
   }
 }
 
@@ -250,12 +303,11 @@ class BulkUpdateTests {
     const annotations = await this.storage.loadAnnotations();
     const idsToUpdate = [annotations[0].id];
 
-    try {
-      await this.storage.bulkUpdateStatus(idsToUpdate, 'invalid_status');
-      assert.fail('Should throw error for invalid status');
-    } catch (error) {
-      assert.match(error.message, /Invalid status/, 'Should reject invalid status');
-    }
+    const result = await this.storage.bulkUpdateStatus(idsToUpdate, 'invalid_status');
+    assert.strictEqual(result.success, false, 'Should reject invalid status');
+    assert.match(result.message, /Invalid status/, 'Should have proper error message');
+    assert.strictEqual(result.updated.length, 0, 'Should not update any annotations');
+    assert.strictEqual(result.failed.length, 0, 'Should not have failed items for validation error');
 
     await this.tearDown();
   }
@@ -263,12 +315,11 @@ class BulkUpdateTests {
   async testEmptyIds() {
     await this.setUp();
 
-    try {
-      await this.storage.bulkUpdateStatus([], 'completed');
-      assert.fail('Should throw error for empty IDs array');
-    } catch (error) {
-      assert.match(error.message, /non-empty array/, 'Should reject empty IDs array');
-    }
+    const result = await this.storage.bulkUpdateStatus([], 'completed');
+    assert.strictEqual(result.success, false, 'Should reject empty IDs array');
+    assert.match(result.message, /non-empty array/, 'Should have proper error message');
+    assert.strictEqual(result.updated.length, 0, 'Should not update any annotations');
+    assert.strictEqual(result.failed.length, 0, 'Should not have failed items for validation error');
 
     await this.tearDown();
   }
@@ -276,12 +327,20 @@ class BulkUpdateTests {
   async testInvalidIds() {
     await this.setUp();
 
-    try {
-      await this.storage.bulkUpdateStatus(null, 'completed');
-      assert.fail('Should throw error for null IDs');
-    } catch (error) {
-      assert.match(error.message, /non-empty array/, 'Should reject null IDs');
-    }
+    // Test null IDs
+    const result1 = await this.storage.bulkUpdateStatus(null, 'completed');
+    assert.strictEqual(result1.success, false, 'Should reject null IDs');
+    assert.match(result1.message, /non-empty array/, 'Should have proper error message for null');
+
+    // Test undefined IDs
+    const result2 = await this.storage.bulkUpdateStatus(undefined, 'completed');
+    assert.strictEqual(result2.success, false, 'Should reject undefined IDs');
+    assert.match(result2.message, /non-empty array/, 'Should have proper error message for undefined');
+
+    // Test non-array IDs
+    const result3 = await this.storage.bulkUpdateStatus('not-an-array', 'completed');
+    assert.strictEqual(result3.success, false, 'Should reject non-array IDs');
+    assert.match(result3.message, /non-empty array/, 'Should have proper error message for non-array');
 
     await this.tearDown();
   }
@@ -332,7 +391,7 @@ class BulkUpdateTests {
     }
 
     this.storage.annotations = annotations;
-    await this.storage.saveAnnotations();
+    await this.storage.saveAnnotations(annotations);
 
     const idsToUpdate = annotations.slice(0, 10).map(a => a.id);
 
@@ -374,6 +433,136 @@ class BulkUpdateTests {
     await this.tearDown();
   }
 
+  async testRaceConditionPrevention() {
+    await this.setUp();
+
+    const annotations = await this.storage.loadAnnotations();
+    const targetId = annotations[0].id;
+
+    // Simulate concurrent operations
+    const operations = [
+      () => this.storage.bulkUpdateStatus([targetId], 'completed'),
+      () => this.storage.bulkUpdateStatus([targetId], 'archived'),
+      () => this.storage.bulkUpdateStatus([targetId], 'pending')
+    ];
+
+    // Execute all operations concurrently
+    const results = await Promise.all(operations.map(op => op()));
+
+    // All operations should succeed (no race condition errors)
+    results.forEach((result, index) => {
+      assert.strictEqual(result.success, true, `Operation ${index + 1} should succeed`);
+      assert.strictEqual(result.updated.length, 1, `Operation ${index + 1} should update 1 annotation`);
+    });
+
+    // Verify final state is consistent
+    const finalAnnotations = await this.storage.loadAnnotations();
+    const finalAnnotation = finalAnnotations.find(a => a.id === targetId);
+    assert.ok(finalAnnotation, 'Target annotation should still exist');
+    assert.ok(['completed', 'archived', 'pending'].includes(finalAnnotation.status), 'Final status should be valid');
+
+    console.log(`   ⚡ Race condition test: All ${results.length} concurrent operations completed successfully`);
+    console.log(`   ⚡ Final status: ${finalAnnotation.status}`);
+
+    await this.tearDown();
+  }
+
+  async testConcurrentUpdates() {
+    await this.setUp();
+
+    const annotations = await this.storage.loadAnnotations();
+    const ids = annotations.slice(0, 3).map(a => a.id);
+
+    // Test concurrent bulk updates with different IDs
+    const concurrentOperations = [
+      this.storage.bulkUpdateStatus([ids[0]], 'completed'),
+      this.storage.bulkUpdateStatus([ids[1]], 'archived'),
+      this.storage.bulkUpdateStatus([ids[2]], 'pending'),
+      this.storage.bulkUpdateStatus(ids.slice(0, 2), 'completed') // Overlapping update
+    ];
+
+    const startTime = Date.now();
+    const results = await Promise.all(concurrentOperations);
+    const endTime = Date.now();
+
+    // All operations should complete successfully
+    results.forEach((result, index) => {
+      assert.strictEqual(result.success, true, `Concurrent operation ${index + 1} should succeed`);
+      assert.ok(result.updated.length > 0, `Operation ${index + 1} should update at least 1 annotation`);
+    });
+
+    // Verify data consistency
+    const finalAnnotations = await this.storage.loadAnnotations();
+    const updatedAnnotations = finalAnnotations.filter(a => ids.includes(a.id));
+
+    assert.strictEqual(updatedAnnotations.length, 3, 'All 3 target annotations should exist');
+    updatedAnnotations.forEach(annotation => {
+      assert.ok(['pending', 'completed', 'archived'].includes(annotation.status),
+        `Annotation ${annotation.id} should have valid status`);
+      assert.ok(annotation.updated_at, `Annotation ${annotation.id} should have updated timestamp`);
+    });
+
+    console.log(`   ⚡ Concurrent updates: ${results.length} operations completed in ${endTime - startTime}ms`);
+
+    await this.tearDown();
+  }
+
+  async testDataIntegrityUnderLoad() {
+    await this.setUp();
+
+    const annotations = await this.storage.loadAnnotations();
+    const allIds = annotations.map(a => a.id);
+
+    // Create many concurrent operations that modify the same data
+    const heavyOperations = [];
+    for (let i = 0; i < 50; i++) {
+      // Mix of single and bulk operations
+      if (i % 3 === 0) {
+        heavyOperations.push(() => this.storage.bulkUpdateStatus([allIds[i % allIds.length]], 'completed'));
+      } else if (i % 3 === 1) {
+        heavyOperations.push(() => this.storage.bulkUpdateStatus(allIds.slice(0, 2), 'archived'));
+      } else {
+        heavyOperations.push(() => this.storage.bulkUpdateStatus([allIds[(i + 1) % allIds.length]], 'pending'));
+      }
+    }
+
+    const startTime = Date.now();
+    const results = await Promise.all(heavyOperations.map(op => op()));
+    const endTime = Date.now();
+
+    // All operations should complete successfully (no data corruption)
+    let totalUpdated = 0;
+    let totalFailed = 0;
+
+    results.forEach((result, index) => {
+      assert.strictEqual(result.success, true, `Load test operation ${index + 1} should succeed`);
+      assert.ok(typeof result.updated === 'object' && Array.isArray(result.updated),
+        `Operation ${index + 1} should have updated array`);
+      assert.ok(typeof result.failed === 'object' && Array.isArray(result.failed),
+        `Operation ${index + 1} should have failed array`);
+      totalUpdated += result.updated.length;
+      totalFailed += result.failed.length;
+    });
+
+    // Verify final data integrity
+    const finalAnnotations = await this.storage.loadAnnotations();
+    assert.strictEqual(finalAnnotations.length, annotations.length,
+      'No annotations should be lost during concurrent operations');
+
+    finalAnnotations.forEach(annotation => {
+      assert.ok(['pending', 'completed', 'archived'].includes(annotation.status),
+        `Annotation ${annotation.id} should have valid status after load test`);
+      assert.ok(annotation.updated_at, `Annotation ${annotation.id} should have timestamp`);
+      assert.ok(annotation.id, `Annotation ${annotation.id} should have valid ID`);
+    });
+
+    console.log(`   ⚡ Load test: ${results.length} operations completed in ${endTime - startTime}ms`);
+    console.log(`   ⚡ Total updates: ${totalUpdated}, Total failures: ${totalFailed}`);
+    console.log(`   ⚡ Data integrity maintained: ${finalAnnotations.length} annotations preserved`);
+
+    await this.tearDown();
+  }
+
   async runAllTests() {
     console.log('🚀 Starting bulk_update_status tool tests...\n');
 
@@ -385,6 +574,9 @@ class BulkUpdateTests {
     await this.runTest('Atomic operation behavior', () => this.testAtomicOperation());
     await this.runTest('Performance (<20ms for 10 items)', () => this.testPerformance());
     await this.runTest('Status transition validation', () => this.testStatusTransitions());
+    await this.runTest('Race condition prevention', () => this.testRaceConditionPrevention());
+    await this.runTest('Concurrent updates serialization', () => this.testConcurrentUpdates());
+    await this.runTest('Data integrity under concurrent load', () => this.testDataIntegrityUnderLoad());
 
     console.log(`\n📊 Test Results: ${this.testsPassed}/${this.testsTotal} passed`);
 

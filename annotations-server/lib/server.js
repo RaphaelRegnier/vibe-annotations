@@ -850,6 +850,25 @@ class LocalAnnotationsServer {
     }
   }
 
+  /**
+   * Apply an annotations update using serialized read→mutate→save operations
+   * This prevents race conditions during concurrent operations by chaining
+   * all updates onto the existing saveLock Promise.
+   *
+   * @param {Function} mutator - Function that receives current annotations and returns result
+   * @returns {Promise} Promise that resolves with the mutator's return value
+   */
+  async applyAnnotationsUpdate(mutator) {
+    // Chain onto saveLock to serialize read→mutate→save
+    this.saveLock = this.saveLock.then(async () => {
+      const current = await this.loadAnnotations();
+      const result = await mutator(current);
+      await this._saveAnnotationsInternal(current);
+      return result;
+    });
+    return this.saveLock;
+  }
+
   async ensureDataFile() {
     const dataDir = path.dirname(DATA_FILE);
     if (!existsSync(dataDir)) {
@@ -1013,10 +1032,8 @@ class LocalAnnotationsServer {
       };
     }
 
-    try {
-      // Load current annotations
-      const annotations = await this.loadAnnotations();
-
+    // Use applyAnnotationsUpdate to prevent race conditions
+    return await this.applyAnnotationsUpdate((annotations) => {
       // Find annotation by ID
       const annotationIndex = annotations.findIndex(a => a.id === id);
 
@@ -1032,9 +1049,6 @@ class LocalAnnotationsServer {
       annotations[annotationIndex].status = status;
       annotations[annotationIndex].updated_at = new Date().toISOString();
 
-      // Save changes using atomic write
-      await this.saveAnnotations(annotations);
-
       return {
         success: true,
         annotation: {
@@ -1044,13 +1058,7 @@ class LocalAnnotationsServer {
         },
         message: `Status updated from '${oldStatus}' to '${status}'`
       };
-
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to update annotation: ${error.message}`
-      };
-    }
+    });
   }
 
   async bulkUpdateStatus(args) {
@@ -1076,10 +1084,8 @@ class LocalAnnotationsServer {
       };
     }
 
-    try {
-      // Load current annotations
-      const annotations = await this.loadAnnotations();
-
+    // Use applyAnnotationsUpdate to prevent race conditions
+    return await this.applyAnnotationsUpdate((annotations) => {
       // Build a map for efficient lookups
       const annotationMap = new Map();
       annotations.forEach((annotation, index) => {
@@ -1112,7 +1118,7 @@ class LocalAnnotationsServer {
           continue;
         }
 
-        const { annotation, index } = entry;
+        const { annotation } = entry;
         const oldStatus = annotation.status;
 
         // Update the annotation
@@ -1134,21 +1140,8 @@ class LocalAnnotationsServer {
         results.message = `Successfully updated ${results.updated.length} annotations`;
       }
 
-      // Save changes atomically if any updates were made
-      if (results.updated.length > 0) {
-        await this.saveAnnotations(annotations);
-      }
-
       return results;
-
-    } catch (error) {
-      return {
-        success: false,
-        updated: [],
-        failed: [],
-        message: `Failed to update annotations: ${error.message}`
-      };
-    }
+    });
   }
 
   /**
