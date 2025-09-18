@@ -1078,6 +1078,69 @@ class LocalAnnotationsServer {
     }
   }
 
+  /**
+   * Get screenshot data for a specific annotation
+   * @param {Object} args - Arguments object
+   * @param {string} args.id - Annotation ID to get screenshot for
+   * @returns {Object} Screenshot data response with annotation_id, screenshot, and message
+   */
+  async getAnnotationScreenshot(args) {
+    const { id } = args;
+
+    // Validate input
+    if (!id || typeof id !== 'string') {
+      return {
+        annotation_id: id || '',
+        screenshot: null,
+        message: 'Invalid annotation ID: must be a non-empty string'
+      };
+    }
+
+    try {
+      // Load annotations - we only need to find the specific one
+      const annotations = await this.loadAnnotations();
+
+      // Find annotation by ID
+      const annotation = annotations.find(a => a.id === id);
+
+      if (!annotation) {
+        return {
+          annotation_id: id,
+          screenshot: null,
+          message: 'Annotation not found'
+        };
+      }
+
+      // Check if annotation has screenshot data
+      if (!annotation.screenshot || !annotation.screenshot.data) {
+        return {
+          annotation_id: id,
+          screenshot: null,
+          message: 'No screenshot available for this annotation'
+        };
+      }
+
+      // Return screenshot data in the contract format
+      return {
+        annotation_id: id,
+        screenshot: {
+          data_url: annotation.screenshot.data,
+          width: annotation.screenshot.width,
+          height: annotation.screenshot.height,
+          viewport: annotation.viewport || null
+        },
+        message: 'Screenshot retrieved successfully'
+      };
+
+    } catch (error) {
+      return {
+        annotation_id: id,
+        screenshot: null,
+        message: `Failed to retrieve screenshot: ${error.message}`
+      };
+    }
+  }
+
   async deleteProjectAnnotations(args) {
     const { url_pattern, confirm = false } = args;
     
