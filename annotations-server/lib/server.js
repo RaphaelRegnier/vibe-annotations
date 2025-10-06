@@ -439,40 +439,8 @@ class LocalAnnotationsServer {
             }
           },
           {
-            name: 'update_annotation_status',
-            description: 'Updates the status of one or more annotations to track processing lifecycle (pending/completed/archived). Always provide an array of updates, even for single annotations. Status changes are persisted to disk and immediately available to the extension. Use "completed" when you have successfully implemented the annotation\'s requested change, "archived" for annotations that are no longer applicable, and "pending" to reset an annotation back to active status.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                updates: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: {
-                        type: 'string',
-                        description: 'Annotation ID to update'
-                      },
-                      status: {
-                        type: 'string',
-                        enum: ['pending', 'completed', 'archived'],
-                        description: 'New status value'
-                      }
-                    },
-                    required: ['id', 'status'],
-                    additionalProperties: false
-                  },
-                  minItems: 1,
-                  description: 'Array of status updates to apply. For single annotation updates, provide an array with one item.'
-                }
-              },
-              required: ['updates'],
-              additionalProperties: false
-            }
-          },
-          {
             name: 'get_annotation_screenshot',
-            description: 'Retrieves the screenshot data for a specific annotation when visual context is needed. Use this tool to access the full screenshot information that was captured when the annotation was created. This provides visual context that can help understand the user\'s feedback and implement appropriate fixes. The screenshot includes viewport dimensions and element positioning data. Only call this tool when you need to see the visual context - the read_annotations tool provides a has_screenshot flag to indicate if screenshot data is available.',
+            description: 'Retrieves screenshot data for a specific annotation when visual context is needed to understand and implement the user\'s feedback. The read_annotations tool returns a has_screenshot flag to indicate availability. WHEN TO USE THIS TOOL: (1) Annotation mentions visual/layout/styling/positioning issues (e.g., "make it look better", "spacing is off", "layout is broken"), (2) You need to see exact element positioning, colors, or visual hierarchy, (3) The element_context text data seems insufficient to implement the fix accurately. WHEN TO SKIP: (1) Simple text content changes, (2) Clear functional bugs with sufficient text description, (3) Cases where element_context (tag, classes, styles, position) provides enough implementation detail. The screenshot includes viewport dimensions, element bounds, and visual context that complements the text-based element_context data.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -559,23 +527,6 @@ class LocalAnnotationsServer {
                   type: 'text',
                   text: JSON.stringify({
                     tool: 'delete_project_annotations',
-                    status: 'success',
-                    data: result,
-                    timestamp: new Date().toISOString()
-                  }, null, 2)
-                }
-              ]
-            };
-          }
-
-          case 'update_annotation_status': {
-            const result = await this.updateAnnotationStatus(args);
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    tool: 'update_annotation_status',
                     status: 'success',
                     data: result,
                     timestamp: new Date().toISOString()
@@ -865,108 +816,6 @@ class LocalAnnotationsServer {
       deletedAnnotation
     };
   }
-
-  /**
-   * Update the status of one or more annotations
-   * Always accepts an array of updates for consistency
-   *
-   * @param {Object} args - Arguments object
-   * @param {Array} args.updates - Array of {id, status} objects
-   * @returns {Object} Success response with updated annotation(s) or error details
-   */
-  async updateAnnotationStatus(args) {
-    const { updates } = args;
-    const validStatuses = ['pending', 'completed', 'archived'];
-
-    // Validation
-    if (!updates || !Array.isArray(updates)) {
-      return {
-        success: false,
-        updated: [],
-        failed: [],
-        message: 'Invalid updates: must be an array'
-      };
-    }
-
-    if (updates.length === 0) {
-      return {
-        success: false,
-        updated: [],
-        failed: [],
-        message: 'Invalid updates: must be a non-empty array'
-      };
-    }
-
-    // Use applyAnnotationsUpdate to prevent race conditions
-    return await this.applyAnnotationsUpdate((annotations) => {
-      // Build a map for efficient lookups
-      const annotationMap = new Map();
-      annotations.forEach((annotation, index) => {
-        annotationMap.set(annotation.id, { annotation, index });
-      });
-
-      const results = {
-        success: true,
-        updated: [],
-        failed: [],
-        message: ''
-      };
-
-      // Process each update
-      for (const update of updates) {
-        const { id: updateId, status: updateStatus } = update;
-
-        if (!updateId || typeof updateId !== 'string') {
-          results.failed.push({
-            id: updateId,
-            reason: 'Invalid ID: must be a non-empty string'
-          });
-          continue;
-        }
-
-        if (!validStatuses.includes(updateStatus)) {
-          results.failed.push({
-            id: updateId,
-            reason: `Invalid status: must be one of ${validStatuses.join(', ')}`
-          });
-          continue;
-        }
-
-        const entry = annotationMap.get(updateId);
-        if (!entry) {
-          results.failed.push({
-            id: updateId,
-            reason: 'Annotation not found'
-          });
-          continue;
-        }
-
-        const { annotation } = entry;
-        const oldStatus = annotation.status;
-
-        // Update the annotation
-        annotation.status = updateStatus;
-        annotation.updated_at = new Date().toISOString();
-
-        results.updated.push({
-          id: updateId,
-          old_status: oldStatus,
-          new_status: updateStatus
-        });
-      }
-
-      // Determine overall success
-      if (results.failed.length > 0) {
-        results.success = false;
-        results.message = `Updated ${results.updated.length} annotations, ${results.failed.length} failed`;
-      } else {
-        results.message = `Successfully updated ${results.updated.length} annotations`;
-      }
-
-      return results;
-    });
-  }
-
 
   /**
    * Get screenshot data for a specific annotation
