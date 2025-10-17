@@ -348,14 +348,16 @@ class LocalAnnotationsServer {
     return server;
   }
 
+  /**
+   * Set up MCP tool handlers for this server instance
+   */
   setupMCPHandlersForServer(server) {
-    // List tools
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations from the Vibe Annotations extension with enhanced context including element screenshots and parent hierarchy. Use when users want to review, implement, or address their UI feedback and comments. MULTI-PROJECT SAFETY: This tool now detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Returns enhanced warnings when multiple projects detected, with suggested URL filters for each project. Annotations include viewport dimensions for responsive breakpoint mapping. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -371,6 +373,12 @@ class LocalAnnotationsServer {
                   minimum: 1,
                   maximum: 200,
                   description: 'Maximum number of annotations to return'
+                },
+                offset: {
+                  type: 'number',
+                  default: 0,
+                  minimum: 0,
+                  description: 'Number of annotations to skip for pagination'
                 },
                 url: {
                   type: 'string',
@@ -429,12 +437,26 @@ class LocalAnnotationsServer {
               required: ['url_pattern'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'get_annotation_screenshot',
+            description: 'Retrieves screenshot data for a specific annotation when visual context is needed to understand and implement the user\'s feedback. The read_annotations tool returns a has_screenshot flag to indicate availability. WHEN TO USE THIS TOOL: (1) Annotation mentions visual/layout/styling/positioning issues (e.g., "make it look better", "spacing is off", "layout is broken"), (2) You need to see exact element positioning, colors, or visual hierarchy, (3) The element_context text data seems insufficient to implement the fix accurately. WHEN TO SKIP: (1) Simple text content changes, (2) Clear functional bugs with sufficient text description, (3) Cases where element_context (tag, classes, styles, position) provides enough implementation detail. The screenshot includes viewport dimensions, element bounds, and visual context that complements the text-based element_context data.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: {
+                  type: 'string',
+                  description: 'Annotation ID to get screenshot for'
+                }
+              },
+              required: ['id'],
+              additionalProperties: false
+            }
           }
         ]
       };
     });
 
-    // Handle tool calls
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
@@ -443,7 +465,7 @@ class LocalAnnotationsServer {
           case 'read_annotations': {
             const result = await this.readAnnotations(args || {});
             const { annotations, projectInfo, multiProjectWarning } = result;
-            
+
             return {
               content: [
                 {
@@ -505,6 +527,23 @@ class LocalAnnotationsServer {
                   type: 'text',
                   text: JSON.stringify({
                     tool: 'delete_project_annotations',
+                    status: 'success',
+                    data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'get_annotation_screenshot': {
+            const result = await this.getAnnotationScreenshot(args);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'get_annotation_screenshot',
                     status: 'success',
                     data: result,
                     timestamp: new Date().toISOString()
@@ -623,6 +662,25 @@ class LocalAnnotationsServer {
     }
   }
 
+  /**
+   * Apply an annotations update using serialized read→mutate→save operations
+   * This prevents race conditions during concurrent operations by chaining
+   * all updates onto the existing saveLock Promise.
+   *
+   * @param {Function} mutator - Function that receives current annotations and returns result
+   * @returns {Promise} Promise that resolves with the mutator's return value
+   */
+  async applyAnnotationsUpdate(mutator) {
+    // Chain onto saveLock to serialize read→mutate→save
+    this.saveLock = this.saveLock.then(async () => {
+      const current = await this.loadAnnotations();
+      const result = await mutator(current);
+      await this._saveAnnotationsInternal(current);
+      return result;
+    });
+    return this.saveLock;
+  }
+
   async ensureDataFile() {
     const dataDir = path.dirname(DATA_FILE);
     if (!existsSync(dataDir)) {
@@ -648,14 +706,14 @@ class LocalAnnotationsServer {
   // MCP Tool implementations
   async readAnnotations(args) {
     const annotations = await this.loadAnnotations();
-    const { status = 'pending', limit = 50, url } = args;
-    
+    const { status = 'pending', limit = 50, offset = 0, url } = args;
+
     let filtered = annotations;
-    
+
     if (status !== 'all') {
       filtered = filtered.filter(a => a.status === status);
     }
-    
+
     if (url) {
       // Support both exact URL matching and base URL pattern matching
       if (url.includes('*') || url.endsWith('/')) {
@@ -667,7 +725,7 @@ class LocalAnnotationsServer {
         filtered = filtered.filter(a => a.url === url);
       }
     }
-    
+
     // Group annotations by base URL for better context
     const groupedByProject = {};
     filtered.forEach(annotation => {
@@ -682,11 +740,11 @@ class LocalAnnotationsServer {
         // Handle invalid URLs gracefully
       }
     });
-    
+
     // Add project context to response
     const projectCount = Object.keys(groupedByProject).length;
     let multiProjectWarning = null;
-    
+
     if (projectCount > 1 && !url) {
       const projectSuggestions = Object.keys(groupedByProject).map(baseUrl => `"${baseUrl}/*"`).join(' or ');
       multiProjectWarning = {
@@ -698,7 +756,7 @@ class LocalAnnotationsServer {
       };
       console.warn(`MULTI-PROJECT WARNING: Found annotations from ${projectCount} different projects. Use url parameter: ${projectSuggestions}`);
     }
-    
+
     // Build project info for better context
     const projectInfo = Object.entries(groupedByProject).map(([baseUrl, annotations]) => ({
       base_url: baseUrl,
@@ -706,9 +764,31 @@ class LocalAnnotationsServer {
       paths: [...new Set(annotations.map(a => new URL(a.url).pathname))].slice(0, 5), // Show up to 5 unique paths
       recommended_filter: `${baseUrl}/*`
     }));
-    
+
+    // Apply pagination with offset
+    const total = filtered.length;
+    const paginatedResults = filtered.slice(offset, offset + limit);
+
+    // Calculate pagination metadata
+    const pagination = {
+      total: total,
+      limit: limit,
+      offset: offset,
+      has_more: (offset + limit) < total
+    };
+
+    // Transform annotations to strip screenshot data and add has_screenshot flag
+    const annotationsWithScreenshotFlag = paginatedResults.map(annotation => {
+      const { screenshot, ...annotationWithoutScreenshot } = annotation;
+      return {
+        ...annotationWithoutScreenshot,
+        has_screenshot: !!(screenshot && screenshot.data_url)
+      };
+    });
+
     return {
-      annotations: filtered.slice(0, limit),
+      annotations: annotationsWithScreenshotFlag,
+      pagination: pagination,
       projectInfo: projectInfo,
       multiProjectWarning: multiProjectWarning
     };
@@ -735,6 +815,71 @@ class LocalAnnotationsServer {
       message: `Annotation ${id} has been successfully deleted`,
       deletedAnnotation
     };
+  }
+
+  /**
+   * Get screenshot data for a specific annotation
+   * @param {Object} args - Arguments object
+   * @param {string} args.id - Annotation ID to get screenshot for
+   * @returns {Object} Screenshot data response with annotation_id, screenshot, and message
+   */
+  async getAnnotationScreenshot(args) {
+    const { id } = args;
+
+    // Validate input
+    if (!id || typeof id !== 'string') {
+      return {
+        annotation_id: id || '',
+        screenshot: null,
+        message: 'Invalid annotation ID: must be a non-empty string'
+      };
+    }
+
+    try {
+      // Load annotations - we only need to find the specific one
+      const annotations = await this.loadAnnotations();
+
+      // Find annotation by ID
+      const annotation = annotations.find(a => a.id === id);
+
+      if (!annotation) {
+        return {
+          annotation_id: id,
+          screenshot: null,
+          message: 'Annotation not found'
+        };
+      }
+
+      // Check if annotation has screenshot data
+      if (!annotation.screenshot || !annotation.screenshot.data_url) {
+        return {
+          annotation_id: id,
+          screenshot: null,
+          message: 'No screenshot available for this annotation'
+        };
+      }
+
+      // Return screenshot data in the contract format
+      return {
+        annotation_id: id,
+        screenshot: {
+          data_url: annotation.screenshot.data_url,
+          compression: annotation.screenshot.compression,
+          crop_area: annotation.screenshot.crop_area,
+          element_bounds: annotation.screenshot.element_bounds,
+          timestamp: annotation.screenshot.timestamp,
+          viewport: annotation.viewport || null
+        },
+        message: 'Screenshot retrieved successfully'
+      };
+
+    } catch (error) {
+      return {
+        annotation_id: id,
+        screenshot: null,
+        message: `Failed to retrieve screenshot: ${error.message}`
+      };
+    }
   }
 
   async deleteProjectAnnotations(args) {
