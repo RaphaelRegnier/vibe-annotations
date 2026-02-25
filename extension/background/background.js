@@ -847,15 +847,10 @@ const bg = new VibeAnnotationsBackground();
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
   if (!bg.isLocalhostUrl(tab.url)) {
-    // Show alert on non-local pages (activeTab grants scripting for this click)
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          alert('Vibe Annotations only works on local development URLs (.local, .test, .localhost, localhost) and local HTML files for security reasons.');
-        }
-      });
-    } catch { /* restricted page like chrome:// — ignore */ }
+    // Flash badge to indicate extension doesn't work on this page
+    chrome.action.setBadgeBackgroundColor({ color: '#d97757', tabId: tab.id });
+    chrome.action.setBadgeText({ text: '!', tabId: tab.id });
+    setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }), 2000);
     return;
   }
   try {
