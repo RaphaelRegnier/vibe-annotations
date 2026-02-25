@@ -829,6 +829,10 @@ class VibeAnnotationsBackground {
         'HTTP transport now recommended over SSE for better stability',
         'Updated all setup instructions to promote HTTP transport first',
         'Compatible with mkcert and other local SSL setups'
+      ],
+      '1.1.0': [
+        'Rich clipboard copy format with full element context for AI agents',
+        'Floating toolbar with enhanced settings and improved UX'
       ]
     };
     
@@ -837,4 +841,26 @@ class VibeAnnotationsBackground {
 }
 
 // Initialize the background service worker
-new VibeAnnotationsBackground();
+const bg = new VibeAnnotationsBackground();
+
+// Extension icon click — toggle the overlay on the active tab
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id) return;
+  if (!bg.isLocalhostUrl(tab.url)) {
+    // Show alert on non-local pages (activeTab grants scripting for this click)
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          alert('Vibe Annotations only works on local development URLs (.local, .test, .localhost, localhost) and local HTML files for security reasons.');
+        }
+      });
+    } catch { /* restricted page like chrome:// — ignore */ }
+    return;
+  }
+  try {
+    await chrome.tabs.sendMessage(tab.id, { action: 'toggleOverlay' });
+  } catch {
+    // Content script not loaded on this page — ignore
+  }
+});
