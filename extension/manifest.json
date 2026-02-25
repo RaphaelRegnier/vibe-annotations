@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Vibe Annotations",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "AI-powered development annotations for local development projects and HTML files",
   "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost/*",
@@ -30,7 +31,6 @@
     "128": "assets/icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup/popup.html",
     "default_title": "Vibe Annotations"
   },
   "content_scripts": [
@@ -50,8 +50,19 @@
         "https://*.localhost/*",
         "file:///*"
       ],
-      "js": ["content/content.js"],
-      "css": ["content/content.css"]
+      "js": [
+        "content/modules/event-bus.js",
+        "content/modules/styles.js",
+        "content/modules/shadow-host.js",
+        "content/modules/theme-manager.js",
+        "content/modules/api-bridge.js",
+        "content/modules/element-context.js",
+        "content/modules/badge-manager.js",
+        "content/modules/inspection-mode.js",
+        "content/modules/annotation-popover.js",
+        "content/modules/floating-toolbar.js",
+        "content/content.js"
+      ]
     }
   ],
   "background": {
@@ -59,7 +70,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/fonts/InterVariable.woff2"],
+      "resources": ["assets/fonts/InterVariable.woff2", "assets/icons/icon-hq.png"],
       "matches": [
         "http://localhost/*",
         "https://localhost/*",
