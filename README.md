@@ -20,7 +20,7 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 *2. Click any element — a popover appears to leave your feedback*
 
 ![Copy to Clipboard](docs/images/copy-clipboard.jpg)
-*3. Copy all annotations to clipboard — your AI coding agent reads them and implements fixes*
+*3. Your AI agent fetches annotations automatically via MCP, or you can copy them to clipboard with full element context*
 
 ![Settings](docs/images/settings-opened.jpg)
 *4. Settings: MCP server status, clear-after-copy, screenshots, theme toggle*
