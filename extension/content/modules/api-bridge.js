@@ -187,6 +187,21 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
+  async function getOverlayHidden() {
+    try {
+      const r = await chrome.storage.local.get(['vibeOverlayHidden']);
+      return !!r.vibeOverlayHidden;
+    } catch {
+      return false;
+    }
+  }
+
+  async function saveOverlayHidden(hidden) {
+    try {
+      await chrome.storage.local.set({ vibeOverlayHidden: hidden });
+    } catch { /* ignore */ }
+  }
+
   return {
     checkServerStatus,
     clearStatusCache,
@@ -203,6 +218,8 @@ var VibeAPI = (() => {
     getToolbarCollapsed,
     saveToolbarCollapsed,
     getClearOnCopy,
-    saveClearOnCopy
+    saveClearOnCopy,
+    getOverlayHidden,
+    saveOverlayHidden
   };
 })();

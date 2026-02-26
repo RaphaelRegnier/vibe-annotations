@@ -184,7 +184,9 @@ var VibeToolbar = (() => {
     const route = window.location.pathname;
 
     settingsDropdown = document.createElement('div');
-    settingsDropdown.className = 'vibe-settings-dropdown';
+    const rect = toolbarEl.getBoundingClientRect();
+    const inLowerHalf = rect.top > window.innerHeight / 2;
+    settingsDropdown.className = 'vibe-settings-dropdown' + (inLowerHalf ? ' above' : '');
 
     settingsDropdown.innerHTML = `
       <div class="vibe-settings-header">
@@ -367,7 +369,7 @@ var VibeToolbar = (() => {
   function setupDrag() {
     let isDragging = false;
     let didDrag = false;
-    let startX, startY, startLeft, startBottom;
+    let startX, startY, startLeft, startTop;
     const DRAG_THRESHOLD = 4;
 
     toolbarEl.addEventListener('mousedown', (e) => {
@@ -380,7 +382,7 @@ var VibeToolbar = (() => {
       startX = e.clientX;
       startY = e.clientY;
       startLeft = rect.left;
-      startBottom = window.innerHeight - rect.bottom;
+      startTop = rect.top;
 
       e.preventDefault();
     });
@@ -395,13 +397,13 @@ var VibeToolbar = (() => {
       }
 
       const newRight = window.innerWidth - (startLeft + toolbarEl.offsetWidth) - dx;
-      const newBottom = startBottom - dy;
+      const newTop = startTop + dy;
 
       const clampedRight = Math.max(8, Math.min(newRight, window.innerWidth - toolbarEl.offsetWidth - 8));
-      const clampedBottom = Math.max(8, Math.min(newBottom, window.innerHeight - toolbarEl.offsetHeight - 8));
+      const clampedTop = Math.max(8, Math.min(newTop, window.innerHeight - toolbarEl.offsetHeight - 8));
 
       toolbarEl.style.right = `${clampedRight}px`;
-      toolbarEl.style.bottom = `${clampedBottom}px`;
+      toolbarEl.style.top = `${clampedTop}px`;
     });
 
     document.addEventListener('mouseup', () => {
@@ -412,7 +414,7 @@ var VibeToolbar = (() => {
       if (didDrag) {
         VibeAPI.saveToolbarPosition({
           right: toolbarEl.style.right,
-          bottom: toolbarEl.style.bottom
+          top: toolbarEl.style.top
         });
       }
     });
@@ -430,7 +432,7 @@ var VibeToolbar = (() => {
     const pos = await VibeAPI.getToolbarPosition();
     if (pos && toolbarEl) {
       toolbarEl.style.right = pos.right;
-      toolbarEl.style.bottom = pos.bottom;
+      toolbarEl.style.top = pos.top;
     }
   }
 

@@ -55,6 +55,11 @@ var VIBE_STYLES = `
 }
 
 @keyframes vibe-slide-up {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vibe-slide-down {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -407,7 +412,7 @@ var VIBE_STYLES = `
 /* ===== Floating toolbar ===== */
 .vibe-toolbar {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   display: flex;
   align-items: center;
@@ -581,7 +586,7 @@ var VIBE_STYLES = `
 /* Toolbar tooltip */
 .vibe-toolbar-tip {
   position: absolute;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--v-tooltip-bg);
@@ -604,7 +609,7 @@ var VIBE_STYLES = `
 /* ===== Settings dropdown ===== */
 .vibe-settings-dropdown {
   position: absolute;
-  bottom: calc(100% + 10px);
+  top: calc(100% + 10px);
   right: 0;
   width: 280px;
   background: var(--v-surface-1);
@@ -615,6 +620,12 @@ var VIBE_STYLES = `
   overflow: hidden;
   pointer-events: auto;
   z-index: 100;
+}
+
+.vibe-settings-dropdown.above {
+  top: auto;
+  bottom: calc(100% + 10px);
+  animation-name: vibe-slide-down;
 }
 
 .vibe-settings-header {
