@@ -106,6 +106,15 @@ console.log('[Vibe] content.js loaded');
           sendResponse({ success: true });
           break;
 
+        case 'annotationsUpdated':
+          // Server sync detected changes (e.g. MCP deletion) — reload from storage
+          VibeAPI.loadAnnotations().then(fresh => {
+            annotations = fresh;
+            VibeEvents.emit('annotations:render', annotations);
+          });
+          sendResponse({ success: true });
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
