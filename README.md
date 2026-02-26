@@ -13,17 +13,20 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
 ## How it Works
 
-![Default State](docs/images/default-state.webp)
-*1. Extension popup shows setup instructions and current page status*
+![Start Annotating](docs/images/start-annotating.jpg)
+*1. Open your localhost app and click "Annotate" in the floating toolbar*
 
-![Creating New Annotation](docs/images/new-annotation.webp)
-*2. Click elements on your local development page to create annotations with feedback*
+![New Annotation](docs/images/new-annotation.jpg)
+*2. Click any element — a popover appears to leave your feedback*
 
-![Annotation Management](docs/images/annotation-index.webp)
-*3. Manage all your annotations from the extension popup*
+![Copy to Clipboard](docs/images/copy-clipboard.jpg)
+*3. Copy all annotations to clipboard — your AI coding agent reads them and implements fixes*
 
-![AI Processing](docs/images/annotation-processing.webp)
-*4. AI coding agents automatically implement your requested fixes*
+![Settings](docs/images/settings-opened.jpg)
+*4. Settings: MCP server status, clear-after-copy, screenshots, theme toggle*
+
+![Done](docs/images/done.jpg)
+*5. AI agent implements fixes and deletes annotations via MCP — all from your browser*
 
 ## Features
 
