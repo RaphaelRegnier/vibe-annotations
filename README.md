@@ -9,7 +9,7 @@
 
 AI-powered development annotations for local development projects. Drop comments on your local development apps and let your AI coding agent implement the fixes automatically.
 
-https://github.com/user-attachments/assets/88e9775d-cff2-4013-ba16-8d44feda2674
+https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
 ## How it Works
 
