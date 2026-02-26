@@ -705,14 +705,14 @@ class VibeAnnotationsBackground {
         
         // Update badges for all localhost tabs
         await this.updateAllBadges();
-        
-        // Notify any open popups to refresh their view
-        chrome.runtime.sendMessage({ 
-          action: 'annotationsUpdated',
-          annotations: serverAnnotations 
-        }).catch(() => {
-          // Ignore errors if no listeners
-        });
+
+        // Notify content scripts on localhost tabs to refresh
+        try {
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs.filter(t => this.isLocalhostUrl(t.url))) {
+            chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+          }
+        } catch { /* ignore */ }
       } else {
         console.log('Annotations are in sync');
       }
