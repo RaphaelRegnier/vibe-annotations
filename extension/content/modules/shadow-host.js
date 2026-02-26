@@ -50,10 +50,12 @@ var VibeShadowHost = (() => {
 
   function hide() {
     if (hostEl) hostEl.style.display = 'none';
+    VibeAPI.saveOverlayHidden(true);
   }
 
   function show() {
     if (hostEl) hostEl.style.display = '';
+    VibeAPI.saveOverlayHidden(false);
   }
 
   function isVisible() {
