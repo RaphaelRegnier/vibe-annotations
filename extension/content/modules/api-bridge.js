@@ -187,6 +187,21 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
+  async function getBadgeColor() {
+    try {
+      const r = await chrome.storage.local.get(['vibeBadgeColor']);
+      return r.vibeBadgeColor || '#4b5563';
+    } catch {
+      return '#4b5563';
+    }
+  }
+
+  async function saveBadgeColor(color) {
+    try {
+      await chrome.storage.local.set({ vibeBadgeColor: color });
+    } catch { /* ignore */ }
+  }
+
   async function getOverlayHidden() {
     try {
       const r = await chrome.storage.local.get(['vibeOverlayHidden']);
@@ -219,6 +234,8 @@ var VibeAPI = (() => {
     saveToolbarCollapsed,
     getClearOnCopy,
     saveClearOnCopy,
+    getBadgeColor,
+    saveBadgeColor,
     getOverlayHidden,
     saveOverlayHidden
   };

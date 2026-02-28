@@ -11,6 +11,8 @@ var VibeInspectionMode = (() => {
   // Bound handlers for removal
   let onMouseOver = null;
   let onMouseOut = null;
+  let onPointerDown = null;
+  let onMouseDown = null;
   let onClick = null;
 
   function init() {
@@ -37,10 +39,14 @@ var VibeInspectionMode = (() => {
     // Set up capture-phase listeners on document
     onMouseOver = handleMouseOver;
     onMouseOut = handleMouseOut;
+    onPointerDown = handlePointerDown;
+    onMouseDown = handleMouseDown;
     onClick = handleClick;
 
     document.addEventListener('mouseover', onMouseOver, true);
     document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('click', onClick, true);
     listenersAttached = true;
 
@@ -61,10 +67,12 @@ var VibeInspectionMode = (() => {
     if (listenersAttached) {
       document.removeEventListener('mouseover', onMouseOver, true);
       document.removeEventListener('mouseout', onMouseOut, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onMouseDown, true);
       document.removeEventListener('click', onClick, true);
       listenersAttached = false;
     }
-    onMouseOver = onMouseOut = onClick = null;
+    onMouseOver = onMouseOut = onPointerDown = onMouseDown = onClick = null;
 
     // Remove highlight
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
@@ -92,6 +100,8 @@ var VibeInspectionMode = (() => {
     if (listenersAttached) {
       document.removeEventListener('mouseover', onMouseOver, true);
       document.removeEventListener('mouseout', onMouseOut, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onMouseDown, true);
       document.removeEventListener('click', onClick, true);
       listenersAttached = false;
     }
@@ -103,6 +113,8 @@ var VibeInspectionMode = (() => {
     if (!active || listenersAttached) return;
     document.addEventListener('mouseover', onMouseOver, true);
     document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('click', onClick, true);
     listenersAttached = true;
   }
@@ -136,7 +148,8 @@ var VibeInspectionMode = (() => {
     if (highlightEl) highlightEl.style.display = 'none';
   }
 
-  function handleClick(e) {
+  // Element selection on pointerdown — fires before frameworks can react
+  function handlePointerDown(e) {
     if (!active) return;
 
     const path = e.composedPath();
@@ -144,15 +157,32 @@ var VibeInspectionMode = (() => {
     if (host && path.includes(host)) return;
 
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const target = e.target;
     if (!target || target === document.body || target === document.documentElement) return;
 
-    // Temporarily disable inspection while popover is open
     tempDisable();
+    VibeEvents.emit('inspection:elementClicked', { element: target, clientX: e.clientX, clientY: e.clientY });
+  }
 
-    VibeEvents.emit('inspection:elementClicked', { element: target });
+  // Safety nets — swallow mousedown/click so frameworks never see the interaction
+  function handleMouseDown(e) {
+    if (!active) return;
+    const path = e.composedPath();
+    const host = VibeShadowHost.getHost();
+    if (host && path.includes(host)) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function handleClick(e) {
+    if (!active) return;
+    const path = e.composedPath();
+    const host = VibeShadowHost.getHost();
+    if (host && path.includes(host)) return;
+    e.preventDefault();
+    e.stopPropagation();
   }
 
   // --- Visuals ---

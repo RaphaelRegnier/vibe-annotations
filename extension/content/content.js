@@ -96,6 +96,15 @@ console.log('[Vibe] content.js loaded');
           sendResponse({ success: true });
           break;
 
+        case 'toggleAnnotate':
+          if (VibeInspectionMode.isActive()) {
+            VibeEvents.emit('inspection:stop');
+          } else {
+            VibeEvents.emit('inspection:start');
+          }
+          sendResponse({ success: true });
+          break;
+
         case 'highlightAnnotation':
           VibeBadgeManager.highlightElement(request.annotation);
           sendResponse({ success: true });

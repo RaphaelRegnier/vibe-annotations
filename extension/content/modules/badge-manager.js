@@ -5,14 +5,39 @@
 var VibeBadgeManager = (() => {
   let badges = []; // { el, annotation, targetElement }
   let rafId = null;
+  let provisionalBadge = null;
 
   function init() {
     VibeEvents.on('annotations:render', render);
     VibeEvents.on('annotation:deleted', onDeleted);
     VibeEvents.on('annotation:updated', onUpdated);
+    VibeEvents.on('inspection:elementClicked', onProvisionalPin);
+    VibeEvents.on('popover:cancelled', removeProvisional);
+  }
+
+  function onProvisionalPin({ clientX, clientY }) {
+    removeProvisional();
+    const root = VibeShadowHost.getRoot();
+    if (!root || clientX == null) return;
+
+    const badge = document.createElement('div');
+    badge.className = 'vibe-badge';
+    badge.textContent = (badges.length + 1).toString();
+    badge.style.top = `${clientY - 11}px`;
+    badge.style.left = `${clientX}px`;
+    root.appendChild(badge);
+    provisionalBadge = badge;
+  }
+
+  function removeProvisional() {
+    if (provisionalBadge) {
+      provisionalBadge.remove();
+      provisionalBadge = null;
+    }
   }
 
   function render(annotations) {
+    removeProvisional();
     clearAll();
 
     const sorted = [...annotations].sort((a, b) =>
@@ -66,9 +91,10 @@ var VibeBadgeManager = (() => {
       return;
     }
     const rect = entry.targetElement.getBoundingClientRect();
+    const off = entry.annotation.badge_offset;
     entry.el.style.display = '';
-    entry.el.style.top = `${rect.top - 11}px`;
-    entry.el.style.left = `${rect.left + rect.width / 2}px`;
+    entry.el.style.top = `${rect.top + (off ? off.y : 0) - 11}px`;
+    entry.el.style.left = `${rect.left + (off ? off.x : rect.width / 2)}px`;
   }
 
   function startRAF() {
