@@ -11,6 +11,12 @@ var VibeToolbar = (() => {
   let annotationCount = 0;
   let clearOnCopy = false;
   let screenshotEnabled = true;
+  let badgeColor = '#4b5563';
+
+  const BADGE_COLORS = ['#4b5563', '#d97757', '#3b82f6', '#22c55e', '#a855f7'];
+
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const shortcutHint = isMac ? '\u2318\u21E7V' : 'Ctrl+Shift+V';
 
   const ICONS = {
     annotate: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
@@ -30,7 +36,8 @@ var VibeToolbar = (() => {
     github: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>',
     server: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
     camera: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
-    newspaper: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>'
+    newspaper: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>',
+    palette: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.3-.3-.4-.7-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
@@ -43,6 +50,8 @@ var VibeToolbar = (() => {
     isCollapsed = await VibeAPI.getToolbarCollapsed();
     clearOnCopy = await VibeAPI.getClearOnCopy();
     screenshotEnabled = await VibeAPI.getScreenshotEnabled();
+    badgeColor = await VibeAPI.getBadgeColor();
+    applyBadgeColor(badgeColor);
     await refreshServerStatus();
 
     buildToolbar(root);
@@ -72,7 +81,7 @@ var VibeToolbar = (() => {
       </button>
       <div class="vibe-toolbar-inner">
         <div class="vibe-toolbar-divider"></div>
-        <button class="vibe-toolbar-btn vibe-tb-annotate" title="Annotate">
+        <button class="vibe-toolbar-btn vibe-tb-annotate" title="Annotate (${shortcutHint})">
           ${ICONS.annotate}
           <span class="vibe-toolbar-tip">Annotate</span>
         </button>
@@ -229,6 +238,15 @@ var VibeToolbar = (() => {
           </div>
           <button class="vibe-toggle vibe-screenshot-toggle ${screenshotEnabled ? 'on' : ''}" type="button"></button>
         </div>
+        <div class="vibe-settings-item">
+          <div class="vibe-settings-item-left">
+            ${ICONS.palette}
+            <span>Pin color</span>
+          </div>
+          <div class="vibe-color-picker" style="display:flex;gap:6px;">
+            ${BADGE_COLORS.map(c => `<button class="vibe-color-dot${c === badgeColor ? ' active' : ''}" data-color="${c}" style="background:${c};" type="button"></button>`).join('')}
+          </div>
+        </div>
         <div class="vibe-settings-separator"></div>
         <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
           ${ICONS.github}
@@ -274,6 +292,17 @@ var VibeToolbar = (() => {
       screenshotEnabled = !screenshotEnabled;
       e.currentTarget.classList.toggle('on', screenshotEnabled);
       await VibeAPI.saveScreenshotEnabled(screenshotEnabled);
+    });
+
+    // Badge color picker
+    settingsDropdown.querySelectorAll('.vibe-color-dot').forEach(dot => {
+      dot.addEventListener('click', async () => {
+        badgeColor = dot.dataset.color;
+        settingsDropdown.querySelectorAll('.vibe-color-dot').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+        applyBadgeColor(badgeColor);
+        await VibeAPI.saveBadgeColor(badgeColor);
+      });
     });
 
     // Close overlay
@@ -328,7 +357,7 @@ var VibeToolbar = (() => {
     if (annotateBtn) {
       annotateBtn.classList.toggle('active', isAnnotating);
       annotateBtn.innerHTML = (isAnnotating ? ICONS.stop : ICONS.annotate) +
-        `<span class="vibe-toolbar-tip">${isAnnotating ? 'Stop' : 'Annotate'}</span>`;
+        `<span class="vibe-toolbar-tip">${isAnnotating ? 'Stop' : 'Annotate'} (${shortcutHint})</span>`;
     }
 
     // Enable/disable copy + delete, badge on copy
@@ -531,7 +560,7 @@ var VibeToolbar = (() => {
       return lines.join('\n');
     });
 
-    return header + '\n\n---\n\n' + blocks.join('\n\n');
+    return header + '\n\nFollow my instructions on these elements:\n\n---\n\n' + blocks.join('\n\n');
   }
 
   function formatStyles(styles) {
@@ -553,6 +582,11 @@ var VibeToolbar = (() => {
       parts.push(`${cssName}:${val}`);
     }
     return parts.join(' \u00B7 ');
+  }
+
+  function applyBadgeColor(color) {
+    const root = VibeShadowHost.getRoot();
+    if (root) root.host.style.setProperty('--v-badge-bg', color);
   }
 
   function truncate(str, max) {

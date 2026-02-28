@@ -61,7 +61,8 @@ class VibeAnnotationsBackground {
           previousVersion,
           currentVersion,
           timestamp: Date.now(),
-          changelog: this.getChangelogForVersion(currentVersion)
+          changelog: this.getChangelogForVersion(currentVersion),
+          releaseUrl: `https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${currentVersion}`
         }
       });
       
@@ -833,6 +834,16 @@ class VibeAnnotationsBackground {
       '1.1.0': [
         'Rich clipboard copy format with full element context for AI agents',
         'Floating toolbar with enhanced settings and improved UX'
+      ],
+      '1.2.0': [
+        'Keyboard shortcut (Cmd+Shift+V / Ctrl+Shift+V) to toggle annotation mode',
+        'Release notes opened automatically on extension update',
+        'Clipboard copy now nudges AI agents with actionable instruction',
+        'Badge color picker with 5 colors in toolbar settings',
+        'Provisional pin shown immediately on element click',
+        'Badges positioned at click point relative to element',
+        'Popover anchored to cursor position for accurate placement',
+        'Shadow DOM event containment prevents framework interference'
       ]
     };
     
@@ -843,9 +854,34 @@ class VibeAnnotationsBackground {
 // Initialize the background service worker
 const bg = new VibeAnnotationsBackground();
 
+// Keyboard shortcut commands (chrome.commands)
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command === 'toggle-annotate' && tab?.id && bg.isLocalhostUrl(tab.url)) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' });
+    } catch { /* Content script not loaded */ }
+  }
+});
+
 // Extension icon click — toggle the overlay on the active tab
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
+
+  // Check for pending update notification — open release notes
+  const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
+  if (updateInfo?.hasUpdate) {
+    const url = updateInfo.releaseUrl || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
+    await chrome.storage.local.set({ updateInfo: { ...updateInfo, hasUpdate: false } });
+    chrome.action.setBadgeText({ text: '' });
+    if (!bg.isLocalhostUrl(tab.url)) {
+      // Non-localhost: just open release notes
+      chrome.tabs.create({ url });
+      return;
+    }
+    // Localhost: open release notes AND toggle overlay as usual (fall through)
+    chrome.tabs.create({ url, active: false });
+  }
+
   if (!bg.isLocalhostUrl(tab.url)) {
     // Flash badge to indicate extension doesn't work on this page
     chrome.action.setBadgeBackgroundColor({ color: '#d97757', tabId: tab.id });

@@ -22,9 +22,9 @@ var VibeAnnotationPopover = (() => {
     VibeEvents.on('annotation:edit', onEditRequested);
   }
 
-  async function onElementClicked({ element }) {
+  async function onElementClicked({ element, clientX, clientY }) {
     const context = await VibeElementContext.generate(element);
-    show(element, context, null);
+    show(element, context, null, clientX, clientY);
   }
 
   async function onEditRequested({ annotation, element }) {
@@ -35,7 +35,7 @@ var VibeAnnotationPopover = (() => {
 
   // --- Show popover ---
 
-  async function show(targetElement, context, existingAnnotation) {
+  async function show(targetElement, context, existingAnnotation, clickX, clickY) {
     dismiss();
 
     const root = VibeShadowHost.getRoot();
@@ -101,7 +101,7 @@ var VibeAnnotationPopover = (() => {
     currentPopover = anchor;
 
     // Position
-    positionPopover(anchor, targetElement);
+    positionPopover(anchor, targetElement, clickX, clickY);
 
     // Wire up
     const textarea = popover.querySelector('.vibe-textarea');
@@ -134,16 +134,30 @@ var VibeAnnotationPopover = (() => {
     textarea.addEventListener('input', updateSave);
     updateSave();
 
-    // Focus
+    // Focus textarea ASAP — temporarily block blur/focusout so framework doesn't react
+    const prevActive = document.activeElement;
+    const blurBlocker = (e) => {
+      if (e.target === prevActive) {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('blur', blurBlocker, true);
+    document.addEventListener('focusout', blurBlocker, true);
     textarea.focus();
     if (isEdit) textarea.select();
+    document.removeEventListener('blur', blurBlocker, true);
+    document.removeEventListener('focusout', blurBlocker, true);
+
+    // Ensure click-to-focus works even if a framework capture-handler cancelled pointerdown
+    textarea.addEventListener('pointerdown', () => textarea.focus());
 
     // Cancel / close
     const close = () => dismiss(true);
     cancelBtn.addEventListener('click', close);
 
     // Click outside
-    anchor.addEventListener('mousedown', (e) => {
+    anchor.addEventListener('pointerdown', (e) => {
       if (e.target === anchor) close();
     });
 
@@ -181,18 +195,24 @@ var VibeAnnotationPopover = (() => {
         VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment });
       } else {
         const annotation = buildAnnotation(context, comment);
+        if (clickX != null) {
+          const r = targetElement.getBoundingClientRect();
+          annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
+        }
         await VibeAPI.saveAnnotation(annotation);
         VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
       }
 
-      dismiss(true);
+      dismiss(true, true);
     });
   }
 
-  function dismiss(reEnableInspection = false) {
+  function dismiss(reEnableInspection = false, saved = false) {
+    const hadPopover = !!currentPopover;
     if (currentPopover) { currentPopover.remove(); currentPopover = null; }
     if (currentTargetHighlight) { currentTargetHighlight.remove(); currentTargetHighlight = null; }
     if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
+    if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }
 
@@ -222,25 +242,38 @@ var VibeAnnotationPopover = (() => {
 
   // --- Positioning ---
 
-  function positionPopover(anchor, targetElement) {
-    const rect = targetElement.getBoundingClientRect();
+  function positionPopover(anchor, targetElement, clickX, clickY) {
     const gap = 10;
     const popoverWidth = 340;
-    const popoverHeight = 300;
     const popover = anchor.querySelector('.vibe-popover');
     if (!popover) return;
 
-    let top, left;
+    // Measure actual rendered height
+    popover.style.position = 'fixed';
+    popover.style.left = '-9999px';
+    popover.style.top = '0';
+    const popoverHeight = popover.offsetHeight || 300;
 
-    if (rect.bottom + gap + popoverHeight < window.innerHeight) {
-      top = rect.bottom + gap;
-    } else if (rect.top - gap - popoverHeight > 0) {
-      top = rect.top - gap - popoverHeight;
-    } else {
-      top = Math.max(10, (window.innerHeight - popoverHeight) / 2);
+    // Use click position as anchor; fall back to element center (edit mode)
+    let anchorX = clickX, anchorY = clickY;
+    if (anchorX == null || anchorY == null) {
+      const rect = targetElement.getBoundingClientRect();
+      anchorX = rect.left + rect.width / 2;
+      anchorY = rect.top + rect.height / 2;
     }
 
-    left = rect.left + rect.width / 2 - popoverWidth / 2;
+    let top, left;
+
+    // Prefer below click point, then above, then pin to bottom
+    if (anchorY + gap + popoverHeight < window.innerHeight) {
+      top = anchorY + gap;
+    } else if (anchorY - gap - popoverHeight > 0) {
+      top = anchorY - gap - popoverHeight;
+    } else {
+      top = Math.max(10, window.innerHeight - popoverHeight - 10);
+    }
+
+    left = anchorX - popoverWidth / 2;
     left = Math.max(10, Math.min(left, window.innerWidth - popoverWidth - 10));
 
     popover.style.position = 'fixed';

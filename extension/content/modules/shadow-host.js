@@ -29,6 +29,12 @@ var VibeShadowHost = (() => {
 
     document.body.appendChild(hostEl);
 
+    // Contain composed events at shadow boundary — prevents frameworks
+    // from interpreting shadow DOM interactions as "outside clicks"
+    for (const type of ['pointerdown', 'mousedown', 'click', 'focusin', 'focusout']) {
+      hostEl.addEventListener(type, (e) => e.stopPropagation());
+    }
+
     return shadowRoot;
   }
 

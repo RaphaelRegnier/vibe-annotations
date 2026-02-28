@@ -739,6 +739,23 @@ var VIBE_STYLES = `
   margin: 4px 0;
 }
 
+/* Color dot picker */
+.vibe-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s ease;
+}
+.vibe-color-dot:hover {
+  border-color: rgba(255,255,255,0.4);
+}
+.vibe-color-dot.active {
+  border-color: #fff;
+}
+
 /* Toggle switch */
 .vibe-toggle {
   position: relative;
