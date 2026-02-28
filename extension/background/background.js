@@ -871,15 +871,10 @@ chrome.action.onClicked.addListener(async (tab) => {
   const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
   if (updateInfo?.hasUpdate) {
     const url = updateInfo.releaseUrl || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
+    chrome.tabs.create({ url });
     await chrome.storage.local.set({ updateInfo: { ...updateInfo, hasUpdate: false } });
     chrome.action.setBadgeText({ text: '' });
-    if (!bg.isLocalhostUrl(tab.url)) {
-      // Non-localhost: just open release notes
-      chrome.tabs.create({ url });
-      return;
-    }
-    // Localhost: open release notes AND toggle overlay as usual (fall through)
-    chrome.tabs.create({ url, active: false });
+    return;
   }
 
   if (!bg.isLocalhostUrl(tab.url)) {
