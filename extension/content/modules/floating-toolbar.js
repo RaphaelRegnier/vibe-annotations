@@ -37,7 +37,12 @@ var VibeToolbar = (() => {
     server: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
     camera: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
     newspaper: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>',
-    palette: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.3-.3-.4-.7-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"/></svg>'
+    palette: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.3-.3-.4-.7-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"/></svg>',
+    rocket: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+    back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+    clipboard: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    chevronRight: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
@@ -210,6 +215,20 @@ var VibeToolbar = (() => {
         </div>
       </div>
       <div class="vibe-settings-body">
+        <button class="vibe-settings-link vibe-get-started-btn" type="button">
+          ${ICONS.rocket}
+          <span>Get started</span>
+          <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+        </button>
+        <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
+          ${ICONS.github}
+          <span>Documentation</span>
+        </a>
+        <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
+          ${ICONS.newspaper}
+          <span>Release notes</span>
+        </a>
+        <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
             ${ICONS.server}
@@ -221,6 +240,15 @@ var VibeToolbar = (() => {
           </div>
         </div>
         <div class="vibe-settings-separator"></div>
+        <div class="vibe-settings-item">
+          <div class="vibe-settings-item-left">
+            ${ICONS.palette}
+            <span>Pin color</span>
+          </div>
+          <div class="vibe-color-picker" style="display:flex;gap:6px;">
+            ${BADGE_COLORS.map(c => `<button class="vibe-color-dot${c === badgeColor ? ' active' : ''}" data-color="${c}" style="background:${c};" type="button"></button>`).join('')}
+          </div>
+        </div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
             ${ICONS.copy}
@@ -238,24 +266,6 @@ var VibeToolbar = (() => {
           </div>
           <button class="vibe-toggle vibe-screenshot-toggle ${screenshotEnabled ? 'on' : ''}" type="button"></button>
         </div>
-        <div class="vibe-settings-item">
-          <div class="vibe-settings-item-left">
-            ${ICONS.palette}
-            <span>Pin color</span>
-          </div>
-          <div class="vibe-color-picker" style="display:flex;gap:6px;">
-            ${BADGE_COLORS.map(c => `<button class="vibe-color-dot${c === badgeColor ? ' active' : ''}" data-color="${c}" style="background:${c};" type="button"></button>`).join('')}
-          </div>
-        </div>
-        <div class="vibe-settings-separator"></div>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.github}
-          <span>Documentation</span>
-        </a>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.newspaper}
-          <span>Release notes</span>
-        </a>
         <div class="vibe-settings-separator"></div>
         <button class="vibe-settings-link vibe-close-overlay" type="button">
           ${ICONS.eyeOff}
@@ -305,6 +315,11 @@ var VibeToolbar = (() => {
       });
     });
 
+    // Get started
+    settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
+      showGetStarted();
+    });
+
     // Close overlay
     settingsDropdown.querySelector('.vibe-close-overlay').addEventListener('click', () => {
       closeSettings();
@@ -320,6 +335,120 @@ var VibeToolbar = (() => {
     setTimeout(() => {
       document.addEventListener('click', onOutsideClick);
     }, 0);
+  }
+
+  function showGetStarted() {
+    if (!settingsDropdown) return;
+    const header = settingsDropdown.querySelector('.vibe-settings-header');
+    const body = settingsDropdown.querySelector('.vibe-settings-body');
+    if (!header || !body) return;
+
+    // Replace header with back navigation
+    header.innerHTML = `
+      <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
+        ${ICONS.back}
+        <span style="color:var(--v-text-primary);font-weight:600;">Get started</span>
+      </button>
+    `;
+
+    // Replace body with guide content
+    body.innerHTML = `
+      <div class="vibe-guide">
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">1. Start the server</div>
+          <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
+            <code>npm install -g vibe-annotations-server</code>
+            <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+          </div>
+          <div class="vibe-guide-cmd" data-cmd="vibe-annotations-server start">
+            <code>vibe-annotations-server start</code>
+            <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+          </div>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">2. Annotate</div>
+          <p class="vibe-guide-text">Click elements on the page and describe what should change. Use <strong>${shortcutHint}</strong> to toggle.</p>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">3. Copy to your agent</div>
+          <p class="vibe-guide-text">Hit the <strong>Copy</strong> button in the toolbar, then paste into any AI chat.</p>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">4. Install MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
+          <p class="vibe-guide-text">Recommended for power-use when annotating multiple pages or projects. Your agent fetches annotations automatically.</p>
+          <div class="vibe-guide-tabs">
+            <button class="vibe-guide-tab active" data-tab="claude">Claude Code</button>
+            <button class="vibe-guide-tab" data-tab="cursor">Cursor</button>
+            <button class="vibe-guide-tab" data-tab="windsurf">Windsurf</button>
+            <button class="vibe-guide-tab" data-tab="codex">Codex</button>
+            <button class="vibe-guide-tab" data-tab="openclaw">OpenClaw</button>
+          </div>
+          <div class="vibe-guide-panel active" data-panel="claude">
+            <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+              <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-panel" data-panel="cursor">
+            <p class="vibe-guide-text">Add to <strong>.cursor/mcp.json</strong>:</p>
+            <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}'>
+              <code>{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-panel" data-panel="windsurf">
+            <p class="vibe-guide-text">Add to Windsurf MCP settings:</p>
+            <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/mcp"}}}'>
+              <code>{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/mcp"}}}</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-panel" data-panel="codex">
+            <p class="vibe-guide-text">Add to <strong>~/.codex/config.toml</strong>:</p>
+            <div class="vibe-guide-cmd" data-cmd="[mcp_servers.vibe-annotations]&#10;url = &quot;http://127.0.0.1:3846/mcp&quot;">
+              <code>[mcp_servers.vibe-annotations] url = "..."</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-panel" data-panel="openclaw">
+            <p class="vibe-guide-text">Add to <strong>~/.openclaw/openclaw.json</strong>:</p>
+            <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}'>
+              <code>{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Back button — restores full settings
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => {
+      closeSettings();
+      openSettings();
+    });
+
+    // Tab switching
+    body.querySelectorAll('.vibe-guide-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        body.querySelectorAll('.vibe-guide-tab').forEach(t => t.classList.remove('active'));
+        body.querySelectorAll('.vibe-guide-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        body.querySelector(`[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+      });
+    });
+
+    // Copy buttons
+    body.querySelectorAll('.vibe-guide-copy').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cmd = btn.closest('.vibe-guide-cmd').dataset.cmd;
+        await navigator.clipboard.writeText(cmd);
+        btn.innerHTML = ICONS.check;
+        setTimeout(() => { btn.innerHTML = ICONS.clipboard; }, 1500);
+      });
+    });
   }
 
   function closeSettings() {

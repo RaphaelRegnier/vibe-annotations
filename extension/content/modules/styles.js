@@ -681,6 +681,8 @@ var VIBE_STYLES = `
 
 .vibe-settings-body {
   padding: 6px 0;
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 .vibe-settings-item {
@@ -754,6 +756,94 @@ var VIBE_STYLES = `
 }
 .vibe-color-dot.active {
   border-color: #fff;
+}
+
+/* Get started guide */
+.vibe-guide {
+  padding: 8px 14px 12px;
+}
+.vibe-guide-section {
+  margin-bottom: 12px;
+}
+.vibe-guide-section:last-child {
+  margin-bottom: 0;
+}
+.vibe-guide-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v-text-primary);
+  margin-bottom: 6px;
+}
+.vibe-guide-text {
+  font-size: 12px;
+  color: var(--v-text-secondary);
+  line-height: 1.4;
+  margin: 0 0 6px;
+}
+.vibe-guide-text strong {
+  color: var(--v-text-primary);
+  font-weight: 600;
+}
+.vibe-guide-cmd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--v-surface-2);
+  border: 1px solid var(--v-outline);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+}
+.vibe-guide-cmd code {
+  font-family: var(--v-font-mono);
+  font-size: 11px;
+  color: var(--v-text-primary);
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.vibe-guide-copy {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+.vibe-guide-copy:hover {
+  color: var(--v-text-primary);
+}
+.vibe-guide-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.vibe-guide-tab {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--v-outline);
+  background: none;
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+.vibe-guide-tab:hover {
+  color: var(--v-text-primary);
+  border-color: var(--v-outline-highlight);
+}
+.vibe-guide-tab.active {
+  background: var(--v-accent);
+  color: #fff;
+  border-color: var(--v-accent);
+}
+.vibe-guide-panel {
+  display: none;
+}
+.vibe-guide-panel.active {
+  display: block;
 }
 
 /* Toggle switch */

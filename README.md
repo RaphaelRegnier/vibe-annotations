@@ -127,8 +127,15 @@ claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
 }
 ```
 
-#### VS Code
-Install an AI extension that supports MCP, then add this configuration to your MCP settings:
+#### Codex
+Add to `~/.codex/config.toml`:
+```toml
+[mcp_servers.vibe-annotations]
+url = "http://127.0.0.1:3846/mcp"
+```
+
+#### OpenClaw
+Add to `~/.openclaw/openclaw.json`:
 ```json
 {
   "mcpServers": {
@@ -139,13 +146,13 @@ Install an AI extension that supports MCP, then add this configuration to your M
 }
 ```
 
-**Alternative (SSE transport):**
+#### VS Code
+Install an AI extension that supports MCP, then add this configuration to your MCP settings:
 ```json
 {
   "mcpServers": {
     "vibe-annotations": {
-      "type": "sse", 
-      "url": "http://127.0.0.1:3846/sse"
+      "url": "http://127.0.0.1:3846/mcp"
     }
   }
 }
