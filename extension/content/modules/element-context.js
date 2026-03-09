@@ -101,6 +101,7 @@ var VibeElementContext = (() => {
       el.textContent?.trim().replace(/[^\w\s]/g, '').trim() === sanitized
     );
     if (matches.length === 1) {
+      element.setAttribute('data-text-content', sanitized);
       return `${tag}[data-text-content="${CSS.escape(sanitized)}"]`;
     }
     return null;
@@ -134,13 +135,30 @@ var VibeElementContext = (() => {
     const parent = element.parentElement;
     if (!parent) return null;
 
+    // Build qualified parent selector — require classes or ID to avoid fragile bare-tag selectors
+    let parentSel = parent.tagName.toLowerCase();
+    if (parent.id) {
+      parentSel += `#${CSS.escape(parent.id)}`;
+    } else {
+      const pClasses = Array.from(parent.classList)
+        .filter(c => !c.startsWith('vibe-'))
+        .filter(isStableClass)
+        .slice(0, 3);
+      if (pClasses.length) {
+        parentSel += `.${pClasses.map(c => CSS.escape(c)).join('.')}`;
+      }
+    }
+
+    // If parent has no qualifying info, selector is too fragile — skip
+    if (parentSel === parent.tagName.toLowerCase()) return null;
+
     const siblings = Array.from(parent.children).filter(el => el.tagName.toLowerCase() === tag);
     const index = siblings.indexOf(element) + 1;
     const attrs = [];
     if (element.type) attrs.push(`[type="${element.type}"]`);
     if (element.role) attrs.push(`[role="${element.role}"]`);
 
-    return `${parent.tagName.toLowerCase()} > ${tag}${attrs.join('')}:nth-of-type(${index})`;
+    return `${parentSel} > ${tag}${attrs.join('')}:nth-of-type(${index})`;
   }
 
   function generateRobustPathSelector(element) {
@@ -501,7 +519,17 @@ var VibeElementContext = (() => {
   function findElementBySelector(annotation) {
     try {
       const el = document.querySelector(annotation.selector);
-      if (el) return el;
+      if (el) {
+        // Verify text content to catch drifted selectors
+        const expectedText = annotation.element_context?.text;
+        if (expectedText) {
+          const actualText = el.textContent?.substring(0, 100).trim();
+          if (actualText === expectedText) return el;
+          // Selector matched wrong element — fall through to fallbacks
+        } else {
+          return el;
+        }
+      }
     } catch { /* invalid selector */ }
 
     // Fallback: text matching
