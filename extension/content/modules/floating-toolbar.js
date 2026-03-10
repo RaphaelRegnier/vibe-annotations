@@ -700,6 +700,34 @@ var VibeToolbar = (() => {
         lines.push(`   Hints: ${a.context_hints.join(' \u00B7 ')}`);
       }
 
+      // Design changes
+      const pc = a.pending_changes;
+      if (pc) {
+        const changes = [];
+        // Text props
+        if (pc.fontSize) changes.push(`font-size: ${pc.fontSize.original} \u2192 ${pc.fontSize.value}`);
+        if (pc.fontWeight) changes.push(`font-weight: ${pc.fontWeight.original} \u2192 ${pc.fontWeight.value}`);
+        if (pc.lineHeight) changes.push(`line-height: ${pc.lineHeight.original} \u2192 ${pc.lineHeight.value}`);
+        if (pc.textAlign) changes.push(`text-align: ${pc.textAlign.original} \u2192 ${pc.textAlign.value}`);
+        // Container props
+        ['paddingTop','paddingRight','paddingBottom','paddingLeft'].filter(p => pc[p]).forEach(p => {
+          changes.push(`${camelToKebab(p)}: ${pc[p].original} \u2192 ${pc[p].value}`);
+        });
+        if (pc.display) changes.push(`display: ${pc.display.original} \u2192 ${pc.display.value}`);
+        if (pc.flexDirection) changes.push(`flex-direction: ${pc.flexDirection.original} \u2192 ${pc.flexDirection.value}`);
+        if (pc.gap) changes.push(`gap: ${pc.gap.original} \u2192 ${pc.gap.value}`);
+        if (pc.borderWidth) changes.push(`border-width: ${pc.borderWidth.original} \u2192 ${pc.borderWidth.value}`);
+        if (pc.borderRadius) changes.push(`border-radius: ${pc.borderRadius.original} \u2192 ${pc.borderRadius.value}`);
+        // Colors — include variable name if present
+        if (pc.color) changes.push(`color: ${pc.color.original} \u2192 ${pc.color.variable ? `var(${pc.color.variable})` : pc.color.value}`);
+        if (pc.backgroundColor) changes.push(`background-color: ${pc.backgroundColor.original} \u2192 ${pc.backgroundColor.variable ? `var(${pc.backgroundColor.variable})` : pc.backgroundColor.value}`);
+        if (pc.borderColor) changes.push(`border-color: ${pc.borderColor.original} \u2192 ${pc.borderColor.variable ? `var(${pc.borderColor.variable})` : pc.borderColor.value}`);
+        if (changes.length) {
+          lines.push(`   Design changes: ${changes.join(', ')}`);
+          lines.push(`   (Map to project design system: Tailwind class, CSS variable, or design token)`);
+        }
+      }
+
       return lines.join('\n');
     });
 
@@ -730,6 +758,10 @@ var VibeToolbar = (() => {
   function applyBadgeColor(color) {
     const root = VibeShadowHost.getRoot();
     if (root) root.host.style.setProperty('--v-badge-bg', color);
+  }
+
+  function camelToKebab(str) {
+    return str.replace(/[A-Z]/g, m => '-' + m.toLowerCase());
   }
 
   function truncate(str, max) {

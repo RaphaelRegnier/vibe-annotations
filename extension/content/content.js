@@ -203,11 +203,13 @@ console.log('[Vibe] content.js loaded');
     });
 
     // Annotation updated
-    VibeEvents.on('annotation:updated', ({ id, comment }) => {
+    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes }) => {
       localSaveCount++;
       const idx = annotations.findIndex(a => a.id === id);
       if (idx !== -1) {
-        annotations[idx] = { ...annotations[idx], comment, updated_at: new Date().toISOString() };
+        const updates = { comment, updated_at: new Date().toISOString() };
+        if (pending_changes !== undefined) updates.pending_changes = pending_changes;
+        annotations[idx] = { ...annotations[idx], ...updates };
       }
     });
 
@@ -223,8 +225,8 @@ console.log('[Vibe] content.js loaded');
     VibeEvents.on('annotations:cleared', ({ count } = {}) => {
       // Each delete triggers a storage change; suppress all of them
       localSaveCount += count || annotations.length || 1;
+      VibeBadgeManager.clearAll(annotations);
       annotations = [];
-      VibeBadgeManager.clearAll();
       VibeEvents.emit('badges:rendered', { count: 0, total: 0 });
     });
   }
