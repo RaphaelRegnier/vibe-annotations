@@ -76,14 +76,55 @@ var VibeElementContext = (() => {
   }
 
   function findUniqueAttributeSelector(element) {
-    const attrs = ['aria-label', 'title', 'data-testid', 'data-test', 'role'];
-    for (const attr of attrs) {
+    // Priority order: stable test/identity attributes first, then semantic
+    const stableAttrs = [
+      'data-testid', 'data-test', 'data-test-id', 'data-cy', 'data-qa',
+      'data-e2e', 'data-automation-id', 'data-component',
+      'aria-label', 'title', 'name', 'role'
+    ];
+    const tag = element.tagName.toLowerCase();
+
+    // First pass: check the element itself
+    for (const attr of stableAttrs) {
       const value = element.getAttribute(attr);
       if (value) {
-        const sel = `${element.tagName.toLowerCase()}[${attr}="${CSS.escape(value)}"]`;
+        const sel = `${tag}[${attr}="${CSS.escape(value)}"]`;
         if (isUnique(sel)) return sel;
       }
     }
+
+    // Second pass: check nearest ancestor with a stable attribute (scoped selector)
+    let parent = element.parentElement;
+    let depth = 0;
+    while (parent && parent.tagName !== 'BODY' && depth < 5) {
+      for (const attr of stableAttrs.slice(0, 8)) { // test attrs only
+        const value = parent.getAttribute(attr);
+        if (value) {
+          const parentSel = `${parent.tagName.toLowerCase()}[${attr}="${CSS.escape(value)}"]`;
+          // Build child selector relative to this stable parent
+          const childTag = tag;
+          // Check if element is a direct child — use child combinator only if so
+          const isDirectChild = element.parentElement === parent;
+          if (isDirectChild) {
+            const directChildren = Array.from(parent.querySelectorAll(`:scope > ${childTag}`));
+            if (directChildren.length === 1 && directChildren[0] === element) {
+              const sel = `${parentSel} > ${childTag}`;
+              if (isUnique(sel)) return sel;
+            }
+          }
+          // Descendant selector with nth-of-type
+          const allOfType = Array.from(parent.querySelectorAll(childTag));
+          const idx = allOfType.indexOf(element);
+          if (idx !== -1) {
+            const sel = `${parentSel} ${childTag}:nth-of-type(${idx + 1})`;
+            if (isUnique(sel)) return sel;
+          }
+        }
+      }
+      parent = parent.parentElement;
+      depth++;
+    }
+
     return null;
   }
 
