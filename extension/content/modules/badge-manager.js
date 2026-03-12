@@ -6,6 +6,8 @@ var VibeBadgeManager = (() => {
   let badges = []; // { el, annotation, targetElement }
   let rafId = null;
   let provisionalBadge = null;
+  let domObserver = null;
+  let rematchDebounceTimer = null;
 
   function init() {
     VibeEvents.on('annotations:render', render);
@@ -13,6 +15,37 @@ var VibeBadgeManager = (() => {
     VibeEvents.on('annotation:updated', onUpdated);
     VibeEvents.on('inspection:elementClicked', onProvisionalPin);
     VibeEvents.on('popover:cancelled', removeProvisional);
+    startDOMObserver();
+  }
+
+  // --- DOM observer: detect when framework re-renders replace annotated elements ---
+  function startDOMObserver() {
+    if (domObserver) return;
+    domObserver = new MutationObserver(() => {
+      // Check if any badge targets got disconnected
+      const hasDisconnected = badges.some(b => !b.targetElement.isConnected);
+      if (hasDisconnected) {
+        // Debounce — frameworks often batch multiple mutations
+        clearTimeout(rematchDebounceTimer);
+        rematchDebounceTimer = setTimeout(rematchDisconnectedBadges, 150);
+      }
+    });
+    domObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  function rematchDisconnectedBadges() {
+    let changed = false;
+    for (const entry of badges) {
+      if (!entry.targetElement.isConnected) {
+        const newTarget = VibeElementContext.findElementBySelector(entry.annotation);
+        if (newTarget && newTarget !== entry.targetElement) {
+          entry.targetElement = newTarget;
+          entry.el.style.display = '';
+          changed = true;
+        }
+      }
+    }
+    if (changed) console.log('[Vibe] Re-matched badges after framework re-render');
   }
 
   function onProvisionalPin({ clientX, clientY }) {
@@ -120,6 +153,7 @@ var VibeBadgeManager = (() => {
     }
     badges = [];
     stopRAF();
+    clearTimeout(rematchDebounceTimer);
   }
 
   function onDeleted({ id }) {

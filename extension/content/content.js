@@ -59,6 +59,9 @@ console.log('[Vibe] content.js loaded');
     // 7. Set up storage listener for external changes
     setupStorageListener();
 
+    // 7b. Set up SPA route change detection
+    setupRouteChangeDetection();
+
     // 8. Set up ESC key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
@@ -128,6 +131,51 @@ console.log('[Vibe] content.js loaded');
           sendResponse({ success: false, error: 'Unknown action' });
       }
       return true;
+    });
+  }
+
+  // --- SPA route change detection ---
+  function setupRouteChangeDetection() {
+    let currentURL = window.location.href;
+
+    function onRouteChange() {
+      const newURL = window.location.href;
+      if (newURL === currentURL) return;
+      currentURL = newURL;
+      console.log('[Vibe] SPA route change detected:', newURL);
+      reloadAnnotationsForCurrentRoute();
+    }
+
+    // Back/forward navigation
+    window.addEventListener('popstate', onRouteChange);
+
+    // Intercept programmatic navigation (router.push, <Link>, etc.)
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+    history.pushState = function (...args) {
+      const result = originalPushState(...args);
+      onRouteChange();
+      return result;
+    };
+    history.replaceState = function (...args) {
+      const result = originalReplaceState(...args);
+      onRouteChange();
+      return result;
+    };
+
+    // Fallback: hashchange for hash-based routers
+    window.addEventListener('hashchange', onRouteChange);
+  }
+
+  async function reloadAnnotationsForCurrentRoute() {
+    annotations = await VibeAPI.loadAnnotations();
+    badgesShown = false;
+    VibeBadgeManager.clearAll();
+
+    // Wait briefly for new route's DOM to render, then show badges
+    waitForDOMStability(() => {
+      badgesShown = true;
+      showAnnotationsWithRetry();
     });
   }
 
@@ -223,7 +271,11 @@ console.log('[Vibe] content.js loaded');
     stabilityTimer = setTimeout(() => { observer.disconnect(); callback(); }, stabilityDelay);
   }
 
+  let lazyObserver = null;
   function showAnnotationsWithRetry(maxAttempts = 5, delay = 500) {
+    // Clean up previous lazy observer
+    if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
+
     let attempts = 0;
     const tryShow = () => {
       attempts++;
@@ -232,8 +284,42 @@ console.log('[Vibe] content.js loaded');
       if (found < annotations.length && attempts < maxAttempts) {
         setTimeout(tryShow, delay);
       }
+      // After retries exhausted, if still missing badges, watch for lazy-loaded content
+      if (attempts >= maxAttempts && found < annotations.length) {
+        startLazyElementObserver();
+      }
     };
     tryShow();
+  }
+
+  // Persistent observer for code-split / lazy-loaded components that arrive late
+  function startLazyElementObserver() {
+    if (lazyObserver) lazyObserver.disconnect();
+
+    let debounceTimer = null;
+    lazyObserver = new MutationObserver(() => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        VibeEvents.emit('annotations:render', annotations);
+        const found = VibeBadgeManager.getCount();
+        // All badges found — stop watching
+        if (found >= annotations.length) {
+          lazyObserver.disconnect();
+          lazyObserver = null;
+          console.log('[Vibe] All badges resolved via lazy observer');
+        }
+      }, 300);
+    });
+
+    lazyObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Safety: stop after 30s to avoid indefinite observation
+    setTimeout(() => {
+      if (lazyObserver) {
+        lazyObserver.disconnect();
+        lazyObserver = null;
+      }
+    }, 30000);
   }
 
   // --- Boot ---
