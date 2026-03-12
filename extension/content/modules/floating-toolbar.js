@@ -98,9 +98,7 @@ var VibeToolbar = (() => {
           ${ICONS.trash}
           <span class="vibe-toolbar-tip">Delete all</span>
         </button>
-        <div class="vibe-toolbar-drag-handle" title="Move">
-          <span class="vibe-toolbar-tip">Move</span>
-        </div>
+        <div class="vibe-toolbar-drag-handle" title="Drag to move"></div>
         <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
           ${ICONS.settings}
           <span class="vibe-toolbar-tip">Settings</span>
@@ -722,6 +720,13 @@ var VibeToolbar = (() => {
         if (pc.color) changes.push(`color: ${pc.color.original} \u2192 ${pc.color.variable ? `var(${pc.color.variable})` : pc.color.value}`);
         if (pc.backgroundColor) changes.push(`background-color: ${pc.backgroundColor.original} \u2192 ${pc.backgroundColor.variable ? `var(${pc.backgroundColor.variable})` : pc.backgroundColor.value}`);
         if (pc.borderColor) changes.push(`border-color: ${pc.borderColor.original} \u2192 ${pc.borderColor.variable ? `var(${pc.borderColor.variable})` : pc.borderColor.value}`);
+        // Catch extra raw CSS changes not covered above
+        const standardProps = new Set(['fontSize','fontWeight','lineHeight','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft','display','flexDirection','gap','borderWidth','borderRadius','borderStyle','color','backgroundColor','borderColor']);
+        for (const [prop, change] of Object.entries(pc)) {
+          if (!standardProps.has(prop) && change.original && change.value) {
+            changes.push(`${camelToKebab(prop)}: ${change.original} \u2192 ${change.value}`);
+          }
+        }
         if (changes.length) {
           lines.push(`   Design changes: ${changes.join(', ')}`);
           lines.push(`   (Map to project design system: Tailwind class, CSS variable, or design token)`);

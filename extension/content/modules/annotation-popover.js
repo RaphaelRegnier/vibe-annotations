@@ -1,7 +1,7 @@
 // Small popover card anchored to target element
-// Collapsible element details showing tag + computed CSS.
+// Tabbed design toolbar: Font, Spacing, Layout, Border, Colors, Raw CSS.
 // Edit mode with pre-filled text + delete button.
-// Element-aware toolbar: text elements get typography, containers get layout/spacing/border.
+// Element-aware tabs: text elements get typography, containers get layout/spacing/border.
 
 var VibeAnnotationPopover = (() => {
   let currentPopover = null;
@@ -11,6 +11,7 @@ var VibeAnnotationPopover = (() => {
   let activeElement = null;
   let activeExistingAnnotation = null;
   let activeElType = null;
+  let activeRawCssOriginals = null; // Map of kebab-prop → original value, for dismiss cleanup
 
   // All design properties — used for dismiss/revert
   const ALL_DESIGN_PROPS = [
@@ -60,7 +61,11 @@ var VibeAnnotationPopover = (() => {
     borderR: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9V5a2 2 0 0 1 2-2h4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>',
     fillColor: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 2-3 2-3s2 1.4 2 3"/></svg>',
     bgColor: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
-    borderColor: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>'
+    borderColor: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 3"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+    // Device icons for viewport indicator
+    phone: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+    tablet: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+    monitor: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
   };
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
@@ -87,6 +92,74 @@ var VibeAnnotationPopover = (() => {
   function init() {
     VibeEvents.on('inspection:elementClicked', onElementClicked);
     VibeEvents.on('annotation:edit', onEditRequested);
+  }
+
+  function getTabsForType(elType) {
+    if (elType === 'text') return [
+      { key: 'font', label: 'Font' },
+      { key: 'colors', label: 'Colors' },
+      { key: 'raw-css', label: 'CSS' }
+    ];
+    if (elType === 'container') return [
+      { key: 'spacing', label: 'Spacing' },
+      { key: 'layout', label: 'Layout' },
+      { key: 'border', label: 'Border' },
+      { key: 'colors', label: 'Colors' },
+      { key: 'raw-css', label: 'CSS' }
+    ];
+    // 'both' (button)
+    return [
+      { key: 'font', label: 'Font' },
+      { key: 'spacing', label: 'Spacing' },
+      { key: 'layout', label: 'Layout' },
+      { key: 'border', label: 'Border' },
+      { key: 'colors', label: 'Colors' },
+      { key: 'raw-css', label: 'CSS' }
+    ];
+  }
+
+  // Raw CSS properties to show — expanded computed styles
+  const RAW_CSS_PROPS = [
+    { css: 'display', js: 'display' },
+    { css: 'position', js: 'position', skip: v => v === 'static' },
+    { css: 'font-size', js: 'fontSize' },
+    { css: 'font-weight', js: 'fontWeight' },
+    { css: 'line-height', js: 'lineHeight' },
+    { css: 'text-align', js: 'textAlign' },
+    { css: 'color', js: 'color' },
+    { css: 'background-color', js: 'backgroundColor', skip: v => v === 'rgba(0, 0, 0, 0)' },
+    { css: 'padding-top', js: 'paddingTop' },
+    { css: 'padding-right', js: 'paddingRight' },
+    { css: 'padding-bottom', js: 'paddingBottom' },
+    { css: 'padding-left', js: 'paddingLeft' },
+    { css: 'margin', js: 'margin', skip: v => v === '0px' },
+    { css: 'gap', js: 'gap', skip: v => v === 'normal' || v === '0px' },
+    { css: 'flex-direction', js: 'flexDirection', skip: (v, s) => s.display !== 'flex' && s.display !== 'inline-flex' },
+    { css: 'border-width', js: 'borderTopWidth' },
+    { css: 'border-radius', js: 'borderRadius' },
+    { css: 'border-style', js: 'borderStyle', skip: v => v === 'none' },
+    { css: 'border-color', js: 'borderColor', skip: (v, s) => s.borderStyle === 'none' }
+  ];
+
+  function buildRawCssContent(context) {
+    const s = window.getComputedStyle(context._element || document.body);
+    const lines = [];
+    for (const prop of RAW_CSS_PROPS) {
+      const val = s[prop.js];
+      if (prop.skip && prop.skip(val, s)) continue;
+      lines.push(`${prop.css}: ${val};`);
+    }
+    // Add dimensions
+    const pos = context.position || {};
+    if (pos.width != null) {
+      lines.push(`width: ${Math.round(pos.width)}px;`);
+      lines.push(`height: ${Math.round(pos.height)}px;`);
+    }
+    return lines.join('\n');
+  }
+
+  function kebabToCamel(str) {
+    return str.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
   }
 
   async function onElementClicked({ element, clientX, clientY }) {
@@ -129,9 +202,6 @@ var VibeAnnotationPopover = (() => {
     const popover = document.createElement('div');
     popover.className = 'vibe-popover';
 
-    // Build element props HTML
-    const propsHTML = buildElementPropsHTML(context);
-
     // Warning bar
     let warningHTML = '';
     if (isFile) {
@@ -144,30 +214,46 @@ var VibeAnnotationPopover = (() => {
     const pc = isEdit ? existingAnnotation.pending_changes : null;
     const s = context.styles;
 
-    // Build toolbar HTML based on element type
-    let toolbarHTML;
-    if (elType === 'both') {
-      toolbarHTML = buildTextToolbarHTML(pc, s) + buildContainerToolbarHTML(pc, s);
-    } else if (elType === 'text') {
-      toolbarHTML = buildTextToolbarHTML(pc, s);
-    } else {
-      toolbarHTML = buildContainerToolbarHTML(pc, s);
-    }
+    // Build panel HTML based on element type
+    const textParts = (elType === 'text' || elType === 'both') ? buildTextToolbarHTML(pc, s) : null;
+    const containerParts = (elType === 'container' || elType === 'both') ? buildContainerToolbarHTML(pc, s) : null;
+
+    // Assemble panel content
+    const panelContent = {};
+    if (textParts) panelContent.font = textParts.font;
+    if (containerParts) panelContent.spacing = containerParts.spacing;
+    if (containerParts) panelContent.layout = containerParts.layout;
+    if (containerParts) panelContent.border = containerParts.border;
+    panelContent.colors = (textParts?.colorRows || '') + (containerParts?.colorRows || '');
+
+    // Store element reference for Raw CSS computed style reading
+    context._element = targetElement;
+    const rawCssInitial = buildRawCssContent(context);
+    panelContent['raw-css'] = `<textarea class="vibe-raw-css" spellcheck="false">${escapeHTML(rawCssInitial)}</textarea>`;
+
+    // Build tabs — cold start: no active tab, all panels hidden
+    const tabs = getTabsForType(elType);
+    const tabBarHTML = tabs.map(t =>
+      `<button class="vibe-tab" data-tab="${t.key}" type="button">${t.label}</button>`
+    ).join('');
+    const panelsHTML = tabs.map(t =>
+      `<div class="vibe-tab-panel" data-tab-panel="${t.key}" style="display:none">${panelContent[t.key] || ''}</div>`
+    ).join('');
+
+    // Build short selector label for title
+    const selectorLabel = context.classes.length
+      ? `${context.tag}.${context.classes[0]}`
+      : context.tag;
 
     popover.innerHTML = `
-      <button class="vibe-element-toggle" type="button">
-        ${ICONS.chevron}
-        <span>&lt;${escapeHTML(context.tag)}&gt;</span>
-        ${context.classes.length ? `<span style="opacity:0.5">.${escapeHTML(context.classes[0])}</span>` : ''}
-      </button>
-      <div class="vibe-element-props">
-        <pre>${propsHTML}</pre>
+      <div class="vibe-drag-handle"></div>
+      <div class="vibe-popover-title">
+        <span>Editing <code>${escapeHTML(selectorLabel)}</code></span>
+        <button class="vibe-design-reset" type="button" title="Reset all">${ICONS.reset}</button>
       </div>
+      <div class="vibe-tab-bar">${tabBarHTML}</div>
       <div class="vibe-design-toolbar">
-        ${toolbarHTML}
-        <div class="vibe-design-row">
-          <button class="vibe-design-reset" type="button" title="Reset all" style="display:none">${ICONS.reset}</button>
-        </div>
+        ${panelsHTML}
       </div>
       ${warningHTML}
       <div class="vibe-popover-body">
@@ -177,10 +263,13 @@ var VibeAnnotationPopover = (() => {
         </div>
       </div>
       <div class="vibe-popover-footer">
-        ${isEdit ? `<button class="vibe-btn-icon vibe-delete-btn" title="Delete">${ICONS.trash}</button>` : '<span></span>'}
-        <div class="right" style="display:flex;gap:8px;align-items:center;margin-left:auto;">
+        <div class="vibe-footer-left">
+          ${isEdit ? `<button class="vibe-btn-icon vibe-delete-btn" title="Delete">${ICONS.trash}</button>` : ''}
+          <span class="vibe-viewport-info">${getDeviceIcon(window.innerWidth)} ${window.innerWidth}w</span>
+        </div>
+        <div class="vibe-footer-right">
           <button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">Cancel</button>
-          <button class="vibe-btn vibe-btn-primary vibe-save-btn" disabled>${isEdit ? 'Save' : 'Add'}</button>
+          <button class="vibe-btn vibe-btn-primary vibe-save-btn">${isEdit ? 'Save' : 'Save as pointer'}</button>
         </div>
       </div>
     `;
@@ -191,12 +280,14 @@ var VibeAnnotationPopover = (() => {
     // Position
     positionPopover(anchor, targetElement, clickX, clickY);
 
+    // Wire drag handle
+    const dragHandle = popover.querySelector('.vibe-drag-handle');
+    wireDragHandle(dragHandle, popover);
+
     // Wire up
     const textarea = popover.querySelector('.vibe-textarea');
     const saveBtn = popover.querySelector('.vibe-save-btn');
     const cancelBtn = popover.querySelector('.vibe-cancel-btn');
-    const toggleBtn = popover.querySelector('.vibe-element-toggle');
-    const propsDiv = popover.querySelector('.vibe-element-props');
     const deleteBtn = popover.querySelector('.vibe-delete-btn');
     const resetBtn = popover.querySelector('.vibe-design-reset');
 
@@ -205,29 +296,125 @@ var VibeAnnotationPopover = (() => {
     activeExistingAnnotation = existingAnnotation;
     activeElType = elType;
 
-    // Collapsible element details
-    toggleBtn.addEventListener('click', () => {
-      toggleBtn.classList.toggle('open');
-      propsDiv.classList.toggle('open');
+    // Tab switching — cold start: toolbar hidden, no active tab. Reclick deselects.
+    const tabBtns = popover.querySelectorAll('.vibe-tab');
+    const tabPanels = popover.querySelectorAll('.vibe-tab-panel');
+    const designToolbar = popover.querySelector('.vibe-design-toolbar');
+    designToolbar.style.display = 'none'; // hidden until a tab is clicked
+    tabBtns.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const wasActive = tab.classList.contains('active');
+        tabBtns.forEach(t => t.classList.remove('active'));
+        if (wasActive) {
+          // Deselect — back to cold start
+          designToolbar.style.display = 'none';
+          tabPanels.forEach(p => p.style.display = 'none');
+        } else {
+          tab.classList.add('active');
+          designToolbar.style.display = '';
+          tabPanels.forEach(p => p.style.display = p.dataset.tabPanel === tab.dataset.tab ? '' : 'none');
+          // Refresh raw CSS textarea when switching to it
+          if (tab.dataset.tab === 'raw-css') {
+            const rawTA = popover.querySelector('.vibe-raw-css');
+            if (rawTA && !rawTA._userEdited) {
+              rawTA.value = buildRawCssContent(context);
+            }
+          }
+        }
+      });
     });
 
-    // Wire type-specific toolbar and get buildPendingChanges function
-    let buildPendingChanges;
-    if (elType === 'both') {
-      const textBPC = wireTextToolbar(popover, targetElement, pc, s, resetBtn);
-      const containerBPC = wireContainerToolbar(popover, targetElement, pc, s, resetBtn);
-      buildPendingChanges = () => {
-        const merged = { ...(textBPC() || {}), ...(containerBPC() || {}) };
-        return Object.keys(merged).length ? merged : null;
-      };
-    } else if (elType === 'text') {
-      buildPendingChanges = wireTextToolbar(popover, targetElement, pc, s, resetBtn);
-    } else {
-      buildPendingChanges = wireContainerToolbar(popover, targetElement, pc, s, resetBtn);
+    // --- Raw CSS panel wiring ---
+    const rawCssTextarea = popover.querySelector('.vibe-raw-css');
+    const rawCssOriginals = new Map();
+    // Parse initial content into originals map
+    rawCssInitial.split('\n').forEach(line => {
+      const m = line.match(/^\s*([\w-]+)\s*:\s*(.+?)\s*;?\s*$/);
+      if (m) rawCssOriginals.set(m[1], m[2]);
+    });
+    activeRawCssOriginals = rawCssOriginals;
+
+    if (rawCssTextarea) {
+      rawCssTextarea.addEventListener('input', () => {
+        rawCssTextarea._userEdited = true;
+        // Parse and apply live
+        const lines = rawCssTextarea.value.split('\n');
+        const seen = new Set();
+        for (const line of lines) {
+          const m = line.match(/^\s*([\w-]+)\s*:\s*(.+?)\s*;?\s*$/);
+          if (!m) continue;
+          const [, prop, val] = m;
+          seen.add(prop);
+          const camel = kebabToCamel(prop);
+          targetElement.style[camel] = val;
+        }
+        // Revert props that were removed from textarea
+        for (const [prop] of rawCssOriginals) {
+          if (!seen.has(prop)) {
+            targetElement.style[kebabToCamel(prop)] = '';
+          }
+        }
+        popover._updateResetVisibility?.();
+        popover._updateSave?.();
+      });
     }
 
+    // Wire type-specific toolbar and get buildPendingChanges function
+    const bpcFns = [];
+    if (elType === 'text' || elType === 'both') {
+      bpcFns.push(wireTextToolbar(popover, targetElement, pc, s, resetBtn));
+    }
+    if (elType === 'container' || elType === 'both') {
+      bpcFns.push(wireContainerToolbar(popover, targetElement, pc, s, resetBtn));
+    }
+
+    // Raw CSS buildPendingChanges
+    function buildRawCssPC() {
+      if (!rawCssTextarea?._userEdited) return null;
+      const changes = {};
+      const lines = rawCssTextarea.value.split('\n');
+      for (const line of lines) {
+        const m = line.match(/^\s*([\w-]+)\s*:\s*(.+?)\s*;?\s*$/);
+        if (!m) continue;
+        const [, prop, val] = m;
+        const orig = rawCssOriginals.get(prop);
+        if (orig !== undefined && val !== orig) {
+          changes[kebabToCamel(prop)] = { original: orig, value: val };
+        }
+      }
+      return Object.keys(changes).length ? changes : null;
+    }
+
+    function buildPendingChanges() {
+      const merged = {};
+      for (const fn of bpcFns) {
+        const result = fn();
+        if (result) Object.assign(merged, result);
+      }
+      // Raw CSS changes — tab-specific changes take priority (already in merged)
+      const rawChanges = buildRawCssPC();
+      if (rawChanges) {
+        for (const [k, v] of Object.entries(rawChanges)) {
+          if (!merged[k]) merged[k] = v;
+        }
+      }
+      return Object.keys(merged).length ? merged : null;
+    }
+
+    // Raw CSS reset — piggyback on resetBtn alongside text/container reset handlers
+    resetBtn.addEventListener('click', () => {
+      if (rawCssTextarea) {
+        rawCssTextarea.value = rawCssInitial;
+        rawCssTextarea._userEdited = false;
+        // Revert any raw CSS inline styles
+        for (const [prop] of rawCssOriginals) {
+          targetElement.style[kebabToCamel(prop)] = '';
+        }
+      }
+    });
+
     function updateResetVisibility() {
-      resetBtn.style.display = buildPendingChanges() ? '' : 'none';
+      resetBtn.style.visibility = buildPendingChanges() ? 'visible' : 'hidden';
     }
 
     // Apply saved pending_changes on open (edit mode)
@@ -242,6 +429,7 @@ var VibeAnnotationPopover = (() => {
     const updateSave = () => {
       const text = textarea.value.trim();
       const hasDesignChanges = !!buildPendingChanges();
+      const hasContent = text || hasDesignChanges;
 
       if (isOffline && !isFile) {
         saveBtn.disabled = true;
@@ -253,10 +441,11 @@ var VibeAnnotationPopover = (() => {
         const savedPC = existingAnnotation.pending_changes || null;
         const designChanged = JSON.stringify(buildPendingChanges()) !== JSON.stringify(savedPC);
         saveBtn.disabled = !commentChanged && !designChanged;
+        saveBtn.textContent = 'Save';
       } else {
         saveBtn.disabled = false;
+        saveBtn.textContent = hasContent ? 'Save annotation' : 'Save as pointer';
       }
-      saveBtn.textContent = isEdit ? 'Save' : 'Add';
     };
     textarea.addEventListener('input', updateSave);
 
@@ -361,36 +550,38 @@ var VibeAnnotationPopover = (() => {
     const curColor = pc?.color ? pc.color.value : origColor;
     const curColorHex = toHex(curColor);
 
-    return `
-      <div class="vibe-design-row">
-        <span class="vibe-design-icon" title="Font size">${ICONS.typeSize}</span>
-        <div class="vibe-stepper">
-          <input class="vibe-stepper-input" data-prop="fontSize" type="number" min="1" max="999" value="${Math.round(curFS)}">
-          <span class="vibe-stepper-unit">px</span>
+    return {
+      font: `
+        <div class="vibe-design-row">
+          <span class="vibe-design-icon" title="Font size">${ICONS.typeSize}</span>
+          <div class="vibe-stepper">
+            <input class="vibe-stepper-input" data-prop="fontSize" type="number" min="1" max="999" value="${Math.round(curFS)}">
+            <span class="vibe-stepper-unit">px</span>
+          </div>
+          <span class="vibe-design-icon" title="Font weight">${ICONS.typeWeight}</span>
+          <div class="vibe-stepper">
+            <input class="vibe-stepper-input" data-prop="fontWeight" type="number" min="100" max="900" step="100" value="${Math.round(curFW)}">
+          </div>
+          <span class="vibe-design-icon" title="Line height">${ICONS.typeLeading}</span>
+          <div class="vibe-stepper">
+            <input class="vibe-stepper-input" data-prop="lineHeight" type="number" min="1" max="999" value="${Math.round(curLH)}">
+            <span class="vibe-stepper-unit">px</span>
+          </div>
         </div>
-        <span class="vibe-design-icon" title="Font weight">${ICONS.typeWeight}</span>
-        <div class="vibe-stepper">
-          <input class="vibe-stepper-input" data-prop="fontWeight" type="number" min="100" max="900" step="100" value="${Math.round(curFW)}">
-        </div>
-        <span class="vibe-design-icon" title="Line height">${ICONS.typeLeading}</span>
-        <div class="vibe-stepper">
-          <input class="vibe-stepper-input" data-prop="lineHeight" type="number" min="1" max="999" value="${Math.round(curLH)}">
-          <span class="vibe-stepper-unit">px</span>
-        </div>
-      </div>
-      <div class="vibe-design-row">
-        <div class="vibe-align-group">
-          <button class="vibe-align-btn ${curTA === 'left' ? 'active' : ''}" data-align="left" type="button" title="Align left">${ICONS.alignLeft}</button>
-          <button class="vibe-align-btn ${curTA === 'center' ? 'active' : ''}" data-align="center" type="button" title="Align center">${ICONS.alignCenter}</button>
-          <button class="vibe-align-btn ${curTA === 'right' ? 'active' : ''}" data-align="right" type="button" title="Align right">${ICONS.alignRight}</button>
-        </div>
-      </div>
-      <div class="vibe-design-row vibe-color-row">
-        <span class="vibe-design-icon" title="Text color">${ICONS.fillColor}</span>
-        <button class="vibe-color-swatch" data-color-prop="color" type="button" style="background:${curColorHex}"></button>
-        <input class="vibe-color-input" data-color-prop="color" type="text" value="${curColorHex}" placeholder="#000000">
-      </div>
-    `;
+        <div class="vibe-design-row">
+          <div class="vibe-align-group">
+            <button class="vibe-align-btn ${curTA === 'left' ? 'active' : ''}" data-align="left" type="button" title="Align left">${ICONS.alignLeft}</button>
+            <button class="vibe-align-btn ${curTA === 'center' ? 'active' : ''}" data-align="center" type="button" title="Align center">${ICONS.alignCenter}</button>
+            <button class="vibe-align-btn ${curTA === 'right' ? 'active' : ''}" data-align="right" type="button" title="Align right">${ICONS.alignRight}</button>
+          </div>
+        </div>`,
+      colorRows: `
+        <div class="vibe-design-row vibe-color-row">
+          <span class="vibe-design-icon" title="Text color">${ICONS.fillColor}</span>
+          <button class="vibe-color-swatch" data-color-prop="color" type="button" style="background:${curColorHex}"></button>
+          <input class="vibe-color-input" data-color-prop="color" type="text" value="${curColorHex}" placeholder="#000000">
+        </div>`
+    };
   }
 
   function wireTextToolbar(popover, targetElement, pc, s, resetBtn) {
@@ -510,79 +701,81 @@ var VibeAnnotationPopover = (() => {
     const curBorderColor = pc?.borderColor ? pc.borderColor.value : origBorderColor;
     const curBorderHex = toHex(curBorderColor);
 
-    return `
-      <div class="vibe-design-row vibe-padding-vh-row" ${needsSplit ? 'style="display:none"' : ''}>
-        <span class="vibe-design-icon" title="Padding vertical">${ICONS.paddingV}</span>
-        <div class="vibe-stepper">
-          <input class="vibe-stepper-text vibe-pad-v" type="text" value="${vDisplay}" title="Top, Bottom">
-          <span class="vibe-stepper-unit">px</span>
-        </div>
-        <span class="vibe-design-icon" title="Padding horizontal">${ICONS.paddingH}</span>
-        <div class="vibe-stepper">
-          <input class="vibe-stepper-text vibe-pad-h" type="text" value="${hDisplay}" title="Left, Right">
-          <span class="vibe-stepper-unit">px</span>
-        </div>
-        <button class="vibe-split-btn" type="button" title="Split padding">${ICONS.split}</button>
-      </div>
-      <div class="vibe-design-row vibe-padding-split-row" ${needsSplit ? '' : 'style="display:none"'}>
-        <span class="vibe-design-icon-label" title="Top">T</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="paddingTop" type="number" min="0" max="999" value="${Math.round(curPT)}">
-        </div>
-        <span class="vibe-design-icon-label" title="Right">R</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="paddingRight" type="number" min="0" max="999" value="${Math.round(curPR)}">
-        </div>
-        <span class="vibe-design-icon-label" title="Bottom">B</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="paddingBottom" type="number" min="0" max="999" value="${Math.round(curPB)}">
-        </div>
-        <span class="vibe-design-icon-label" title="Left">L</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="paddingLeft" type="number" min="0" max="999" value="${Math.round(curPL)}">
-        </div>
-        <button class="vibe-split-btn active" type="button" title="Merge padding">${ICONS.merge}</button>
-      </div>
-      <div class="vibe-design-row">
-        <div class="vibe-toggle-group">
-          <button class="vibe-toggle-btn ${curDisplay === 'block' ? 'active' : ''}" data-display="block" type="button">Block</button>
-          <button class="vibe-toggle-btn ${curDisplay === 'flex' ? 'active' : ''}" data-display="flex" type="button">Flex</button>
-        </div>
-        <div class="vibe-flex-controls" ${isFlex ? '' : 'style="display:none"'}>
-          <div class="vibe-toggle-group">
-            <button class="vibe-toggle-btn ${curFlexDir === 'row' ? 'active' : ''}" data-dir="row" type="button" title="Row">${ICONS.flexRow}</button>
-            <button class="vibe-toggle-btn ${curFlexDir === 'column' ? 'active' : ''}" data-dir="column" type="button" title="Column">${ICONS.flexCol}</button>
-          </div>
-          <span class="vibe-design-icon" title="Gap">${ICONS.gapIcon}</span>
-          <div class="vibe-stepper vibe-stepper-sm">
-            <input class="vibe-stepper-input" data-prop="gap" type="number" min="0" max="999" value="${Math.round(curGap)}">
+    return {
+      spacing: `
+        <div class="vibe-design-row vibe-padding-vh-row" ${needsSplit ? 'style="display:none"' : ''}>
+          <span class="vibe-design-icon" title="Padding vertical">${ICONS.paddingV}</span>
+          <div class="vibe-stepper">
+            <input class="vibe-stepper-text vibe-pad-v" type="text" value="${vDisplay}" title="Top, Bottom">
             <span class="vibe-stepper-unit">px</span>
           </div>
+          <span class="vibe-design-icon" title="Padding horizontal">${ICONS.paddingH}</span>
+          <div class="vibe-stepper">
+            <input class="vibe-stepper-text vibe-pad-h" type="text" value="${hDisplay}" title="Left, Right">
+            <span class="vibe-stepper-unit">px</span>
+          </div>
+          <button class="vibe-split-btn" type="button" title="Split padding">${ICONS.split}</button>
         </div>
-      </div>
-      <div class="vibe-design-row">
-        <span class="vibe-design-icon" title="Border width">${ICONS.borderW}</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="borderWidth" type="number" min="0" max="20" value="${Math.round(curBW)}">
-          <span class="vibe-stepper-unit">px</span>
-        </div>
-        <span class="vibe-design-icon" title="Border radius">${ICONS.borderR}</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-input" data-prop="borderRadius" type="number" min="0" max="999" value="${Math.round(curBR)}">
-          <span class="vibe-stepper-unit">px</span>
-        </div>
-      </div>
-      <div class="vibe-design-row vibe-color-row">
-        <span class="vibe-design-icon" title="Background">${ICONS.bgColor}</span>
-        <button class="vibe-color-swatch" data-color-prop="backgroundColor" type="button" style="background:${curBgHex}"></button>
-        <input class="vibe-color-input" data-color-prop="backgroundColor" type="text" value="${curBgHex}" placeholder="#000000">
-      </div>
-      <div class="vibe-design-row vibe-color-row">
-        <span class="vibe-design-icon" title="Border color">${ICONS.borderColor}</span>
-        <button class="vibe-color-swatch" data-color-prop="borderColor" type="button" style="background:${curBorderHex}"></button>
-        <input class="vibe-color-input" data-color-prop="borderColor" type="text" value="${curBorderHex}" placeholder="#000000">
-      </div>
-    `;
+        <div class="vibe-design-row vibe-padding-split-row" ${needsSplit ? '' : 'style="display:none"'}>
+          <span class="vibe-design-icon-label" title="Top">T</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="paddingTop" type="number" min="0" max="999" value="${Math.round(curPT)}">
+          </div>
+          <span class="vibe-design-icon-label" title="Right">R</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="paddingRight" type="number" min="0" max="999" value="${Math.round(curPR)}">
+          </div>
+          <span class="vibe-design-icon-label" title="Bottom">B</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="paddingBottom" type="number" min="0" max="999" value="${Math.round(curPB)}">
+          </div>
+          <span class="vibe-design-icon-label" title="Left">L</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="paddingLeft" type="number" min="0" max="999" value="${Math.round(curPL)}">
+          </div>
+          <button class="vibe-split-btn active" type="button" title="Merge padding">${ICONS.merge}</button>
+        </div>`,
+      layout: `
+        <div class="vibe-design-row">
+          <div class="vibe-toggle-group">
+            <button class="vibe-toggle-btn ${curDisplay === 'block' ? 'active' : ''}" data-display="block" type="button">Block</button>
+            <button class="vibe-toggle-btn ${curDisplay === 'flex' ? 'active' : ''}" data-display="flex" type="button">Flex</button>
+          </div>
+          <div class="vibe-flex-controls" ${isFlex ? '' : 'style="display:none"'}>
+            <div class="vibe-toggle-group">
+              <button class="vibe-toggle-btn ${curFlexDir === 'row' ? 'active' : ''}" data-dir="row" type="button" title="Row">${ICONS.flexRow}</button>
+              <button class="vibe-toggle-btn ${curFlexDir === 'column' ? 'active' : ''}" data-dir="column" type="button" title="Column">${ICONS.flexCol}</button>
+            </div>
+            <span class="vibe-design-icon" title="Gap">${ICONS.gapIcon}</span>
+            <div class="vibe-stepper vibe-stepper-sm">
+              <input class="vibe-stepper-input" data-prop="gap" type="number" min="0" max="999" value="${Math.round(curGap)}">
+              <span class="vibe-stepper-unit">px</span>
+            </div>
+          </div>
+        </div>`,
+      border: `
+        <div class="vibe-design-row">
+          <span class="vibe-design-icon" title="Border radius">${ICONS.borderR}</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="borderRadius" type="number" min="0" max="999" value="${Math.round(curBR)}">
+            <span class="vibe-stepper-unit">px</span>
+          </div>
+          <span class="vibe-design-icon" title="Border width">${ICONS.borderW}</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-input" data-prop="borderWidth" type="number" min="0" max="20" value="${Math.round(curBW)}">
+            <span class="vibe-stepper-unit">px</span>
+          </div>
+          <span class="vibe-design-icon" title="Border color">${ICONS.borderColor}</span>
+          <button class="vibe-color-swatch" data-color-prop="borderColor" type="button" style="background:${curBorderHex}"></button>
+          <input class="vibe-color-input" data-color-prop="borderColor" type="text" value="${curBorderHex}" placeholder="#000000">
+        </div>`,
+      colorRows: `
+        <div class="vibe-design-row vibe-color-row">
+          <span class="vibe-design-icon" title="Background">${ICONS.bgColor}</span>
+          <button class="vibe-color-swatch" data-color-prop="backgroundColor" type="button" style="background:${curBgHex}"></button>
+          <input class="vibe-color-input" data-color-prop="backgroundColor" type="text" value="${curBgHex}" placeholder="#000000">
+        </div>`
+    };
   }
 
   function wireContainerToolbar(popover, targetElement, pc, s, resetBtn) {
@@ -978,6 +1171,13 @@ var VibeAnnotationPopover = (() => {
     // Revert design changes on cancel (not on save)
     if (hadPopover && !saved && activeElement) {
       for (const prop of ALL_DESIGN_PROPS) activeElement.style[prop] = '';
+      // Also clear any extra raw CSS props not in ALL_DESIGN_PROPS
+      if (activeRawCssOriginals) {
+        for (const [kebab] of activeRawCssOriginals) {
+          const camel = kebabToCamel(kebab);
+          if (!ALL_DESIGN_PROPS.includes(camel)) activeElement.style[camel] = '';
+        }
+      }
       // Re-apply existing pending_changes if editing an annotation that had them
       const apc = activeExistingAnnotation?.pending_changes;
       if (apc) {
@@ -994,32 +1194,39 @@ var VibeAnnotationPopover = (() => {
     activeElement = null;
     activeExistingAnnotation = null;
     activeElType = null;
+    activeRawCssOriginals = null;
     if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }
 
-  // --- Element props HTML ---
+  // --- Drag handle ---
 
-  function buildElementPropsHTML(context) {
-    const lines = [];
-    const s = context.styles || {};
+  function wireDragHandle(handle, popover) {
+    if (!handle) return;
+    let startX, startY, startLeft, startTop;
 
-    if (s.display) lines.push(propLine('display', s.display));
-    if (s.position && s.position !== 'static') lines.push(propLine('position', s.position));
-    if (s.fontSize) lines.push(propLine('font-size', s.fontSize));
-    if (s.color) lines.push(propLine('color', s.color));
-    if (s.backgroundColor && s.backgroundColor !== 'rgba(0, 0, 0, 0)') lines.push(propLine('background', s.backgroundColor));
-    if (s.padding && s.padding !== '0px') lines.push(propLine('padding', s.padding));
-    if (s.margin && s.margin !== '0px') lines.push(propLine('margin', s.margin));
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      startX = e.clientX;
+      startY = e.clientY;
+      startLeft = parseFloat(popover.style.left) || 0;
+      startTop = parseFloat(popover.style.top) || 0;
+      handle.setPointerCapture(e.pointerId);
+      popover.classList.add('dragging');
 
-    const pos = context.position || {};
-    if (pos.width != null) lines.push(propLine('size', `${Math.round(pos.width)} \u00D7 ${Math.round(pos.height)}`));
-
-    return lines.join('\n') || '<span class="prop-name">no computed styles</span>';
-  }
-
-  function propLine(name, value) {
-    return `<span class="prop-name">${escapeHTML(name)}</span>: <span class="prop-val">${escapeHTML(value)}</span>`;
+      const onMove = (ev) => {
+        popover.style.left = `${startLeft + ev.clientX - startX}px`;
+        popover.style.top = `${startTop + ev.clientY - startY}px`;
+      };
+      const onUp = () => {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        popover.classList.remove('dragging');
+      };
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+    });
   }
 
   // --- Positioning ---
@@ -1157,6 +1364,12 @@ var VibeAnnotationPopover = (() => {
   }
 
   // --- Helpers ---
+
+  function getDeviceIcon(width) {
+    if (width <= 480) return ICONS.phone;
+    if (width <= 1024) return ICONS.tablet;
+    return ICONS.monitor;
+  }
 
   function normalizeTextAlign(val) {
     if (val === 'start') return 'left';
