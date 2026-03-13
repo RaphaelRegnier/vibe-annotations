@@ -53,10 +53,10 @@ class LocalAnnotationsServer {
   }
 
   setupExpress() {
-    this.app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:8080', 'http://127.0.0.1:3000'],
-      credentials: true
-    }));
+    // Allow all origins — this server only binds to 127.0.0.1 and serves
+    // localhost dev tools (Chrome extension, CLI-based MCP clients like Claude Code).
+    // MCP clients often send no Origin header at all, so a whitelist breaks them.
+    this.app.use(cors());
     this.app.use(express.json());
 
     // Health check with version info
@@ -300,19 +300,18 @@ class LocalAnnotationsServer {
       }
     });
 
-    // MCP HTTP endpoint - create fresh instances per request
-    this.app.use('/mcp', async (req, res) => {
+    // MCP HTTP endpoint - explicit method routes for cross-platform compatibility
+    // Using app.all instead of app.use to properly match the /mcp path as a route
+    // app.use() is middleware and can cause routing issues on Windows with certain Express versions
+    const handleMcpRequest = async (req, res) => {
       try {
-        // Create fresh server and transport for each request to avoid "already initialized" error
         const server = this.createMCPServer();
-        
+
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined, // Stateless mode
-          allowedOrigins: ['*'], // Allow all origins for MCP
           enableDnsRebindingProtection: false // Disable for localhost
         });
-        
-        // Connect server to transport and handle request
+
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
       } catch (error) {
@@ -321,7 +320,11 @@ class LocalAnnotationsServer {
           res.status(500).json({ error: 'MCP connection failed' });
         }
       }
-    });
+    };
+
+    this.app.post('/mcp', handleMcpRequest);
+    this.app.get('/mcp', handleMcpRequest);
+    this.app.delete('/mcp', handleMcpRequest);
   }
 
   setupMCP() {
