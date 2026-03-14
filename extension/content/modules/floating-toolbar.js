@@ -161,8 +161,11 @@ var VibeToolbar = (() => {
       const root = VibeShadowHost.getRoot();
       if (!root) return;
 
-      const confirmed = await showDeleteConfirm(root);
-      if (!confirmed) return;
+      const skip = await VibeAPI.getSkipDeleteConfirm();
+      if (!skip) {
+        const confirmed = await showDeleteConfirm(root);
+        if (!confirmed) return;
+      }
 
       const annotations = await VibeAPI.loadAnnotations();
       annotationCount = 0;
@@ -604,6 +607,10 @@ var VibeToolbar = (() => {
         <div class="vibe-confirm">
           <div class="vibe-confirm-title">Delete all annotations?</div>
           <div class="vibe-confirm-msg">All annotations on this page will be permanently deleted.</div>
+          <label class="vibe-confirm-skip" style="display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12px;color:var(--v-text-secondary,#6b7280);cursor:pointer;user-select:none;">
+            <input type="checkbox" class="vibe-confirm-skip-cb" style="margin:0;">
+            Don't ask again
+          </label>
           <div class="vibe-confirm-actions">
             <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
             <button class="vibe-btn vibe-btn-danger vibe-confirm-yes">Delete All</button>
@@ -613,7 +620,14 @@ var VibeToolbar = (() => {
       root.appendChild(backdrop);
 
       backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => { backdrop.remove(); resolve(false); });
-      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => { backdrop.remove(); resolve(true); });
+      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => {
+        const skipCb = backdrop.querySelector('.vibe-confirm-skip-cb');
+        if (skipCb && skipCb.checked) {
+          VibeAPI.saveSkipDeleteConfirm(true);
+        }
+        backdrop.remove();
+        resolve(true);
+      });
       backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
     });
   }

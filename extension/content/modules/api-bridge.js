@@ -217,6 +217,21 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
+  async function getSkipDeleteConfirm() {
+    try {
+      const r = await chrome.storage.local.get(['vibeSkipDeleteConfirm']);
+      return !!r.vibeSkipDeleteConfirm;
+    } catch {
+      return false;
+    }
+  }
+
+  async function saveSkipDeleteConfirm(skip) {
+    try {
+      await chrome.storage.local.set({ vibeSkipDeleteConfirm: skip });
+    } catch { /* ignore */ }
+  }
+
   return {
     checkServerStatus,
     clearStatusCache,
@@ -237,6 +252,8 @@ var VibeAPI = (() => {
     getBadgeColor,
     saveBadgeColor,
     getOverlayHidden,
-    saveOverlayHidden
+    saveOverlayHidden,
+    getSkipDeleteConfirm,
+    saveSkipDeleteConfirm
   };
 })();

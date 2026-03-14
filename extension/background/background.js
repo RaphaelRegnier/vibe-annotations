@@ -8,13 +8,16 @@ class VibeAnnotationsBackground {
   }
 
   init() {
-    
+
     // Set up event listeners
     this.setupInstallListener();
     this.setupMessageListener();
     this.setupTabListener();
     this.setupStorageListener();
-    
+
+    // Re-register content scripts for user-enabled sites
+    this.restoreEnabledSites();
+
     // Start API server connection monitoring
     this.startAPIConnectionMonitoring();
   }
@@ -124,6 +127,12 @@ class VibeAnnotationsBackground {
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
           
+        case 'enableSite':
+          this.enableSite(request.originPattern, request.tabId)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+
         case 'openPopupWithFocus':
           this.openPopupWithFocus(request.annotationId)
             .then(() => sendResponse({ success: true }))
@@ -149,7 +158,7 @@ class VibeAnnotationsBackground {
     chrome.tabs.onActivated.addListener(async (activeInfo) => {
       try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
-        if (this.isLocalhostUrl(tab.url)) {
+        if (await this.isSupportedUrl(tab.url)) {
           await this.updateBadge(tab.id, tab.url);
         } else {
           await this.clearBadge(tab.id);
@@ -158,11 +167,11 @@ class VibeAnnotationsBackground {
         console.error('Error updating badge on tab activation:', error);
       }
     });
-    
+
     // Update badge when URL changes
     chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       if (changeInfo.status === 'complete' && tab.url) {
-        if (this.isLocalhostUrl(tab.url)) {
+        if (await this.isSupportedUrl(tab.url)) {
           await this.updateBadge(tabId, tab.url);
         } else {
           await this.clearBadge(tabId);
@@ -185,13 +194,16 @@ class VibeAnnotationsBackground {
     try {
       
       const tabs = await chrome.tabs.query({});
-      const localhostTabs = tabs.filter(tab => this.isLocalhostUrl(tab.url));
-      
-      for (const tab of localhostTabs) {
+      const supportedTabs = [];
+      for (const tab of tabs) {
+        if (await this.isSupportedUrl(tab.url)) supportedTabs.push(tab);
+      }
+
+      for (const tab of supportedTabs) {
         // Use direct local storage update for immediate response
         await this.updateBadgeFromLocalStorage(tab.id, tab.url);
       }
-      
+
       // Sync annotations to API server (in background)
       this.syncAnnotationsToAPI(annotations).catch(error => {
         console.error('Background sync failed:', error);
@@ -570,10 +582,10 @@ class VibeAnnotationsBackground {
   async updateAllBadges() {
     try {
       const tabs = await chrome.tabs.query({});
-      const localhostTabs = tabs.filter(tab => this.isLocalhostUrl(tab.url));
-      
-      for (const tab of localhostTabs) {
-        await this.updateBadge(tab.id, tab.url);
+      for (const tab of tabs) {
+        if (await this.isSupportedUrl(tab.url)) {
+          await this.updateBadge(tab.id, tab.url);
+        }
       }
     } catch (error) {
       console.error('Error updating all badges:', error);
@@ -710,8 +722,10 @@ class VibeAnnotationsBackground {
         // Notify content scripts on localhost tabs to refresh
         try {
           const tabs = await chrome.tabs.query({});
-          for (const tab of tabs.filter(t => this.isLocalhostUrl(t.url))) {
-            chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+          for (const tab of tabs) {
+            if (await this.isSupportedUrl(tab.url)) {
+              chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+            }
           }
         } catch { /* ignore */ }
       } else {
@@ -726,37 +740,106 @@ class VibeAnnotationsBackground {
 
   isLocalhostUrl(url) {
     if (!url) return false;
-    
+
     try {
       const urlObj = new URL(url);
-      
+
       // Check localhost URLs
-      if (urlObj.hostname === 'localhost' || 
-          urlObj.hostname === '127.0.0.1' || 
+      if (urlObj.hostname === 'localhost' ||
+          urlObj.hostname === '127.0.0.1' ||
           urlObj.hostname === '0.0.0.0') {
         return true;
       }
-      
+
       // Check .local, .test, .localhost development domains
-      if (urlObj.hostname.endsWith('.local') || 
-          urlObj.hostname.endsWith('.test') || 
+      if (urlObj.hostname.endsWith('.local') ||
+          urlObj.hostname.endsWith('.test') ||
           urlObj.hostname.endsWith('.localhost')) {
         return true;
       }
-      
+
       // Check file URLs - only allow HTML files
       if (urlObj.protocol === 'file:') {
         const path = urlObj.pathname.toLowerCase();
         const htmlExtensions = ['.html', '.htm'];
-        
+
         // Allow .html/.htm files or files with no extension
-        return htmlExtensions.some(ext => path.endsWith(ext)) || 
+        return htmlExtensions.some(ext => path.endsWith(ext)) ||
                (!path.includes('.') || path.endsWith('/'));
       }
-      
+
       return false;
     } catch {
       return false;
+    }
+  }
+
+  async isEnabledSite(url) {
+    if (!url) return false;
+    try {
+      const origin = new URL(url).origin + '/*';
+      const result = await chrome.storage.local.get(['vibeEnabledSites']);
+      const sites = result.vibeEnabledSites || [];
+      return sites.includes(origin);
+    } catch {
+      return false;
+    }
+  }
+
+  async isSupportedUrl(url) {
+    return this.isLocalhostUrl(url) || await this.isEnabledSite(url);
+  }
+
+  async restoreEnabledSites() {
+    try {
+      const result = await chrome.storage.local.get(['vibeEnabledSites']);
+      const sites = result.vibeEnabledSites || [];
+      for (const originPattern of sites) {
+        // Only register if permission is still granted
+        const has = await chrome.permissions.contains({ origins: [originPattern] });
+        if (has) {
+          await this.enableSite(originPattern, null);
+        }
+      }
+    } catch (err) {
+      console.error('Error restoring enabled sites:', err);
+    }
+  }
+
+  async enableSite(originPattern, tabId) {
+    // Register dynamic content scripts for this origin
+    const scriptId = 'vibe-' + originPattern.replace(/[^a-zA-Z0-9]/g, '_');
+
+    try {
+      // Unregister first in case it already exists
+      await chrome.scripting.unregisterContentScripts({ ids: [scriptId] }).catch(() => {});
+
+      await chrome.scripting.registerContentScripts([{
+        id: scriptId,
+        matches: [originPattern],
+        js: [
+          'content/modules/event-bus.js',
+          'content/modules/styles.js',
+          'content/modules/shadow-host.js',
+          'content/modules/theme-manager.js',
+          'content/modules/api-bridge.js',
+          'content/modules/element-context.js',
+          'content/modules/badge-manager.js',
+          'content/modules/inspection-mode.js',
+          'content/modules/annotation-popover.js',
+          'content/modules/floating-toolbar.js',
+          'content/content.js'
+        ],
+        runAt: 'document_idle',
+        persistAcrossSessions: true
+      }]);
+    } catch (err) {
+      console.error('Failed to register content scripts:', err);
+    }
+
+    // Reload the tab so scripts inject cleanly
+    if (tabId) {
+      await chrome.tabs.reload(tabId);
     }
   }
 
@@ -856,37 +939,11 @@ const bg = new VibeAnnotationsBackground();
 
 // Keyboard shortcut commands (chrome.commands)
 chrome.commands.onCommand.addListener(async (command, tab) => {
-  if (command === 'toggle-annotate' && tab?.id && bg.isLocalhostUrl(tab.url)) {
+  if (command === 'toggle-annotate' && tab?.id && await bg.isSupportedUrl(tab.url)) {
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' });
     } catch { /* Content script not loaded */ }
   }
 });
 
-// Extension icon click — toggle the overlay on the active tab
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return;
-
-  // Check for pending update notification — open release notes
-  const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
-  if (updateInfo?.hasUpdate) {
-    const url = updateInfo.releaseUrl || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
-    chrome.tabs.create({ url });
-    await chrome.storage.local.set({ updateInfo: { ...updateInfo, hasUpdate: false } });
-    chrome.action.setBadgeText({ text: '' });
-    return;
-  }
-
-  if (!bg.isLocalhostUrl(tab.url)) {
-    // Flash badge to indicate extension doesn't work on this page
-    chrome.action.setBadgeBackgroundColor({ color: '#d97757', tabId: tab.id });
-    chrome.action.setBadgeText({ text: '!', tabId: tab.id });
-    setTimeout(() => chrome.action.setBadgeText({ text: '', tabId: tab.id }), 2000);
-    return;
-  }
-  try {
-    await chrome.tabs.sendMessage(tab.id, { action: 'toggleOverlay' });
-  } catch {
-    // Content script not loaded on this page — ignore
-  }
-});
+// No onClicked handler — popup.html handles all interaction

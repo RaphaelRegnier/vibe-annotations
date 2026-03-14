@@ -8,6 +8,7 @@ var VibeBadgeManager = (() => {
   let provisionalBadge = null;
   let domObserver = null;
   let rematchDebounceTimer = null;
+  let lastTotal = 0; // total annotations (including unanchored)
 
   function init() {
     VibeEvents.on('annotations:render', render);
@@ -55,7 +56,7 @@ var VibeBadgeManager = (() => {
 
     const badge = document.createElement('div');
     badge.className = 'vibe-badge';
-    badge.textContent = (badges.length + 1).toString();
+    badge.textContent = (lastTotal + 1).toString();
     badge.style.top = `${clientY - 11}px`;
     badge.style.left = `${clientX}px`;
     root.appendChild(badge);
@@ -82,6 +83,7 @@ var VibeBadgeManager = (() => {
       if (target) addBadge(target, annotation, i + 1);
     });
 
+    lastTotal = annotations.length;
     VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length });
   }
 
@@ -100,15 +102,15 @@ var VibeBadgeManager = (() => {
     tooltip.textContent = annotation.comment;
     badge.appendChild(tooltip);
 
-    // Click → edit
-    badge.addEventListener('click', (e) => {
-      e.stopPropagation();
-      VibeEvents.emit('annotation:edit', { annotation, element: targetElement });
-    });
-
     root.appendChild(badge);
 
     const entry = { el: badge, annotation, targetElement };
+
+    // Click → edit (read from entry so we get the latest annotation after updates)
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      VibeEvents.emit('annotation:edit', { annotation: entry.annotation, element: entry.targetElement });
+    });
     badges.push(entry);
 
     // Position immediately

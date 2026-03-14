@@ -96,7 +96,11 @@ console.log('[Vibe] content.js loaded');
 
         case 'toggleOverlay':
           VibeShadowHost.toggle();
-          sendResponse({ success: true });
+          sendResponse({ success: true, visible: VibeShadowHost.isVisible() });
+          break;
+
+        case 'getOverlayState':
+          sendResponse({ success: true, visible: VibeShadowHost.isVisible() });
           break;
 
         case 'toggleAnnotate':
@@ -149,28 +153,22 @@ console.log('[Vibe] content.js loaded');
     // Back/forward navigation
     window.addEventListener('popstate', onRouteChange);
 
-    // Intercept programmatic navigation (router.push, <Link>, etc.)
-    const originalPushState = history.pushState.bind(history);
-    const originalReplaceState = history.replaceState.bind(history);
-    history.pushState = function (...args) {
-      const result = originalPushState(...args);
-      onRouteChange();
-      return result;
-    };
-    history.replaceState = function (...args) {
-      const result = originalReplaceState(...args);
-      onRouteChange();
-      return result;
-    };
-
-    // Fallback: hashchange for hash-based routers
+    // Hash-based routers
     window.addEventListener('hashchange', onRouteChange);
+
+    // Poll for URL changes caused by pushState/replaceState.
+    // Content scripts run in an isolated world so we can't monkey-patch
+    // the page's history object, and inline script injection gets blocked
+    // by CSP on many sites. Polling is reliable regardless of CSP or framework.
+    setInterval(onRouteChange, 300);
   }
 
   async function reloadAnnotationsForCurrentRoute() {
     annotations = await VibeAPI.loadAnnotations();
     badgesShown = false;
     VibeBadgeManager.clearAll();
+    // Immediately update toolbar count so it doesn't show stale numbers
+    VibeEvents.emit('badges:rendered', { count: 0, total: annotations.length });
 
     // Wait briefly for new route's DOM to render, then show badges
     waitForDOMStability(() => {
@@ -323,9 +321,13 @@ console.log('[Vibe] content.js loaded');
   }
 
   // --- Boot ---
+  function safeBoot() {
+    init().catch(err => console.error('[Vibe] Init failed:', err));
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', safeBoot);
   } else {
-    init();
+    safeBoot();
   }
 })();

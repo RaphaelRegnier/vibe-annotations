@@ -84,7 +84,7 @@ var VibeAnnotationPopover = (() => {
       ${warningHTML}
       <div class="vibe-popover-body">
         <div class="vibe-input-wrap">
-          <textarea class="vibe-textarea" placeholder="What should change?" maxlength="1000">${isEdit ? escapeHTML(existingAnnotation.comment) : ''}</textarea>
+          <textarea class="vibe-textarea" placeholder="Describe changes (optional — leave empty to use as anchor point)" maxlength="1000">${isEdit ? escapeHTML(existingAnnotation.comment) : ''}</textarea>
           <span class="vibe-kbd-hint">${kbdHint} to save</span>
         </div>
       </div>
@@ -121,9 +121,9 @@ var VibeAnnotationPopover = (() => {
     const updateSave = () => {
       const text = textarea.value.trim();
       if (isEdit) {
-        saveBtn.disabled = !text || text === existingAnnotation.comment || (isOffline && !isFile);
+        saveBtn.disabled = text === existingAnnotation.comment || (isOffline && !isFile);
       } else {
-        saveBtn.disabled = !text || (isOffline && !isFile);
+        saveBtn.disabled = (isOffline && !isFile);
       }
       if (isOffline && !isFile) {
         saveBtn.textContent = 'Offline';
@@ -175,6 +175,13 @@ var VibeAnnotationPopover = (() => {
     // Delete
     if (deleteBtn && isEdit) {
       deleteBtn.addEventListener('click', async () => {
+        const skip = await VibeAPI.getSkipDeleteConfirm();
+        if (skip) {
+          await VibeAPI.deleteAnnotation(existingAnnotation.id);
+          VibeEvents.emit('annotation:deleted', { id: existingAnnotation.id });
+          dismiss(true);
+          return;
+        }
         const confirmed = await showConfirm(root, 'Delete annotation?', 'This cannot be undone.');
         if (confirmed) {
           await VibeAPI.deleteAnnotation(existingAnnotation.id);
@@ -187,7 +194,6 @@ var VibeAnnotationPopover = (() => {
     // Save
     saveBtn.addEventListener('click', async () => {
       const comment = textarea.value.trim();
-      if (!comment) return;
 
       if (isEdit) {
         const updates = { comment, updated_at: new Date().toISOString() };
@@ -300,6 +306,10 @@ var VibeAnnotationPopover = (() => {
         <div class="vibe-confirm">
           <div class="vibe-confirm-title">${escapeHTML(title)}</div>
           <div class="vibe-confirm-msg">${escapeHTML(message)}</div>
+          <label class="vibe-confirm-skip" style="display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12px;color:var(--v-text-secondary,#6b7280);cursor:pointer;user-select:none;">
+            <input type="checkbox" class="vibe-confirm-skip-cb" style="margin:0;">
+            Don't ask again
+          </label>
           <div class="vibe-confirm-actions">
             <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
             <button class="vibe-btn vibe-btn-danger vibe-confirm-yes">Delete</button>
@@ -313,6 +323,10 @@ var VibeAnnotationPopover = (() => {
         resolve(false);
       });
       backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => {
+        const skipCb = backdrop.querySelector('.vibe-confirm-skip-cb');
+        if (skipCb && skipCb.checked) {
+          VibeAPI.saveSkipDeleteConfirm(true);
+        }
         backdrop.remove();
         resolve(true);
       });
