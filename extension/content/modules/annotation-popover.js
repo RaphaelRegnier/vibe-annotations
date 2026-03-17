@@ -12,6 +12,7 @@ var VibeAnnotationPopover = (() => {
   let activeExistingAnnotation = null;
   let activeElType = null;
   let activeRawCssOriginals = null; // Map of kebab-prop → original value, for dismiss cleanup
+  let activeOriginalText = null; // Original textContent for revert on cancel
 
   // All design properties — used for dismiss/revert
   const ALL_DESIGN_PROPS = [
@@ -33,10 +34,36 @@ var VibeAnnotationPopover = (() => {
   ]);
   const BOTH_ELEMENTS = new Set(['button']);
 
-  function classifyElement(tag) {
+  const BLOCK_DISPLAYS = new Set([
+    'block','flex','inline-flex','grid','inline-grid','table','list-item'
+  ]);
+
+  function classifyElement(el) {
+    const tag = typeof el === 'string' ? el : el.tagName.toLowerCase();
     if (BOTH_ELEMENTS.has(tag)) return 'both';
     if (TEXT_ELEMENTS.has(tag)) return 'text';
+    // For non-semantic containers (div, section, etc.), check if content is text-like:
+    // has meaningful text and no block-level children
+    if (typeof el !== 'string' && isTextLike(el)) return 'text';
     return 'container';
+  }
+
+  function isTextLike(el) {
+    // Must have direct text node children with non-whitespace content
+    let hasDirectText = false;
+    for (const node of el.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+        hasDirectText = true;
+        break;
+      }
+    }
+    if (!hasDirectText) return false;
+    // No block-level children
+    for (const child of el.children) {
+      const d = getComputedStyle(child).display;
+      if (BLOCK_DISPLAYS.has(d)) return false;
+    }
+    return true;
   }
 
   const ICONS = {
@@ -69,6 +96,7 @@ var VibeAnnotationPopover = (() => {
     gapH: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="21"/><line x1="12" y1="6" x2="12" y2="18"/><line x1="17" y1="3" x2="17" y2="21"/></svg>',
     borderW: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/></svg>',
     borderR: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9V5a2 2 0 0 1 2-2h4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/></svg>',
+    textContent: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6.1H3"/><path d="M21 12.1H3"/><path d="M15.1 18H3"/></svg>',
     droplet: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
     // Device icons for viewport indicator
     phone: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
@@ -108,6 +136,7 @@ var VibeAnnotationPopover = (() => {
 
   function getTabsForType(elType) {
     if (elType === 'text') return [
+      { key: 'content', label: 'Content' },
       { key: 'font', label: 'Font' },
       { key: 'sizing', label: 'Sizing' },
       { key: 'spacing', label: 'Spacing' },
@@ -122,6 +151,7 @@ var VibeAnnotationPopover = (() => {
     ];
     // 'both' (button)
     return [
+      { key: 'content', label: 'Content' },
       { key: 'font', label: 'Font' },
       { key: 'sizing', label: 'Sizing' },
       { key: 'spacing', label: 'Spacing' },
@@ -212,7 +242,7 @@ var VibeAnnotationPopover = (() => {
     const apiStatus = await VibeAPI.checkServerStatus();
     const isOffline = !apiStatus.connected;
     const isFile = VibeAPI.isFileProtocol();
-    const elType = classifyElement(context.tag);
+    const elType = classifyElement(targetElement);
 
     // Target highlight
     currentTargetHighlight = document.createElement('div');
@@ -242,12 +272,14 @@ var VibeAnnotationPopover = (() => {
     const s = context.styles;
 
     // Build panel HTML based on element type
-    const textParts = (elType === 'text' || elType === 'both') ? buildTextToolbarHTML(pc, s) : null;
+    const hasText = elType === 'text' || elType === 'both';
+    const textParts = hasText ? buildTextToolbarHTML(pc, s) : null;
     const containerParts = (elType === 'container' || elType === 'both') ? buildContainerToolbarHTML(pc, s) : null;
     const sizingParts = buildSizingToolbarHTML(pc, s);
 
     // Assemble panel content
     const panelContent = {};
+    if (hasText) panelContent.content = buildContentToolbarHTML(targetElement, pc);
     if (textParts) panelContent.font = textParts.font;
     panelContent.sizing = sizingParts.sizing;
     panelContent.spacing = sizingParts.spacing;
@@ -389,6 +421,9 @@ var VibeAnnotationPopover = (() => {
 
     // Wire type-specific toolbar and get buildPendingChanges function
     const bpcFns = [];
+    if (hasText) {
+      bpcFns.push(wireContentToolbar(popover, targetElement, pc, resetBtn));
+    }
     if (elType === 'text' || elType === 'both') {
       bpcFns.push(wireTextToolbar(popover, targetElement, pc, s, resetBtn));
     }
@@ -451,6 +486,7 @@ var VibeAnnotationPopover = (() => {
       for (const prop of ALL_DESIGN_PROPS) {
         if (pc[prop]) targetElement.style[prop] = pc[prop].value;
       }
+      if (pc.copyChange) targetElement.textContent = pc.copyChange.value;
     }
     updateResetVisibility();
 
@@ -521,13 +557,15 @@ var VibeAnnotationPopover = (() => {
     };
     document.addEventListener('keydown', escHandler);
 
-    // Delete
+    // Delete — always revert changes (dismiss with saved=false)
+    // Clear activeExistingAnnotation so dismiss doesn't re-apply old pending_changes
     if (deleteBtn && isEdit) {
       deleteBtn.addEventListener('click', async () => {
         const skip = await VibeAPI.getSkipDeleteConfirm();
         if (skip) {
           await VibeAPI.deleteAnnotation(existingAnnotation.id);
           VibeEvents.emit('annotation:deleted', { id: existingAnnotation.id });
+          activeExistingAnnotation = null;
           dismiss(true);
           return;
         }
@@ -535,7 +573,8 @@ var VibeAnnotationPopover = (() => {
         if (confirmed) {
           await VibeAPI.deleteAnnotation(existingAnnotation.id);
           VibeEvents.emit('annotation:deleted', { id: existingAnnotation.id, annotation: existingAnnotation });
-          dismiss(true, true);
+          activeExistingAnnotation = null;
+          dismiss(true);
         }
       });
     }
@@ -561,6 +600,59 @@ var VibeAnnotationPopover = (() => {
 
       dismiss(true, true);
     });
+  }
+
+  // --- Content (text edit) toolbar HTML + wiring ---
+
+  function buildContentToolbarHTML(targetElement, pc) {
+    const currentText = pc?.copyChange ? pc.copyChange.value : targetElement.textContent;
+    return `
+      <div class="vibe-design-row vibe-content-row">
+        <span class="vibe-design-icon vibe-content-icon" title="Text content">${ICONS.textContent}</span>
+        <textarea class="vibe-content-input" rows="1" spellcheck="false">${escapeHTML(currentText)}</textarea>
+      </div>`;
+  }
+
+  function autoResizeContentInput(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  function wireContentToolbar(popover, targetElement, pc, resetBtn) {
+    const origText = pc?.copyChange ? pc.copyChange.original : targetElement.textContent;
+    activeOriginalText = origText;
+    const input = popover.querySelector('.vibe-content-input');
+    if (!input) return () => null;
+
+    // Initial auto-size
+    requestAnimationFrame(() => autoResizeContentInput(input));
+
+    // Focus + select all on first click
+    input.addEventListener('focus', () => input.select());
+
+    // Live-apply on input + auto-resize
+    input.addEventListener('input', () => {
+      targetElement.textContent = input.value;
+      autoResizeContentInput(input);
+      popover._updateResetVisibility?.();
+      popover._updateSave?.();
+    });
+
+    // Reset handler
+    resetBtn.addEventListener('click', () => {
+      input.value = origText;
+      targetElement.textContent = origText;
+      autoResizeContentInput(input);
+    });
+
+    // Return buildPendingChanges for copy
+    return function buildPendingChanges() {
+      const cur = input.value;
+      if (cur !== origText) {
+        return { copyChange: { original: origText, value: cur } };
+      }
+      return null;
+    };
   }
 
   // --- Text toolbar HTML + wiring ---
@@ -1784,12 +1876,18 @@ var VibeAnnotationPopover = (() => {
           if (!ALL_DESIGN_PROPS.includes(camel)) activeElement.style[camel] = '';
         }
       }
+      // Revert text content change
+      if (activeOriginalText !== null) {
+        activeElement.textContent = activeOriginalText;
+      }
       // Re-apply existing pending_changes if editing an annotation that had them
       const apc = activeExistingAnnotation?.pending_changes;
       if (apc) {
         for (const prop of ALL_DESIGN_PROPS) {
           if (apc[prop]) activeElement.style[prop] = apc[prop].value;
         }
+        // Re-apply copy change
+        if (apc.copyChange) activeElement.textContent = apc.copyChange.value;
       }
     }
 
@@ -1801,6 +1899,7 @@ var VibeAnnotationPopover = (() => {
     activeExistingAnnotation = null;
     activeElType = null;
     activeRawCssOriginals = null;
+    activeOriginalText = null;
     if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }
