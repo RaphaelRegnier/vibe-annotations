@@ -6,10 +6,21 @@ var VibeBadgeManager = (() => {
   const DESIGN_PROPS = [
     'fontSize','fontWeight','lineHeight','textAlign',
     'paddingTop','paddingRight','paddingBottom','paddingLeft',
-    'display','flexDirection','gap',
+    'marginTop','marginRight','marginBottom','marginLeft',
+    'display','flexDirection','flexWrap','gap','columnGap','rowGap',
+    'justifyContent','alignItems','gridTemplateColumns','gridTemplateRows',
     'borderWidth','borderRadius','borderStyle',
-    'color','backgroundColor','borderColor'
+    'color','backgroundColor','borderColor',
+    'width','minWidth','maxWidth','height','minHeight','maxHeight'
   ];
+
+  // Get all style props to clear/apply from pending_changes + DESIGN_PROPS
+  function getStyleProps(pc) {
+    if (!pc) return DESIGN_PROPS;
+    const keys = new Set(DESIGN_PROPS);
+    for (const k of Object.keys(pc)) keys.add(k);
+    return keys;
+  }
 
   let badges = []; // { el, annotation, targetElement }
   let rafId = null;
@@ -92,7 +103,7 @@ var VibeBadgeManager = (() => {
         // Rehydrate pending design changes
         const rpc = annotation.pending_changes;
         if (rpc) {
-          for (const prop of DESIGN_PROPS) {
+          for (const prop of getStyleProps(rpc)) {
             if (rpc[prop]) target.style[prop] = rpc[prop].value;
           }
         }
@@ -175,6 +186,7 @@ var VibeBadgeManager = (() => {
       entry.el.remove();
     }
     badges = [];
+    lastTotal = 0;
     stopRAF();
     clearTimeout(rematchDebounceTimer);
 
@@ -184,7 +196,7 @@ var VibeBadgeManager = (() => {
         if (!a.pending_changes) continue;
         const el = VibeElementContext.findElementBySelector(a);
         if (el && !clearedEls.has(el)) {
-          for (const prop of DESIGN_PROPS) el.style[prop] = '';
+          for (const prop of getStyleProps(a.pending_changes)) el.style[prop] = '';
         }
       }
     }
@@ -194,14 +206,14 @@ var VibeBadgeManager = (() => {
     const idx = badges.findIndex(b => b.annotation.id === id);
     if (idx !== -1) {
       const entry = badges[idx];
-      for (const prop of DESIGN_PROPS) entry.targetElement.style[prop] = '';
+      for (const prop of getStyleProps(entry.annotation.pending_changes)) entry.targetElement.style[prop] = '';
       entry.el.remove();
       badges.splice(idx, 1);
     } else if (annotation?.pending_changes) {
       // Badge was lost but element may still have inline styles — retry selector
       const el = VibeElementContext.findElementBySelector(annotation);
       if (el) {
-        for (const prop of DESIGN_PROPS) el.style[prop] = '';
+        for (const prop of getStyleProps(annotation.pending_changes)) el.style[prop] = '';
       }
     }
     if (!badges.length) stopRAF();
@@ -217,10 +229,11 @@ var VibeBadgeManager = (() => {
     if (entry) {
       const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
       if (tooltip) tooltip.textContent = comment;
+      const oldPC = entry.annotation.pending_changes;
       entry.annotation = { ...entry.annotation, comment, pending_changes };
-      for (const prop of DESIGN_PROPS) entry.targetElement.style[prop] = '';
+      for (const prop of getStyleProps(oldPC)) entry.targetElement.style[prop] = '';
       if (pending_changes) {
-        for (const prop of DESIGN_PROPS) {
+        for (const prop of getStyleProps(pending_changes)) {
           if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
         }
       }

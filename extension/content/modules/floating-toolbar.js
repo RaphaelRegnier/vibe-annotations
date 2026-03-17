@@ -5,6 +5,7 @@
 var VibeToolbar = (() => {
   let toolbarEl = null;
   let settingsDropdown = null;
+  let activeRecordingCleanup = null;
   let isAnnotating = false;
   let isCollapsed = false;
   let serverOnline = false;
@@ -16,7 +17,9 @@ var VibeToolbar = (() => {
   const BADGE_COLORS = ['#4b5563', '#d97757', '#3b82f6', '#22c55e', '#a855f7'];
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  const shortcutHint = isMac ? '\u2318\u21E7V' : 'Ctrl+Shift+V';
+  const defaultShortcutHint = isMac ? '\u2318\u21E7,' : 'Ctrl+Shift+,';
+  let shortcutHint = defaultShortcutHint;
+  let customShortcut = null;
 
   const ICONS = {
     annotate: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
@@ -36,6 +39,7 @@ var VibeToolbar = (() => {
     github: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>',
     server: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
     camera: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    keyboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10"/></svg>',
     newspaper: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>',
     palette: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.5-.7 1.5-1.5 0-.4-.1-.7-.4-1-.3-.3-.4-.7-.4-1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-5.5-4.5-10-10-10z"/></svg>',
     rocket: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
@@ -57,6 +61,8 @@ var VibeToolbar = (() => {
     screenshotEnabled = await VibeAPI.getScreenshotEnabled();
     badgeColor = await VibeAPI.getBadgeColor();
     applyBadgeColor(badgeColor);
+    customShortcut = await VibeAPI.getCustomShortcut();
+    if (customShortcut) shortcutHint = formatShortcut(customShortcut);
     await refreshServerStatus();
 
     buildToolbar(root);
@@ -267,6 +273,13 @@ var VibeToolbar = (() => {
           </div>
           <button class="vibe-toggle vibe-screenshot-toggle ${screenshotEnabled ? 'on' : ''}" type="button"></button>
         </div>
+        <div class="vibe-settings-item">
+          <div class="vibe-settings-item-left">
+            ${ICONS.keyboard}
+            <span>Shortcut</span>
+          </div>
+          <button class="vibe-shortcut-btn" type="button">${escapeHTML(shortcutHint)}</button>
+        </div>
         <div class="vibe-settings-separator"></div>
         <button class="vibe-settings-link vibe-close-overlay" type="button">
           ${ICONS.eyeOff}
@@ -303,6 +316,49 @@ var VibeToolbar = (() => {
       screenshotEnabled = !screenshotEnabled;
       e.currentTarget.classList.toggle('on', screenshotEnabled);
       await VibeAPI.saveScreenshotEnabled(screenshotEnabled);
+    });
+
+    // Shortcut key recorder
+    const shortcutBtn = settingsDropdown.querySelector('.vibe-shortcut-btn');
+    let recording = false;
+    shortcutBtn.addEventListener('click', () => {
+      if (recording) {
+        // Cancel recording
+        recording = false;
+        shortcutBtn.textContent = shortcutHint;
+        shortcutBtn.classList.remove('recording');
+        return;
+      }
+      recording = true;
+      shortcutBtn.textContent = 'Press keys\u2026';
+      shortcutBtn.classList.add('recording');
+
+      function onKey(e) {
+        // Ignore lone modifier keys
+        if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const sc = {
+          key: e.key,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey
+        };
+
+        customShortcut = sc;
+        shortcutHint = formatShortcut(sc);
+        shortcutBtn.textContent = shortcutHint;
+        shortcutBtn.classList.remove('recording');
+        recording = false;
+        document.removeEventListener('keydown', onKey, true);
+        activeRecordingCleanup = null;
+        VibeAPI.saveCustomShortcut(sc);
+      }
+
+      document.addEventListener('keydown', onKey, true);
+      activeRecordingCleanup = () => document.removeEventListener('keydown', onKey, true);
     });
 
     // Badge color picker
@@ -453,6 +509,7 @@ var VibeToolbar = (() => {
   }
 
   function closeSettings() {
+    if (activeRecordingCleanup) { activeRecordingCleanup(); activeRecordingCleanup = null; }
     if (settingsDropdown) {
       settingsDropdown.remove();
       settingsDropdown = null;
@@ -640,6 +697,19 @@ var VibeToolbar = (() => {
 
   function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+  function formatShortcut(sc) {
+    const parts = [];
+    if (sc.ctrlKey) parts.push(isMac ? '\u2303' : 'Ctrl');
+    if (sc.metaKey) parts.push(isMac ? '\u2318' : 'Win');
+    if (sc.altKey) parts.push(isMac ? '\u2325' : 'Alt');
+    if (sc.shiftKey) parts.push(isMac ? '\u21E7' : 'Shift');
+    // Friendly key name
+    const keyMap = { ',': ',', '.': '.', '/': '/', ' ': 'Space', ArrowUp: '\u2191', ArrowDown: '\u2193', ArrowLeft: '\u2190', ArrowRight: '\u2192' };
+    const keyLabel = keyMap[sc.key] || (sc.key.length === 1 ? sc.key.toUpperCase() : sc.key);
+    parts.push(keyLabel);
+    return isMac ? parts.join('') : parts.join('+');
+  }
+
   // --- Clipboard format ---
 
   const TRIVIAL_STYLES = {
@@ -708,20 +778,34 @@ var VibeToolbar = (() => {
         if (pc.lineHeight) changes.push(`line-height: ${pc.lineHeight.original} \u2192 ${pc.lineHeight.value}`);
         if (pc.textAlign) changes.push(`text-align: ${pc.textAlign.original} \u2192 ${pc.textAlign.value}`);
         // Container props
-        ['paddingTop','paddingRight','paddingBottom','paddingLeft'].filter(p => pc[p]).forEach(p => {
+        ['paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft'].filter(p => pc[p]).forEach(p => {
           changes.push(`${camelToKebab(p)}: ${pc[p].original} \u2192 ${pc[p].value}`);
         });
         if (pc.display) changes.push(`display: ${pc.display.original} \u2192 ${pc.display.value}`);
         if (pc.flexDirection) changes.push(`flex-direction: ${pc.flexDirection.original} \u2192 ${pc.flexDirection.value}`);
+        if (pc.flexWrap) changes.push(`flex-wrap: ${pc.flexWrap.original} \u2192 ${pc.flexWrap.value}`);
+        if (pc.justifyContent) changes.push(`justify-content: ${pc.justifyContent.original} \u2192 ${pc.justifyContent.value}`);
+        if (pc.alignItems) changes.push(`align-items: ${pc.alignItems.original} \u2192 ${pc.alignItems.value}`);
+        if (pc.gridTemplateColumns) changes.push(`grid-template-columns: ${pc.gridTemplateColumns.original} \u2192 ${pc.gridTemplateColumns.value}`);
+        if (pc.gridTemplateRows) changes.push(`grid-template-rows: ${pc.gridTemplateRows.original} \u2192 ${pc.gridTemplateRows.value}`);
         if (pc.gap) changes.push(`gap: ${pc.gap.original} \u2192 ${pc.gap.value}`);
+        if (pc.columnGap) changes.push(`column-gap: ${pc.columnGap.original} \u2192 ${pc.columnGap.value}`);
+        if (pc.rowGap) changes.push(`row-gap: ${pc.rowGap.original} \u2192 ${pc.rowGap.value}`);
         if (pc.borderWidth) changes.push(`border-width: ${pc.borderWidth.original} \u2192 ${pc.borderWidth.value}`);
         if (pc.borderRadius) changes.push(`border-radius: ${pc.borderRadius.original} \u2192 ${pc.borderRadius.value}`);
         // Colors — include variable name if present
         if (pc.color) changes.push(`color: ${pc.color.original} \u2192 ${pc.color.variable ? `var(${pc.color.variable})` : pc.color.value}`);
         if (pc.backgroundColor) changes.push(`background-color: ${pc.backgroundColor.original} \u2192 ${pc.backgroundColor.variable ? `var(${pc.backgroundColor.variable})` : pc.backgroundColor.value}`);
         if (pc.borderColor) changes.push(`border-color: ${pc.borderColor.original} \u2192 ${pc.borderColor.variable ? `var(${pc.borderColor.variable})` : pc.borderColor.value}`);
+        // Sizing
+        if (pc.width) changes.push(`width: ${pc.width.original} \u2192 ${pc.width.value}`);
+        if (pc.minWidth) changes.push(`min-width: ${pc.minWidth.original} \u2192 ${pc.minWidth.value}`);
+        if (pc.maxWidth) changes.push(`max-width: ${pc.maxWidth.original} \u2192 ${pc.maxWidth.value}`);
+        if (pc.height) changes.push(`height: ${pc.height.original} \u2192 ${pc.height.value}`);
+        if (pc.minHeight) changes.push(`min-height: ${pc.minHeight.original} \u2192 ${pc.minHeight.value}`);
+        if (pc.maxHeight) changes.push(`max-height: ${pc.maxHeight.original} \u2192 ${pc.maxHeight.value}`);
         // Catch extra raw CSS changes not covered above
-        const standardProps = new Set(['fontSize','fontWeight','lineHeight','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft','display','flexDirection','gap','borderWidth','borderRadius','borderStyle','color','backgroundColor','borderColor']);
+        const standardProps = new Set(['fontSize','fontWeight','lineHeight','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','display','flexDirection','flexWrap','justifyContent','alignItems','gridTemplateColumns','gridTemplateRows','gap','columnGap','rowGap','borderWidth','borderRadius','borderStyle','color','backgroundColor','borderColor','width','minWidth','maxWidth','height','minHeight','maxHeight']);
         for (const [prop, change] of Object.entries(pc)) {
           if (!standardProps.has(prop) && change.original && change.value) {
             changes.push(`${camelToKebab(prop)}: ${change.original} \u2192 ${change.value}`);

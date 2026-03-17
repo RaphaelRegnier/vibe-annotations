@@ -62,12 +62,8 @@ console.log('[Vibe] content.js loaded');
     // 7b. Set up SPA route change detection
     setupRouteChangeDetection();
 
-    // 8. Set up ESC key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
-        VibeEvents.emit('inspection:stop');
-      }
-    });
+    // 8. Set up keyboard shortcuts
+    setupKeyboardShortcuts();
 
     // 9. Wire up annotation lifecycle events
     setupAnnotationEvents();
@@ -187,6 +183,47 @@ console.log('[Vibe] content.js loaded');
       annotations = (allAnnotations || []).filter(a => a.url === window.location.href);
       VibeEvents.emit('annotations:render', annotations);
     });
+  }
+
+  // --- Keyboard shortcuts ---
+  function setupKeyboardShortcuts() {
+    let customShortcut = null;
+
+    // Load custom shortcut from storage
+    VibeAPI.getCustomShortcut().then(s => { customShortcut = s; });
+
+    // Listen for storage changes to update live
+    chrome.storage.onChanged.addListener((changes, ns) => {
+      if (ns === 'local' && changes.vibeCustomShortcut) {
+        customShortcut = changes.vibeCustomShortcut.newValue || null;
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      // ESC — stop annotation mode
+      if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
+        VibeEvents.emit('inspection:stop');
+        return;
+      }
+
+      // Custom shortcut — toggle annotation mode
+      if (customShortcut && matchesShortcut(e, customShortcut)) {
+        e.preventDefault();
+        if (VibeInspectionMode.isActive()) {
+          VibeEvents.emit('inspection:stop');
+        } else {
+          VibeEvents.emit('inspection:start');
+        }
+      }
+    });
+  }
+
+  function matchesShortcut(e, shortcut) {
+    return e.key === shortcut.key
+      && e.ctrlKey === !!shortcut.ctrlKey
+      && e.metaKey === !!shortcut.metaKey
+      && e.shiftKey === !!shortcut.shiftKey
+      && e.altKey === !!shortcut.altKey;
   }
 
   // --- Annotation lifecycle ---

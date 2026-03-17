@@ -72,8 +72,8 @@
   "commands": {
     "toggle-annotate": {
       "suggested_key": {
-        "default": "Ctrl+Shift+V",
-        "mac": "Command+Shift+V"
+        "default": "Ctrl+Shift+Comma",
+        "mac": "Command+Shift+Comma"
       },
       "description": "Toggle annotation mode"
     }

@@ -254,13 +254,17 @@ var VIBE_STYLES = `
   color: var(--v-text-primary);
 }
 
-/* Tab bar (pills) */
+/* Tab bar (pills) — single-line, scrollable */
 .vibe-tab-bar {
   display: flex;
   gap: 4px;
   padding: 4px 14px 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.vibe-tab-bar::-webkit-scrollbar { display: none; }
 .vibe-tab {
   padding: 3px 10px;
   background: none;
@@ -304,18 +308,18 @@ var VIBE_STYLES = `
 
 /* Design toolbar */
 .vibe-design-toolbar {
-  padding: 8px 14px;
+  padding: 6px 14px;
   border-bottom: 1px solid var(--v-outline);
 }
 
 .vibe-design-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .vibe-design-row + .vibe-design-row {
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .vibe-design-icon {
@@ -327,8 +331,8 @@ var VIBE_STYLES = `
 }
 
 .vibe-design-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .vibe-stepper {
@@ -340,13 +344,13 @@ var VIBE_STYLES = `
 }
 
 .vibe-stepper-input {
-  width: 40px;
-  height: 26px;
+  width: 36px;
+  height: 22px;
   text-align: center;
   border: none;
   background: none;
   font-family: var(--v-font-mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--v-text-primary);
   outline: none;
   -moz-appearance: textfield;
@@ -361,7 +365,7 @@ var VIBE_STYLES = `
 
 .vibe-stepper-unit {
   font-family: var(--v-font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--v-text-secondary);
   padding: 0 5px 0 0;
   user-select: none;
@@ -375,8 +379,8 @@ var VIBE_STYLES = `
 }
 
 .vibe-align-btn {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -403,8 +407,8 @@ var VIBE_STYLES = `
 }
 
 .vibe-align-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .vibe-design-reset {
@@ -431,35 +435,83 @@ var VIBE_STYLES = `
 
 /* Toggle group (display block/flex, flex direction) */
 .vibe-toggle-group { display:flex; border:1px solid var(--v-outline); border-radius:var(--v-radius-xs); overflow:hidden; }
-.vibe-toggle-btn { height:26px; padding:0 8px; background:none; border:none; border-right:1px solid var(--v-outline); color:var(--v-text-secondary); cursor:pointer; font-family:var(--v-font); font-size:11px; font-weight:500; transition:background .15s,color .15s; display:flex; align-items:center; justify-content:center; }
+.vibe-toggle-btn { height:22px; padding:0 6px; background:none; border:none; border-right:1px solid var(--v-outline); color:var(--v-text-secondary); cursor:pointer; font-family:var(--v-font); font-size:11px; font-weight:500; transition:background .15s,color .15s; display:flex; align-items:center; justify-content:center; }
 .vibe-toggle-btn:last-child { border-right:none; }
 .vibe-toggle-btn:hover { background:var(--v-surface-hover); }
 .vibe-toggle-btn.active { background:var(--v-surface-hover); color:var(--v-text-primary); }
-.vibe-toggle-btn svg { width:14px; height:14px; }
+.vibe-toggle-btn svg { width:12px; height:12px; }
 
 /* Padding split toggle */
-.vibe-split-btn { width:26px; height:26px; display:flex; align-items:center; justify-content:center; background:none; border:1px solid var(--v-outline); border-radius:var(--v-radius-xs); color:var(--v-text-secondary); cursor:pointer; margin-left:auto; flex-shrink:0; padding:0; }
+.vibe-split-btn { width:22px; height:22px; display:flex; align-items:center; justify-content:center; background:none; border:1px solid var(--v-outline); border-radius:var(--v-radius-xs); color:var(--v-text-secondary); cursor:pointer; margin-left:auto; flex-shrink:0; padding:0; }
 .vibe-split-btn:hover { background:var(--v-surface-hover); color:var(--v-text-primary); }
 .vibe-split-btn.active { background:var(--v-surface-hover); color:var(--v-text-primary); }
 
 /* Smaller stepper for split-4 padding */
-.vibe-stepper-sm .vibe-stepper-input { width:32px; }
+.vibe-stepper-sm { flex:1; min-width:0; }
+.vibe-stepper-sm .vibe-stepper-input, .vibe-stepper-sm .vibe-stepper-text { width:100%; }
 
 /* Padding V/H text inputs */
-.vibe-stepper-text { width:56px; height:26px; text-align:center; border:none; background:none; font-family:var(--v-font-mono); font-size:12px; color:var(--v-text-primary); outline:none; padding:0; }
+.vibe-stepper-text { width:56px; height:22px; text-align:center; border:none; background:none; font-family:var(--v-font-mono); font-size:11px; color:var(--v-text-primary); outline:none; padding:0; }
 
-/* Flex controls */
-.vibe-flex-controls { display:flex; align-items:center; gap:6px; }
+/* Section headers (Padding / Margin / Flow) */
+.vibe-section-header { display:flex; align-items:center; justify-content:space-between; margin-top:6px; margin-bottom:3px; }
+.vibe-section-header:first-child { margin-top:0; }
+.vibe-section-label { font-family:var(--v-font); font-size:10px; font-weight:500; color:var(--v-text-secondary); letter-spacing:0.01em; }
+
+/* Grow stepper to fill available width */
+.vibe-stepper-grow { flex:1; min-width:0; }
+.vibe-stepper-grow .vibe-stepper-text { width:100%; }
+
+/* Flex/Grid option sections */
+.vibe-flex-options { margin-top:6px; }
+.vibe-grid-options { margin-top:6px; }
+
+/* Prop spacer — visual gap between inline icon+field groups */
+.vibe-prop-spacer { width:8px; flex-shrink:0; }
+
+/* Spacing rows — split button fixed, inputs flex */
+.vibe-spacing-row { display:flex; align-items:center; gap:5px; }
+.vibe-spacing-row + .vibe-spacing-row { margin-top:5px; }
+.vibe-spacing-inputs { flex:1; min-width:0; display:flex; align-items:center; gap:5px; }
+
+/* Flow toggle group — equal width buttons */
+.vibe-flow-group { width:100%; }
+.vibe-flow-group .vibe-toggle-btn { flex:1; padding:0 6px; height:24px; }
+.vibe-flow-group .vibe-toggle-btn svg { width:14px; height:14px; }
+
+/* Layout split — matrix left, controls right */
+.vibe-layout-split { display:flex; gap:12px; align-items:flex-start; margin-top:6px; }
+.vibe-layout-left { flex:1; min-width:0; }
+.vibe-layout-right { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.vibe-gap-row { margin-top:4px; align-items:center; }
+.vibe-gap-label { font-family:var(--v-font); font-size:11px; color:var(--v-text-secondary); white-space:nowrap; flex-shrink:0; }
+.vibe-gap-input-row.disabled { opacity:0.35; pointer-events:none; }
+
+/* Checkbox labels (Reverse order / Wrap items) */
+.vibe-check-label { display:flex; align-items:center; gap:6px; cursor:pointer; font-family:var(--v-font); font-size:11px; color:var(--v-text-secondary); white-space:nowrap; user-select:none; padding:4px 0; }
+.vibe-check-label input[type="checkbox"] { appearance:none; -webkit-appearance:none; width:14px; height:14px; margin:0; border:1.5px solid var(--v-text-secondary); border-radius:3px; background:none; cursor:pointer; flex-shrink:0; position:relative; transition:background .12s, border-color .12s; }
+.vibe-check-label input[type="checkbox"]:checked { background:var(--v-accent); border-color:var(--v-accent); }
+.vibe-check-label input[type="checkbox"]:checked::after { content:''; position:absolute; left:3.5px; top:1px; width:4px; height:7px; border:solid #fff; border-width:0 1.5px 1.5px 0; transform:rotate(45deg); }
+
+/* 3×3 alignment matrix */
+.vibe-align-matrix { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; border:1px solid var(--v-outline); border-radius:var(--v-radius-sm); overflow:hidden; background:var(--v-textarea-bg); padding:3px; width:100%; }
+.vibe-matrix-cell { height:18px; display:flex; align-items:center; justify-content:center; background:none; border:none; border-radius:3px; cursor:pointer; padding:0; transition:background .12s; }
+.vibe-matrix-cell:hover { background:var(--v-surface-hover); }
+.vibe-matrix-cell.active { background:var(--v-surface-hover); }
+.vibe-matrix-dot { width:4px; height:4px; border-radius:50%; background:var(--v-text-secondary); opacity:0.5; transition:all .12s; }
+.vibe-matrix-cell.active .vibe-matrix-dot { background:var(--v-accent); opacity:1; transform:scale(1.4); }
 
 /* T/R/B/L labels */
-.vibe-design-icon-label { display:flex; align-items:center; justify-content:center; color:var(--v-text-secondary); font-family:var(--v-font-mono); font-size:10px; font-weight:600; width:14px; flex-shrink:0; }
+.vibe-design-icon-label { display:flex; align-items:center; justify-content:center; color:var(--v-text-secondary); font-family:var(--v-font-mono); font-size:9px; font-weight:600; width:12px; flex-shrink:0; }
+.vibe-design-icon-label-wide { width:auto; }
 
 /* Color picker */
 .vibe-color-row { display:flex; align-items:center; gap:6px; }
-.vibe-color-swatch { width:22px; height:22px; border-radius:4px; border:1px solid var(--v-outline); cursor:pointer; padding:0; flex-shrink:0; position:relative; }
+.vibe-color-swatch { width:20px; height:20px; border-radius:4px; border:1px solid var(--v-outline); cursor:pointer; padding:0; flex-shrink:0; position:relative; }
 .vibe-color-swatch:hover { border-color:var(--v-outline-highlight); }
-.vibe-color-input { width:70px; height:26px; border:1px solid var(--v-outline); border-radius:var(--v-radius-xs); background:var(--v-textarea-bg); font-family:var(--v-font-mono); font-size:11px; color:var(--v-text-primary); padding:0 6px; outline:none; }
+.vibe-color-input { width:70px; height:22px; border:1px solid var(--v-outline); border-radius:var(--v-radius-xs); background:var(--v-textarea-bg); font-family:var(--v-font-mono); font-size:10px; color:var(--v-text-primary); padding:0 6px; outline:none; }
 .vibe-color-input:focus { border-color:var(--v-accent); }
+.vibe-color-input-inline { width:58px; }
 
 /* Color palette dropdown */
 .vibe-color-palette { position:absolute; bottom:calc(100% + 4px); left:0; background:var(--v-surface); border:1px solid var(--v-outline); border-radius:var(--v-radius-sm); padding:6px; display:grid; grid-template-columns:repeat(auto-fill,22px); gap:4px; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,.12); min-width:120px; max-width:240px; }
@@ -1089,6 +1141,24 @@ var VIBE_STYLES = `
 .vibe-toggle.on::after {
   transform: translateX(16px);
 }
+
+/* ===== Shortcut button ===== */
+.vibe-shortcut-btn {
+  background: var(--v-surface-hover);
+  border: 1px solid var(--v-outline);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: var(--v-font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  min-width: 48px;
+  text-align: center;
+}
+.vibe-shortcut-btn:hover { border-color: var(--v-text-secondary); color: var(--v-text-primary); }
+.vibe-shortcut-btn.recording { border-color: var(--v-accent); color: var(--v-accent); }
 
 /* ===== Target highlight (around element being annotated) ===== */
 .vibe-target-highlight {
