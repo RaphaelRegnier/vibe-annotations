@@ -232,6 +232,21 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
+  async function getCustomShortcut() {
+    try {
+      const r = await chrome.storage.local.get(['vibeCustomShortcut']);
+      return r.vibeCustomShortcut || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function saveCustomShortcut(shortcut) {
+    try {
+      await chrome.storage.local.set({ vibeCustomShortcut: shortcut });
+    } catch { /* ignore */ }
+  }
+
   return {
     checkServerStatus,
     clearStatusCache,
@@ -254,6 +269,8 @@ var VibeAPI = (() => {
     getOverlayHidden,
     saveOverlayHidden,
     getSkipDeleteConfirm,
-    saveSkipDeleteConfirm
+    saveSkipDeleteConfirm,
+    getCustomShortcut,
+    saveCustomShortcut
   };
 })();

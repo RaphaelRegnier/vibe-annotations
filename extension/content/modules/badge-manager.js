@@ -3,6 +3,25 @@
 // Zero host DOM modification for display
 
 var VibeBadgeManager = (() => {
+  const DESIGN_PROPS = [
+    'fontSize','fontWeight','lineHeight','textAlign',
+    'paddingTop','paddingRight','paddingBottom','paddingLeft',
+    'marginTop','marginRight','marginBottom','marginLeft',
+    'display','flexDirection','flexWrap','gap','columnGap','rowGap',
+    'justifyContent','alignItems','gridTemplateColumns','gridTemplateRows',
+    'borderWidth','borderRadius','borderStyle',
+    'color','backgroundColor','borderColor',
+    'width','minWidth','maxWidth','height','minHeight','maxHeight'
+  ];
+
+  // Get all style props to clear/apply from pending_changes + DESIGN_PROPS
+  function getStyleProps(pc) {
+    if (!pc) return DESIGN_PROPS;
+    const keys = new Set(DESIGN_PROPS);
+    for (const k of Object.keys(pc)) keys.add(k);
+    return keys;
+  }
+
   let badges = []; // { el, annotation, targetElement }
   let rafId = null;
   let provisionalBadge = null;
@@ -80,7 +99,16 @@ var VibeBadgeManager = (() => {
 
     sorted.forEach((annotation, i) => {
       const target = VibeElementContext.findElementBySelector(annotation);
-      if (target) addBadge(target, annotation, i + 1);
+      if (target) {
+        // Rehydrate pending design changes
+        const rpc = annotation.pending_changes;
+        if (rpc) {
+          for (const prop of getStyleProps(rpc)) {
+            if (rpc[prop]) target.style[prop] = rpc[prop].value;
+          }
+        }
+        addBadge(target, annotation, i + 1);
+      }
     });
 
     lastTotal = annotations.length;
@@ -149,20 +177,44 @@ var VibeBadgeManager = (() => {
     }
   }
 
-  function clearAll() {
+  function clearAll(annotations) {
+    // Clear tracked badges
+    const clearedEls = new Set();
     for (const entry of badges) {
+      for (const prop of DESIGN_PROPS) entry.targetElement.style[prop] = '';
+      clearedEls.add(entry.targetElement);
       entry.el.remove();
     }
     badges = [];
+    lastTotal = 0;
     stopRAF();
     clearTimeout(rematchDebounceTimer);
+
+    // Sweep for orphaned styled elements (badges lost their target but styles remain)
+    if (annotations) {
+      for (const a of annotations) {
+        if (!a.pending_changes) continue;
+        const el = VibeElementContext.findElementBySelector(a);
+        if (el && !clearedEls.has(el)) {
+          for (const prop of getStyleProps(a.pending_changes)) el.style[prop] = '';
+        }
+      }
+    }
   }
 
-  function onDeleted({ id }) {
+  function onDeleted({ id, annotation }) {
     const idx = badges.findIndex(b => b.annotation.id === id);
     if (idx !== -1) {
-      badges[idx].el.remove();
+      const entry = badges[idx];
+      for (const prop of getStyleProps(entry.annotation.pending_changes)) entry.targetElement.style[prop] = '';
+      entry.el.remove();
       badges.splice(idx, 1);
+    } else if (annotation?.pending_changes) {
+      // Badge was lost but element may still have inline styles — retry selector
+      const el = VibeElementContext.findElementBySelector(annotation);
+      if (el) {
+        for (const prop of getStyleProps(annotation.pending_changes)) el.style[prop] = '';
+      }
     }
     if (!badges.length) stopRAF();
 
@@ -172,12 +224,19 @@ var VibeBadgeManager = (() => {
     });
   }
 
-  function onUpdated({ id, comment }) {
+  function onUpdated({ id, comment, pending_changes }) {
     const entry = badges.find(b => b.annotation.id === id);
     if (entry) {
       const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
       if (tooltip) tooltip.textContent = comment;
-      entry.annotation = { ...entry.annotation, comment };
+      const oldPC = entry.annotation.pending_changes;
+      entry.annotation = { ...entry.annotation, comment, pending_changes };
+      for (const prop of getStyleProps(oldPC)) entry.targetElement.style[prop] = '';
+      if (pending_changes) {
+        for (const prop of getStyleProps(pending_changes)) {
+          if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
+        }
+      }
     }
   }
 

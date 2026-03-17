@@ -20,10 +20,40 @@ var VibeElementContext = (() => {
         display: computedStyle.display,
         position: computedStyle.position,
         fontSize: computedStyle.fontSize,
+        fontWeight: computedStyle.fontWeight,
+        lineHeight: computedStyle.lineHeight,
+        textAlign: computedStyle.textAlign,
         color: computedStyle.color,
         backgroundColor: computedStyle.backgroundColor,
         margin: computedStyle.margin,
-        padding: computedStyle.padding
+        padding: computedStyle.padding,
+        paddingTop: computedStyle.paddingTop,
+        paddingRight: computedStyle.paddingRight,
+        paddingBottom: computedStyle.paddingBottom,
+        paddingLeft: computedStyle.paddingLeft,
+        marginTop: computedStyle.marginTop,
+        marginRight: computedStyle.marginRight,
+        marginBottom: computedStyle.marginBottom,
+        marginLeft: computedStyle.marginLeft,
+        flexDirection: computedStyle.flexDirection,
+        flexWrap: computedStyle.flexWrap,
+        justifyContent: computedStyle.justifyContent,
+        alignItems: computedStyle.alignItems,
+        gap: computedStyle.gap,
+        columnGap: computedStyle.columnGap,
+        rowGap: computedStyle.rowGap,
+        gridTemplateColumns: computedStyle.gridTemplateColumns,
+        gridTemplateRows: computedStyle.gridTemplateRows,
+        borderTopWidth: computedStyle.borderTopWidth,
+        borderRadius: computedStyle.borderRadius,
+        borderStyle: computedStyle.borderStyle,
+        borderColor: computedStyle.borderColor,
+        width: computedStyle.width,
+        minWidth: computedStyle.minWidth,
+        maxWidth: computedStyle.maxWidth,
+        height: computedStyle.height,
+        minHeight: computedStyle.minHeight,
+        maxHeight: computedStyle.maxHeight
       },
       position: {
         x: rect.left + window.scrollX,
@@ -628,9 +658,73 @@ var VibeElementContext = (() => {
     return null;
   }
 
+  // --- CSS variable scanner ---
+
+  let cachedColorVars = null;
+
+  function scanPageColorVariables() {
+    if (cachedColorVars) return cachedColorVars;
+    const vars = [];
+    const seen = new Set();
+    try {
+      for (const sheet of document.styleSheets) {
+        try {
+          for (const rule of sheet.cssRules) {
+            if (rule.style) {
+              for (const prop of rule.style) {
+                if (prop.startsWith('--') && !seen.has(prop)) {
+                  seen.add(prop);
+                  const val = rule.style.getPropertyValue(prop).trim();
+                  if (isColorValue(val)) {
+                    const resolved = resolveColor(val);
+                    if (resolved) vars.push({ name: prop, value: resolved });
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) { /* CORS-blocked stylesheet, skip */ }
+      }
+    } catch (e) {}
+    // Dedupe by resolved color value
+    const uniqueMap = new Map();
+    for (const v of vars) {
+      if (!uniqueMap.has(v.value)) uniqueMap.set(v.value, v);
+    }
+    cachedColorVars = Array.from(uniqueMap.values());
+    return cachedColorVars;
+  }
+
+  function isColorValue(val) {
+    if (!val || val === 'inherit' || val === 'initial' || val === 'unset') return false;
+    if (/^#([0-9a-f]{3,8})$/i.test(val)) return true;
+    if (/^(rgb|hsl)a?\s*\(/.test(val)) return true;
+    // Test via temp element
+    const el = document.createElement('span');
+    el.style.color = '';
+    el.style.color = val;
+    return el.style.color !== '';
+  }
+
+  function resolveColor(val) {
+    try {
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.fillStyle = val;
+      const resolved = ctx.fillStyle;
+      // Canvas returns '#000000' for invalid colors — only accept if input wasn't obviously wrong
+      if (resolved === '#000000' && !/^#0{3,6}$/i.test(val) && !/rgb\(\s*0\s*,\s*0\s*,\s*0\s*\)/.test(val)) {
+        return null;
+      }
+      return resolved;
+    } catch (e) {
+      return null;
+    }
+  }
+
   return {
     generate,
     generateSelector,
-    findElementBySelector
+    findElementBySelector,
+    scanPageColorVariables
   };
 })();

@@ -62,12 +62,8 @@ console.log('[Vibe] content.js loaded');
     // 7b. Set up SPA route change detection
     setupRouteChangeDetection();
 
-    // 8. Set up ESC key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
-        VibeEvents.emit('inspection:stop');
-      }
-    });
+    // 8. Set up keyboard shortcuts
+    setupKeyboardShortcuts();
 
     // 9. Wire up annotation lifecycle events
     setupAnnotationEvents();
@@ -189,6 +185,47 @@ console.log('[Vibe] content.js loaded');
     });
   }
 
+  // --- Keyboard shortcuts ---
+  function setupKeyboardShortcuts() {
+    let customShortcut = null;
+
+    // Load custom shortcut from storage
+    VibeAPI.getCustomShortcut().then(s => { customShortcut = s; });
+
+    // Listen for storage changes to update live
+    chrome.storage.onChanged.addListener((changes, ns) => {
+      if (ns === 'local' && changes.vibeCustomShortcut) {
+        customShortcut = changes.vibeCustomShortcut.newValue || null;
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      // ESC — stop annotation mode
+      if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
+        VibeEvents.emit('inspection:stop');
+        return;
+      }
+
+      // Custom shortcut — toggle annotation mode
+      if (customShortcut && matchesShortcut(e, customShortcut)) {
+        e.preventDefault();
+        if (VibeInspectionMode.isActive()) {
+          VibeEvents.emit('inspection:stop');
+        } else {
+          VibeEvents.emit('inspection:start');
+        }
+      }
+    });
+  }
+
+  function matchesShortcut(e, shortcut) {
+    return e.key === shortcut.key
+      && e.ctrlKey === !!shortcut.ctrlKey
+      && e.metaKey === !!shortcut.metaKey
+      && e.shiftKey === !!shortcut.shiftKey
+      && e.altKey === !!shortcut.altKey;
+  }
+
   // --- Annotation lifecycle ---
   function setupAnnotationEvents() {
     // New annotation saved
@@ -203,11 +240,13 @@ console.log('[Vibe] content.js loaded');
     });
 
     // Annotation updated
-    VibeEvents.on('annotation:updated', ({ id, comment }) => {
+    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes }) => {
       localSaveCount++;
       const idx = annotations.findIndex(a => a.id === id);
       if (idx !== -1) {
-        annotations[idx] = { ...annotations[idx], comment, updated_at: new Date().toISOString() };
+        const updates = { comment, updated_at: new Date().toISOString() };
+        if (pending_changes !== undefined) updates.pending_changes = pending_changes;
+        annotations[idx] = { ...annotations[idx], ...updates };
       }
     });
 
@@ -223,8 +262,8 @@ console.log('[Vibe] content.js loaded');
     VibeEvents.on('annotations:cleared', ({ count } = {}) => {
       // Each delete triggers a storage change; suppress all of them
       localSaveCount += count || annotations.length || 1;
+      VibeBadgeManager.clearAll(annotations);
       annotations = [];
-      VibeBadgeManager.clearAll();
       VibeEvents.emit('badges:rendered', { count: 0, total: 0 });
     });
   }
