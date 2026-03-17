@@ -1254,33 +1254,45 @@ var VibeAnnotationPopover = (() => {
     return {
       sizing: `
       <div class="vibe-section-header"><span class="vibe-section-label">Width</span></div>
-      <div class="vibe-design-row">
-        <span class="vibe-design-icon-label" title="Width">W</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="width" type="text" value="${vals.width}" placeholder="Default">
+      <div class="vibe-sizing-row">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Width">W</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="width" type="text" value="${vals.width}" placeholder="Default">
+          </div>
         </div>
-        <span class="vibe-design-icon-label" title="Min width">Min</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="minWidth" type="text" value="${vals.minWidth}" placeholder="—">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Min width">Min</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="minWidth" type="text" value="${vals.minWidth}" placeholder="—">
+          </div>
         </div>
-        <span class="vibe-design-icon-label" title="Max width">Max</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="maxWidth" type="text" value="${vals.maxWidth}" placeholder="—">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Max width">Max</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="maxWidth" type="text" value="${vals.maxWidth}" placeholder="—">
+          </div>
         </div>
       </div>
       <div class="vibe-section-header"><span class="vibe-section-label">Height</span></div>
-      <div class="vibe-design-row">
-        <span class="vibe-design-icon-label" title="Height">H</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="height" type="text" value="${vals.height}" placeholder="Default">
+      <div class="vibe-sizing-row">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Height">H</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="height" type="text" value="${vals.height}" placeholder="Default">
+          </div>
         </div>
-        <span class="vibe-design-icon-label" title="Min height">Min</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="minHeight" type="text" value="${vals.minHeight}" placeholder="—">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Min height">Min</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="minHeight" type="text" value="${vals.minHeight}" placeholder="—">
+          </div>
         </div>
-        <span class="vibe-design-icon-label" title="Max height">Max</span>
-        <div class="vibe-stepper vibe-stepper-sm">
-          <input class="vibe-stepper-text vibe-sizing-input" data-sizing="maxHeight" type="text" value="${vals.maxHeight}" placeholder="—">
+        <div class="vibe-sizing-pair">
+          <span class="vibe-design-icon-label" title="Max height">Max</span>
+          <div class="vibe-stepper vibe-stepper-sm">
+            <input class="vibe-stepper-text vibe-sizing-input" data-sizing="maxHeight" type="text" value="${vals.maxHeight}" placeholder="—">
+          </div>
         </div>
       </div>`,
       spacing: buildSpacingToolbarHTML(pc, s)

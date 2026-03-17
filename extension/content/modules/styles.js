@@ -450,6 +450,11 @@ var VIBE_STYLES = `
 .vibe-stepper-sm { flex:1; min-width:0; }
 .vibe-stepper-sm .vibe-stepper-input, .vibe-stepper-sm .vibe-stepper-text { width:100%; }
 
+/* Sizing rows — label+field pairs with extra spacing */
+.vibe-sizing-row { display:flex; align-items:center; gap:10px; }
+.vibe-sizing-row + .vibe-sizing-row { margin-top:5px; }
+.vibe-sizing-pair { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+
 /* Padding V/H text inputs */
 .vibe-stepper-text { width:56px; height:22px; text-align:center; border:none; background:none; font-family:var(--v-font-mono); font-size:11px; color:var(--v-text-primary); outline:none; padding:0; }
 
@@ -484,7 +489,8 @@ var VIBE_STYLES = `
 .vibe-layout-left { flex:1; min-width:0; }
 .vibe-layout-right { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
 .vibe-gap-row { margin-top:4px; align-items:center; }
-.vibe-gap-label { font-family:var(--v-font); font-size:11px; color:var(--v-text-secondary); white-space:nowrap; flex-shrink:0; }
+.vibe-gap-label { font-family:var(--v-font); font-size:11px; color:var(--v-text-secondary); white-space:nowrap; flex-shrink:0; margin-right:4px; }
+.vibe-gap-input-row .vibe-stepper-input { flex:1; width:auto; }
 .vibe-gap-input-row.disabled { opacity:0.35; pointer-events:none; }
 
 /* Checkbox labels (Reverse order / Wrap items) */
