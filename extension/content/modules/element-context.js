@@ -595,7 +595,8 @@ var VibeElementContext = (() => {
         const expectedText = annotation.element_context?.text;
         if (expectedText) {
           const actualText = el.textContent?.substring(0, 100).trim();
-          if (actualText === expectedText) return el;
+          const changedText = annotation.pending_changes?.copyChange?.value?.substring(0, 100).trim();
+          if (actualText === expectedText || (changedText && actualText === changedText)) return el;
           // Selector matched wrong element — fall through to fallbacks
         } else {
           return el;
@@ -608,9 +609,16 @@ var VibeElementContext = (() => {
       const tag = annotation.element_context.tag;
       const sanitized = annotation.element_context.text.replace(/[^\w\s]/g, '').trim();
       const candidates = Array.from(document.querySelectorAll(tag));
-      const matches = candidates.filter(el =>
+      let matches = candidates.filter(el =>
         el.textContent?.trim().replace(/[^\w\s]/g, '').trim() === sanitized
       );
+      // If original text doesn't match, try the edited copy change value
+      if (matches.length === 0 && annotation.pending_changes?.copyChange?.value) {
+        const changedSanitized = annotation.pending_changes.copyChange.value.substring(0, 100).replace(/[^\w\s]/g, '').trim();
+        matches = candidates.filter(el =>
+          el.textContent?.trim().replace(/[^\w\s]/g, '').trim() === changedSanitized
+        );
+      }
       if (matches.length === 1) return matches[0];
 
       // Narrow by classes

@@ -371,6 +371,29 @@ var VIBE_STYLES = `
   user-select: none;
 }
 
+/* Content (text edit) textarea */
+.vibe-content-row { align-items: flex-start; }
+.vibe-content-icon { padding-top: 4px; }
+.vibe-content-input {
+  flex: 1;
+  min-height: 22px;
+  max-height: calc(11px * 1.5 * 8 + 10px); /* ~8 lines */
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-xs);
+  background: var(--v-textarea-bg);
+  font-family: var(--v-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--v-text-primary);
+  padding: 3px 6px;
+  outline: none;
+  box-sizing: border-box;
+  min-width: 0;
+  resize: none;
+  overflow-y: auto;
+}
+.vibe-content-input:focus { border-color: var(--v-accent); }
+
 .vibe-align-group {
   display: flex;
   border: 1px solid var(--v-outline);
