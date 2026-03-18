@@ -65,8 +65,29 @@
         "content/modules/inspection-mode.js",
         "content/modules/annotation-popover.js",
         "content/modules/floating-toolbar.js",
+        "content/modules/bridge-handler.js",
         "content/content.js"
       ]
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*",
+        "https://127.0.0.1/*",
+        "http://0.0.0.0/*",
+        "https://0.0.0.0/*",
+        "http://*.local/*",
+        "https://*.local/*",
+        "http://*.test/*",
+        "https://*.test/*",
+        "http://*.localhost/*",
+        "https://*.localhost/*",
+        "file:///*"
+      ],
+      "js": ["content/bridge-api.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
     }
   ],
   "commands": {
