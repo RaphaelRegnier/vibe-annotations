@@ -239,8 +239,6 @@ var VibeAnnotationPopover = (() => {
     if (!root) return;
 
     const isEdit = !!existingAnnotation;
-    const apiStatus = await VibeAPI.checkServerStatus();
-    const isOffline = !apiStatus.connected;
     const isFile = VibeAPI.isFileProtocol();
     const elType = classifyElement(targetElement);
 
@@ -259,12 +257,10 @@ var VibeAnnotationPopover = (() => {
     const popover = document.createElement('div');
     popover.className = 'vibe-popover';
 
-    // Warning bar
+    // Warning bar (file protocol only — server status is shown in toolbar/settings)
     let warningHTML = '';
     if (isFile) {
       warningHTML = `<div class="vibe-warning">${ICONS.warning}<span>Local file mode</span></div>`;
-    } else if (isOffline) {
-      warningHTML = `<div class="vibe-warning">${ICONS.warning}<span>Server offline — cannot save</span></div>`;
     }
 
     // Original computed values — use pending_changes.*.original when editing
@@ -496,11 +492,8 @@ var VibeAnnotationPopover = (() => {
       const hasDesignChanges = !!buildPendingChanges();
       const hasContent = text || hasDesignChanges;
 
-      if (isOffline && !isFile) {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Offline';
-        return;
-      }
+      // Server status is informational only — annotations save to chrome.storage
+      // regardless of MCP server state, so never block the save button.
       if (isEdit) {
         const commentChanged = text !== (existingAnnotation.comment || '');
         const savedPC = existingAnnotation.pending_changes || null;

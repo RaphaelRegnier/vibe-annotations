@@ -353,13 +353,20 @@ class VibeAnnotationsBackground {
 
   async deleteAnnotation(id) {
     try {
-      const result = await chrome.storage.local.get(['annotations']);
+      const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
       const annotations = result.annotations || [];
-      
+      const deletedIds = result.deletedAnnotationIds || [];
+
       const filteredAnnotations = annotations.filter(annotation => annotation.id !== id);
-      
-      await chrome.storage.local.set({ annotations: filteredAnnotations });
-      
+
+      // Track deletion so sync doesn't resurrect it from server
+      if (!deletedIds.includes(id)) deletedIds.push(id);
+
+      await chrome.storage.local.set({
+        annotations: filteredAnnotations,
+        deletedAnnotationIds: deletedIds
+      });
+
       // Also delete from API server
       try {
         await this.deleteAnnotationFromAPI(id);
@@ -367,16 +374,16 @@ class VibeAnnotationsBackground {
         console.warn('Failed to delete from API server:', apiError.message);
         // Don't throw - local deletion succeeded
       }
-      
+
       // Find the deleted annotation's URL to update badge
       const deletedAnnotation = annotations.find(a => a.id === id);
       if (deletedAnnotation) {
         await this.updateBadgeForUrl(deletedAnnotation.url);
       }
-      
+
       // Update badges for all localhost tabs
       await this.updateAllBadges();
-      
+
     } catch (error) {
       console.error('Error deleting annotation:', error);
       throw error;
@@ -679,59 +686,105 @@ class VibeAnnotationsBackground {
 
   async smartSyncAnnotations() {
     try {
-      // Get current local annotations
-      const localResult = await chrome.storage.local.get(['annotations', 'lastServerSync']);
+      // Get local state
+      const localResult = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
       const localAnnotations = localResult.annotations || [];
-      const lastSync = localResult.lastServerSync || 0;
-      
+      const deletedIds = new Set(localResult.deletedAnnotationIds || []);
+
       // Get server annotations
       const response = await fetch(`${this.apiServerUrl}/api/annotations`);
-      if (!response.ok) {
-        console.log('Sync skipped: server error');
-        return; // Skip sync if server error
-      }
-      
+      if (!response.ok) return; // Skip sync on server error
+
       const serverResult = await response.json();
       const serverAnnotations = serverResult.annotations || [];
-      
-      console.log(`Sync check - Local: ${localAnnotations.length}, Server: ${serverAnnotations.length}`);
-      
-      // Compare annotation counts and IDs
-      const localIds = new Set(localAnnotations.map(a => a.id));
-      const serverIds = new Set(serverAnnotations.map(a => a.id));
-      
-      // Check if there are differences
-      const annotationsChanged = 
-        localAnnotations.length !== serverAnnotations.length ||
-        !Array.from(localIds).every(id => serverIds.has(id)) ||
-        !Array.from(serverIds).every(id => localIds.has(id));
-      
-      if (annotationsChanged) {
-        // Always trust the server as the source of truth
-        // This ensures deletions made by Claude (via MCP) are properly synced
-        console.log(`Syncing FROM server: ${serverAnnotations.length} annotations (local had ${localAnnotations.length})`);
-        
-        await chrome.storage.local.set({ 
-          annotations: serverAnnotations,
-          lastServerSync: Date.now()
-        });
-        
-        // Update badges for all localhost tabs
-        await this.updateAllBadges();
 
-        // Notify content scripts on localhost tabs to refresh
-        try {
-          const tabs = await chrome.tabs.query({});
-          for (const tab of tabs) {
-            if (await this.isSupportedUrl(tab.url)) {
-              chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
-            }
+      // Build lookup maps
+      const localMap = new Map(localAnnotations.map(a => [a.id, a]));
+      const serverMap = new Map(serverAnnotations.map(a => [a.id, a]));
+      const allIds = new Set([...localMap.keys(), ...serverMap.keys()]);
+
+      const merged = [];
+      let changed = false;
+
+      for (const id of allIds) {
+        // Skip anything the user explicitly deleted locally
+        if (deletedIds.has(id)) {
+          // If server still has it, we'll push the deletion below
+          if (serverMap.has(id)) changed = true;
+          continue;
+        }
+
+        const local = localMap.get(id);
+        const server = serverMap.get(id);
+
+        if (local && server) {
+          // Both have it — most recent updated_at wins
+          const lt = new Date(local.updated_at || local.created_at || 0).getTime();
+          const st = new Date(server.updated_at || server.created_at || 0).getTime();
+          if (st > lt) {
+            merged.push(server);
+            changed = true;
+          } else {
+            merged.push(local);
+            if (lt > st) changed = true; // local is newer, need to push
           }
-        } catch { /* ignore */ }
-      } else {
-        console.log('Annotations are in sync');
+        } else if (local && !server) {
+          // Local-only: new annotation created offline, push to server
+          merged.push(local);
+          changed = true;
+        } else if (!local && server) {
+          // Server-only: new annotation from MCP/Claude, pull to local
+          merged.push(server);
+          changed = true;
+        }
       }
-      
+
+      if (!changed) return;
+
+      // Persist merged result locally
+      await chrome.storage.local.set({
+        annotations: merged,
+        lastServerSync: Date.now()
+      });
+
+      // Push merged result to server (full sync replace)
+      try {
+        await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ annotations: merged })
+        });
+      } catch (e) {
+        console.warn('Failed to push merged annotations to server:', e.message);
+      }
+
+      // Delete server-side tombstoned annotations
+      for (const id of deletedIds) {
+        if (serverMap.has(id)) {
+          this.deleteAnnotationFromAPI(id).catch(() => {});
+        }
+      }
+
+      // Prune tombstones: only keep IDs that the server still had
+      // (others are already gone from both sides)
+      const activeTombstones = [...deletedIds].filter(id => serverMap.has(id));
+      await chrome.storage.local.set({ deletedAnnotationIds: activeTombstones });
+
+      console.log(`[Vibe] Sync complete — merged: ${merged.length} annotations`);
+
+      // Update badges
+      await this.updateAllBadges();
+
+      // Notify content scripts to refresh
+      try {
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+          if (await this.isSupportedUrl(tab.url)) {
+            chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+          }
+        }
+      } catch { /* ignore */ }
+
     } catch (error) {
       console.error('Error during smart sync:', error);
     }
@@ -823,6 +876,7 @@ class VibeAnnotationsBackground {
           'content/modules/shadow-host.js',
           'content/modules/theme-manager.js',
           'content/modules/api-bridge.js',
+          'content/modules/shadow-dom-utils.js',
           'content/modules/element-context.js',
           'content/modules/badge-manager.js',
           'content/modules/inspection-mode.js',

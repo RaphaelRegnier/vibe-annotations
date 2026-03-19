@@ -41,7 +41,7 @@ var VibeBadgeManager = (() => {
   // --- DOM observer: detect when framework re-renders replace annotated elements ---
   function startDOMObserver() {
     if (domObserver) return;
-    domObserver = new MutationObserver(() => {
+    const onMutation = () => {
       // Check if any badge targets got disconnected
       const hasDisconnected = badges.some(b => !b.targetElement.isConnected);
       if (hasDisconnected) {
@@ -49,8 +49,20 @@ var VibeBadgeManager = (() => {
         clearTimeout(rematchDebounceTimer);
         rematchDebounceTimer = setTimeout(rematchDisconnectedBadges, 150);
       }
-    });
+    };
+    domObserver = new MutationObserver(onMutation);
     domObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Also observe inside open shadow roots so we catch web component re-renders
+    try {
+      const hosts = document.querySelectorAll('*');
+      for (const el of hosts) {
+        if (el.shadowRoot) {
+          const shadowObs = new MutationObserver(onMutation);
+          shadowObs.observe(el.shadowRoot, { childList: true, subtree: true });
+        }
+      }
+    } catch { /* skip — shadow roots may not be available yet */ }
   }
 
   function rematchDisconnectedBadges() {
