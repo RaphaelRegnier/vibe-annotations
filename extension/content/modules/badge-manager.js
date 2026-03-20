@@ -136,6 +136,10 @@ var VibeBadgeManager = (() => {
           }
           if (rpc.copyChange) target.textContent = rpc.copyChange.value;
         }
+        // Inject companion CSS rules if present
+        if (annotation.css) {
+          injectStyleAnnotation(annotation);
+        }
         badgeIndex++;
         addBadge(target, annotation, badgeIndex);
       }
@@ -249,12 +253,13 @@ var VibeBadgeManager = (() => {
   }
 
   function onDeleted({ id, annotation }) {
-    // Check stylesheet annotations first
+    // Remove companion style tag if any (both standalone stylesheet and element-anchored css)
     const styleIdx = styleInjections.findIndex(s => s.annotation.id === id);
     if (styleIdx !== -1) {
       styleInjections[styleIdx].styleEl.remove();
       styleInjections.splice(styleIdx, 1);
-      return;
+      // If this was a pure stylesheet annotation (no badge), we're done
+      if (annotation?.type === 'stylesheet') return;
     }
 
     const idx = badges.findIndex(b => b.annotation.id === id);
@@ -282,7 +287,7 @@ var VibeBadgeManager = (() => {
     });
   }
 
-  function onUpdated({ id, comment, pending_changes }) {
+  function onUpdated({ id, comment, pending_changes, css }) {
     const entry = badges.find(b => b.annotation.id === id);
     if (entry) {
       const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
@@ -290,13 +295,24 @@ var VibeBadgeManager = (() => {
       const oldPC = entry.annotation.pending_changes;
       // Revert old copy change before applying new state
       if (oldPC?.copyChange) entry.targetElement.textContent = oldPC.copyChange.original;
-      entry.annotation = { ...entry.annotation, comment, pending_changes };
+      entry.annotation = { ...entry.annotation, comment, pending_changes, css };
       for (const prop of getStyleProps(oldPC)) entry.targetElement.style[prop] = '';
       if (pending_changes) {
         for (const prop of getStyleProps(pending_changes)) {
           if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
         }
         if (pending_changes.copyChange) entry.targetElement.textContent = pending_changes.copyChange.value;
+      }
+
+      // Update companion style tag
+      const styleEntry = styleInjections.find(s => s.annotation.id === id);
+      if (css && styleEntry) {
+        styleEntry.styleEl.textContent = css;
+      } else if (css && !styleEntry) {
+        injectStyleAnnotation({ id, css });
+      } else if (css === null && styleEntry) {
+        styleEntry.styleEl.remove();
+        styleInjections.splice(styleInjections.indexOf(styleEntry), 1);
       }
     }
   }

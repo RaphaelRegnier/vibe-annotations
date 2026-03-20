@@ -241,12 +241,13 @@ console.log('[Vibe] content.js loaded');
     });
 
     // Annotation updated
-    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes }) => {
+    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes, css }) => {
       localSaveCount++;
       const idx = annotations.findIndex(a => a.id === id);
       if (idx !== -1) {
         const updates = { comment, updated_at: new Date().toISOString() };
         if (pending_changes !== undefined) updates.pending_changes = pending_changes;
+        if (css !== undefined) updates.css = css;
         annotations[idx] = { ...annotations[idx], ...updates };
       }
     });

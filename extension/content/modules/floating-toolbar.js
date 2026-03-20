@@ -1257,6 +1257,11 @@ var VibeToolbar = (() => {
         }
       }
 
+      // CSS rules (pseudo-elements, :hover, @media, etc.)
+      if (a.css) {
+        lines.push(`   CSS rules:\n${a.css.split('\n').map(l => '      ' + l).join('\n')}`);
+      }
+
       return lines.join('\n');
     });
 

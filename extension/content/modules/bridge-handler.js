@@ -64,7 +64,7 @@ var VibeBridgeHandler = (() => {
     'boxShadow','overflow','position','top','right','bottom','left','zIndex'
   ];
 
-  async function handleCreate({ selector, comment, cssChanges, textChange }) {
+  async function handleCreate({ selector, comment, cssChanges, textChange, css }) {
     if (!selector) throw new Error('selector is required');
 
     const el = document.querySelector(selector);
@@ -133,6 +133,15 @@ var VibeBridgeHandler = (() => {
 
     if (hasPending) annotation.pending_changes = pendingChanges;
 
+    if (css && typeof css === 'string') {
+      annotation.css = css;
+      // Inject companion <style> for live preview
+      const style = document.createElement('style');
+      style.setAttribute('data-vibe-style', annotation.id);
+      style.textContent = css;
+      document.head.appendChild(style);
+    }
+
     await VibeAPI.saveAnnotation(annotation);
     VibeEvents.emit('annotation:saved', { annotation, element: el });
 
@@ -173,6 +182,7 @@ var VibeBridgeHandler = (() => {
         selector: a.selector,
         comment: a.comment,
         pending_changes: a.pending_changes || null,
+        css: a.css || null,
         element_context: a.element_context || null,
         source_file_path: a.source_file_path || null,
         url_path: a.url_path || null,

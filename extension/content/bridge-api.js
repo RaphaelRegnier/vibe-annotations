@@ -55,13 +55,15 @@
             note: 'Group related rules into one call. This is your fastest tool — use it liberally.'
           },
           createAnnotation: {
-            when: 'Single-component edits: change one heading, restyle one button, update specific text. Also use for structural change requests (with comment only, no cssChanges).',
-            signature: 'createAnnotation(selector, { comment, cssChanges, textChange })',
+            when: 'Single-component edits: change one heading, restyle one button, update specific text. Also use for structural change requests (with comment only, no cssChanges). Supports full CSS expressiveness via the css param for pseudo-elements, :hover/:focus, media queries, and transitions.',
+            signature: 'createAnnotation(selector, { comment, cssChanges, textChange, css })',
             examples: [
               'createAnnotation(".hero h1", { comment: "Bigger heading", cssChanges: { fontSize: "48px" }, textChange: "New Title" })',
-              'createAnnotation(".pricing-section", { comment: "Add a third pricing tier card between Pro and Enterprise, matching the existing card design" })'
+              'createAnnotation(".pricing-section", { comment: "Add a third pricing tier card between Pro and Enterprise, matching the existing card design" })',
+              'createAnnotation(".cta-btn", { comment: "Hover glow + larger padding", cssChanges: { padding: "16px 32px" }, css: ".cta-btn:hover { box-shadow: 0 0 20px gold; }\\n.cta-btn::after { content: \\"→\\"; margin-left: 8px; }" })',
+              'createAnnotation(".card", { comment: "Responsive card", css: "@media (max-width: 768px) { .card { flex-direction: column; } }" })'
             ],
-            note: 'Use simple selectors (tag, class, id). Do NOT trace CSS module hashes or source files — the API captures element context automatically and the coding agent resolves source mapping from the codebase.'
+            note: 'Use simple selectors (tag, class, id). Do NOT trace CSS module hashes or source files — the API captures element context automatically and the coding agent resolves source mapping from the codebase. Use cssChanges for inline overrides and css for rules needing selectors (pseudo-elements, states, media queries).'
           },
           getAnnotations: { when: 'Read all annotations on this page.', signature: 'getAnnotations()' },
           exportAnnotations: { when: 'Export all annotations as a portable JSON object. Use scope "page" for current page or "project" for all from this site.', signature: 'exportAnnotations(scope?)', example: 'exportAnnotations("project")' },
@@ -89,6 +91,7 @@
      * @param {string} [options.comment] - Description of the change
      * @param {Object} [options.cssChanges] - camelCase CSS prop → value map, e.g. { fontSize: '48px', color: '#ff0000' }
      * @param {string} [options.textChange] - New text content for the element
+     * @param {string} [options.css] - Raw CSS rules string for pseudo-elements, :hover/:focus, @media, transitions, etc. Injected as a companion <style> tag.
      * @returns {Promise<{ id: string, success: boolean }>}
      */
     createAnnotation(selector, options = {}) {
