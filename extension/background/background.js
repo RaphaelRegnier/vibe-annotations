@@ -888,9 +888,22 @@ class VibeAnnotationsBackground {
           'content/modules/inspection-mode.js',
           'content/modules/annotation-popover.js',
           'content/modules/floating-toolbar.js',
+          'content/modules/bridge-handler.js',
           'content/content.js'
         ],
         runAt: 'document_idle',
+        persistAcrossSessions: true
+      }]);
+
+      // Also register the MAIN world bridge API script
+      const bridgeScriptId = scriptId + '_bridge';
+      await chrome.scripting.unregisterContentScripts({ ids: [bridgeScriptId] }).catch(() => {});
+      await chrome.scripting.registerContentScripts([{
+        id: bridgeScriptId,
+        matches: [originPattern],
+        js: ['content/bridge-api.js'],
+        world: 'MAIN',
+        runAt: 'document_start',
         persistAcrossSessions: true
       }]);
     } catch (err) {
