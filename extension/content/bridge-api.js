@@ -64,6 +64,7 @@
             note: 'Use simple selectors (tag, class, id). Do NOT trace CSS module hashes or source files — the API captures element context automatically and the coding agent resolves source mapping from the codebase.'
           },
           getAnnotations: { when: 'Read all annotations on this page.', signature: 'getAnnotations()' },
+          exportAnnotations: { when: 'Export all annotations as a portable JSON object. Use scope "page" for current page or "project" for all from this site.', signature: 'exportAnnotations(scope?)', example: 'exportAnnotations("project")' },
           deleteAnnotation: { when: 'Remove an annotation by ID.', signature: 'deleteAnnotation(id)' },
           status: { when: 'Check if extension and server are active.', signature: 'status()' }
         },
@@ -114,6 +115,16 @@
      */
     getAnnotations() {
       return request('getAnnotations');
+    },
+
+    /**
+     * Export all annotations as a portable JSON object (same format as the file export).
+     * Use this to grab the full export data programmatically — then save to a file or send elsewhere.
+     * @param {string} [scope='project'] - 'page' for current page only, 'project' for all from this site
+     * @returns {Promise<Object>} Full export envelope with metadata + annotations array
+     */
+    exportAnnotations(scope = 'project') {
+      return request('exportAnnotations', { scope });
     },
 
     /**

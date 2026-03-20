@@ -26,6 +26,9 @@ var VibeBridgeHandler = (() => {
         case 'getAnnotations':
           result = handleGetAnnotations();
           break;
+        case 'exportAnnotations':
+          result = await handleExport(args);
+          break;
         case 'deleteAnnotation':
           result = await handleDelete(args);
           break;
@@ -177,6 +180,30 @@ var VibeBridgeHandler = (() => {
         status: a.status
       };
     });
+  }
+
+  async function handleExport({ scope }) {
+    const annotations = scope === 'page'
+      ? await VibeAPI.loadAnnotations()
+      : await VibeAPI.loadProjectAnnotations();
+
+    const loc = window.location;
+    return {
+      vibe_annotations_export: true,
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      source: {
+        origin: loc.origin,
+        hostname: loc.hostname,
+        port: loc.port || ''
+      },
+      scope: scope || 'project',
+      annotations: annotations.map(a => {
+        const cleaned = { ...a };
+        delete cleaned.screenshot;
+        return cleaned;
+      })
+    };
   }
 
   async function handleDelete({ id }) {
