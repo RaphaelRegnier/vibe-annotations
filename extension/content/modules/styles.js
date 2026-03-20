@@ -1025,7 +1025,7 @@ var VIBE_STYLES = `
 
 .vibe-settings-body {
   padding: 6px 0;
-  max-height: 420px;
+  max-height: min(calc(100vh - 120px), 600px);
   overflow-y: auto;
 }
 

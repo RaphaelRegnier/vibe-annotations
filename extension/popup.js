@@ -154,7 +154,7 @@
 
   function setToggleState(visible) {
     overlayVisible = visible;
-    mainBtn.textContent = visible ? 'Hide Vibe Annotations' : 'Show Vibe Annotations';
+    mainBtn.textContent = visible ? 'Close Vibe Annotations' : 'Open Vibe Annotations';
   }
 
   function isLocalhostUrl(url) {

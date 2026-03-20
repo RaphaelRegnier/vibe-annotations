@@ -34,8 +34,9 @@ console.log('[Vibe] content.js loaded');
     // 1. Shadow host + styles
     VibeShadowHost.init();
 
-    // 1b. Restore hidden state (user explicitly closed overlay)
-    if (await VibeAPI.getOverlayHidden()) {
+    // 1b. Restore closed state (user explicitly closed overlay)
+    const overlayClosed = await VibeAPI.getOverlayHidden();
+    if (overlayClosed) {
       VibeShadowHost.getHost().style.display = 'none';
     }
 
@@ -69,8 +70,10 @@ console.log('[Vibe] content.js loaded');
     // 9. Wire up annotation lifecycle events
     setupAnnotationEvents();
 
-    // 10. Wait for hydration, then show badges
-    waitForHydrationAndShowAnnotations();
+    // 10. Wait for hydration, then show badges (skip if overlay is closed)
+    if (!overlayClosed) {
+      waitForHydrationAndShowAnnotations();
+    }
   }
 
   // --- Message listener (popup communication) ---
@@ -93,6 +96,11 @@ console.log('[Vibe] content.js loaded');
 
         case 'toggleOverlay':
           VibeShadowHost.toggle();
+          if (VibeShadowHost.isVisible()) {
+            VibeEvents.emit('overlay:opened');
+          } else {
+            VibeEvents.emit('overlay:closed');
+          }
           sendResponse({ success: true, visible: VibeShadowHost.isVisible() });
           break;
 
@@ -123,7 +131,9 @@ console.log('[Vibe] content.js loaded');
           // Server sync detected changes (e.g. MCP deletion) — reload from storage
           VibeAPI.loadAnnotations().then(fresh => {
             annotations = fresh;
-            VibeEvents.emit('annotations:render', annotations);
+            if (VibeShadowHost.isVisible()) {
+              VibeEvents.emit('annotations:render', annotations);
+            }
           });
           sendResponse({ success: true });
           break;
@@ -163,15 +173,17 @@ console.log('[Vibe] content.js loaded');
   async function reloadAnnotationsForCurrentRoute() {
     annotations = await VibeAPI.loadAnnotations();
     badgesShown = false;
-    VibeBadgeManager.clearAll();
-    // Immediately update toolbar count so it doesn't show stale numbers
-    VibeEvents.emit('badges:rendered', { count: 0, total: annotations.length });
+    if (VibeShadowHost.isVisible()) {
+      VibeBadgeManager.clearAll();
+      // Immediately update toolbar count so it doesn't show stale numbers
+      VibeEvents.emit('badges:rendered', { count: 0, total: annotations.length });
 
-    // Wait briefly for new route's DOM to render, then show badges
-    waitForDOMStability(() => {
-      badgesShown = true;
-      showAnnotationsWithRetry();
-    });
+      // Wait briefly for new route's DOM to render, then show badges
+      waitForDOMStability(() => {
+        badgesShown = true;
+        showAnnotationsWithRetry();
+      });
+    }
   }
 
   // --- Storage listener ---
@@ -182,7 +194,10 @@ console.log('[Vibe] content.js loaded');
         return;
       }
       annotations = (allAnnotations || []).filter(a => a.url === window.location.href);
-      VibeEvents.emit('annotations:render', annotations);
+      // Don't re-render if overlay is closed (styles should stay stripped)
+      if (VibeShadowHost.isVisible()) {
+        VibeEvents.emit('annotations:render', annotations);
+      }
     });
   }
 
@@ -258,6 +273,17 @@ console.log('[Vibe] content.js loaded');
       annotations = annotations.filter(a => a.id !== id);
       // Re-render to update numbering
       VibeEvents.emit('annotations:render', annotations);
+    });
+
+    // Overlay closed — strip all visual changes from page
+    VibeEvents.on('overlay:closed', () => {
+      VibeBadgeManager.clearAll(annotations);
+    });
+
+    // Overlay opened — re-apply visual changes
+    VibeEvents.on('overlay:opened', () => {
+      badgesShown = false;
+      showAnnotationsWithRetry();
     });
 
     // All annotations cleared
