@@ -4,7 +4,14 @@ class VibeAnnotationsBackground {
   constructor() {
     this.apiServerUrl = 'http://127.0.0.1:3846'; // Updated to match external server
     this.apiConnected = false;
+    this._storageQueue = Promise.resolve(); // Serializes chrome.storage read-modify-write ops
     this.init();
+  }
+
+  // Serialize all storage mutations to prevent concurrent read-modify-write races
+  _withStorageLock(fn) {
+    this._storageQueue = this._storageQueue.then(fn, fn);
+    return this._storageQueue;
   }
 
   init() {
@@ -297,31 +304,31 @@ class VibeAnnotationsBackground {
   }
 
   async saveAnnotation(annotation) {
-    try {
-      // Save to local storage first
-      const result = await chrome.storage.local.get(['annotations']);
-      const annotations = result.annotations || [];
-      
-      const existingIndex = annotations.findIndex(a => a.id === annotation.id);
-      if (existingIndex >= 0) {
-        annotations[existingIndex] = annotation;
-      } else {
-        annotations.push(annotation);
+    return this._withStorageLock(async () => {
+      try {
+        const result = await chrome.storage.local.get(['annotations']);
+        const annotations = result.annotations || [];
+
+        const existingIndex = annotations.findIndex(a => a.id === annotation.id);
+        if (existingIndex >= 0) {
+          annotations[existingIndex] = annotation;
+        } else {
+          annotations.push(annotation);
+        }
+
+        await chrome.storage.local.set({ annotations });
+
+        // Also save to API server
+        await this.saveAnnotationToAPI(annotation);
+
+        // Force badge update for all tabs with this URL
+        await this.updateBadgeForUrl(annotation.url);
+
+      } catch (error) {
+        console.error('Error saving annotation:', error);
+        throw error;
       }
-      
-      await chrome.storage.local.set({ annotations });
-      
-      // Also save to API server
-      await this.saveAnnotationToAPI(annotation);
-      
-      
-      // Force badge update for all tabs with this URL
-      await this.updateBadgeForUrl(annotation.url);
-      
-    } catch (error) {
-      console.error('Error saving annotation:', error);
-      throw error;
-    }
+    });
   }
 
   async saveAnnotationToAPI(annotation) {
@@ -352,42 +359,42 @@ class VibeAnnotationsBackground {
   }
 
   async deleteAnnotation(id) {
-    try {
-      const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
-      const annotations = result.annotations || [];
-      const deletedIds = result.deletedAnnotationIds || [];
-
-      const filteredAnnotations = annotations.filter(annotation => annotation.id !== id);
-
-      // Track deletion so sync doesn't resurrect it from server
-      if (!deletedIds.includes(id)) deletedIds.push(id);
-
-      await chrome.storage.local.set({
-        annotations: filteredAnnotations,
-        deletedAnnotationIds: deletedIds
-      });
-
-      // Also delete from API server
+    return this._withStorageLock(async () => {
       try {
-        await this.deleteAnnotationFromAPI(id);
-      } catch (apiError) {
-        console.warn('Failed to delete from API server:', apiError.message);
-        // Don't throw - local deletion succeeded
+        const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
+        const annotations = result.annotations || [];
+        const deletedIds = result.deletedAnnotationIds || [];
+
+        const filteredAnnotations = annotations.filter(annotation => annotation.id !== id);
+
+        // Track deletion so sync doesn't resurrect it from server
+        if (!deletedIds.includes(id)) deletedIds.push(id);
+
+        await chrome.storage.local.set({
+          annotations: filteredAnnotations,
+          deletedAnnotationIds: deletedIds
+        });
+
+        // Also delete from API server
+        try {
+          await this.deleteAnnotationFromAPI(id);
+        } catch (apiError) {
+          console.warn('Failed to delete from API server:', apiError.message);
+        }
+
+        // Find the deleted annotation's URL to update badge
+        const deletedAnnotation = annotations.find(a => a.id === id);
+        if (deletedAnnotation) {
+          await this.updateBadgeForUrl(deletedAnnotation.url);
+        }
+
+        await this.updateAllBadges();
+
+      } catch (error) {
+        console.error('Error deleting annotation:', error);
+        throw error;
       }
-
-      // Find the deleted annotation's URL to update badge
-      const deletedAnnotation = annotations.find(a => a.id === id);
-      if (deletedAnnotation) {
-        await this.updateBadgeForUrl(deletedAnnotation.url);
-      }
-
-      // Update badges for all localhost tabs
-      await this.updateAllBadges();
-
-    } catch (error) {
-      console.error('Error deleting annotation:', error);
-      throw error;
-    }
+    });
   }
 
   async deleteAnnotationFromAPI(id) {
@@ -417,32 +424,31 @@ class VibeAnnotationsBackground {
   }
 
   async updateAnnotation(id, updates) {
-    try {
-      const result = await chrome.storage.local.get(['annotations']);
-      const annotations = result.annotations || [];
-      
-      const annotationIndex = annotations.findIndex(annotation => annotation.id === id);
-      if (annotationIndex === -1) {
-        throw new Error('Annotation not found');
+    return this._withStorageLock(async () => {
+      try {
+        const result = await chrome.storage.local.get(['annotations']);
+        const annotations = result.annotations || [];
+
+        const annotationIndex = annotations.findIndex(annotation => annotation.id === id);
+        if (annotationIndex === -1) {
+          throw new Error('Annotation not found');
+        }
+
+        annotations[annotationIndex] = {
+          ...annotations[annotationIndex],
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+
+        await chrome.storage.local.set({ annotations });
+
+        await this.updateBadgeForUrl(annotations[annotationIndex].url);
+
+      } catch (error) {
+        console.error('Error updating annotation:', error);
+        throw error;
       }
-      
-      // Update the annotation
-      annotations[annotationIndex] = {
-        ...annotations[annotationIndex],
-        ...updates,
-        updated_at: new Date().toISOString()
-      };
-      
-      await chrome.storage.local.set({ annotations });
-      
-      
-      // Force badge update for this annotation's URL
-      await this.updateBadgeForUrl(annotations[annotationIndex].url);
-      
-    } catch (error) {
-      console.error('Error updating annotation:', error);
-      throw error;
-    }
+    });
   }
 
   async exportAnnotations(format = 'json') {

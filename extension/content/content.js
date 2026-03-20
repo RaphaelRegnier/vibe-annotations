@@ -51,6 +51,7 @@ console.log('[Vibe] content.js loaded');
     VibeBadgeManager.init();
     VibeInspectionMode.init();
     VibeAnnotationPopover.init();
+    VibeBridgeHandler.init(() => annotations);
     await VibeToolbar.init();
 
     // 6. Set up message listener (popup ↔ content)
