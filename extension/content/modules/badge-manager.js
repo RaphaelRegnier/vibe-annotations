@@ -23,6 +23,7 @@ var VibeBadgeManager = (() => {
   }
 
   let badges = []; // { el, annotation, targetElement }
+  let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
   let provisionalBadge = null;
   let domObserver = null;
@@ -117,7 +118,14 @@ var VibeBadgeManager = (() => {
       new Date(a.created_at) - new Date(b.created_at)
     );
 
-    sorted.forEach((annotation, i) => {
+    let badgeIndex = 0;
+    sorted.forEach((annotation) => {
+      // Stylesheet annotations — inject as <style> tag
+      if (annotation.type === 'stylesheet' && annotation.css) {
+        injectStyleAnnotation(annotation);
+        return;
+      }
+
       const target = VibeElementContext.findElementBySelector(annotation);
       if (target) {
         // Rehydrate pending design changes
@@ -128,12 +136,21 @@ var VibeBadgeManager = (() => {
           }
           if (rpc.copyChange) target.textContent = rpc.copyChange.value;
         }
-        addBadge(target, annotation, i + 1);
+        badgeIndex++;
+        addBadge(target, annotation, badgeIndex);
       }
     });
 
     lastTotal = annotations.length;
-    VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length });
+    VibeEvents.emit('badges:rendered', { count: badges.length + styleInjections.length, total: annotations.length });
+  }
+
+  function injectStyleAnnotation(annotation) {
+    const style = document.createElement('style');
+    style.setAttribute('data-vibe-style', annotation.id);
+    style.textContent = annotation.css;
+    document.head.appendChild(style);
+    styleInjections.push({ styleEl: style, annotation });
   }
 
   function addBadge(targetElement, annotation, index) {
@@ -199,6 +216,10 @@ var VibeBadgeManager = (() => {
   }
 
   function clearAll(annotations) {
+    // Clear injected stylesheets
+    for (const entry of styleInjections) entry.styleEl.remove();
+    styleInjections = [];
+
     // Clear tracked badges
     const clearedEls = new Set();
     for (const entry of badges) {
@@ -228,6 +249,14 @@ var VibeBadgeManager = (() => {
   }
 
   function onDeleted({ id, annotation }) {
+    // Check stylesheet annotations first
+    const styleIdx = styleInjections.findIndex(s => s.annotation.id === id);
+    if (styleIdx !== -1) {
+      styleInjections[styleIdx].styleEl.remove();
+      styleInjections.splice(styleIdx, 1);
+      return;
+    }
+
     const idx = badges.findIndex(b => b.annotation.id === id);
     if (idx !== -1) {
       const entry = badges[idx];

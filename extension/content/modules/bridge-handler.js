@@ -20,6 +20,9 @@ var VibeBridgeHandler = (() => {
         case 'createAnnotation':
           result = await handleCreate(args);
           break;
+        case 'createStyleAnnotation':
+          result = await handleCreateStyle(args);
+          break;
         case 'getAnnotations':
           result = handleGetAnnotations();
           break;
@@ -133,20 +136,47 @@ var VibeBridgeHandler = (() => {
     return { id: annotation.id, success: true };
   }
 
+  async function handleCreateStyle({ css, comment }) {
+    if (!css || typeof css !== 'string') throw new Error('css string is required');
+
+    const annotation = {
+      id: 'vibe_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      type: 'stylesheet',
+      url: window.location.href,
+      css,
+      comment: comment || '',
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      url_path: window.location.pathname,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    await VibeAPI.saveAnnotation(annotation);
+    VibeEvents.emit('annotation:saved', { annotation });
+
+    return { id: annotation.id, success: true };
+  }
+
   function handleGetAnnotations() {
     const annotations = getAnnotations ? getAnnotations() : [];
     if (!annotations) return [];
-    return annotations.map(a => ({
-      id: a.id,
-      selector: a.selector,
-      comment: a.comment,
-      pending_changes: a.pending_changes || null,
-      element_context: a.element_context || null,
-      source_file_path: a.source_file_path || null,
-      url_path: a.url_path || null,
-      context_hints: a.context_hints || null,
-      status: a.status
-    }));
+    return annotations.map(a => {
+      if (a.type === 'stylesheet') {
+        return { id: a.id, type: 'stylesheet', css: a.css, comment: a.comment, url_path: a.url_path, status: a.status };
+      }
+      return {
+        id: a.id,
+        selector: a.selector,
+        comment: a.comment,
+        pending_changes: a.pending_changes || null,
+        element_context: a.element_context || null,
+        source_file_path: a.source_file_path || null,
+        url_path: a.url_path || null,
+        context_hints: a.context_hints || null,
+        status: a.status
+      };
+    });
   }
 
   async function handleDelete({ id }) {

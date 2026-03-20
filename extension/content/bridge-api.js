@@ -51,6 +51,20 @@
     },
 
     /**
+     * Create a stylesheet annotation — CSS rules applied globally via <style> injection.
+     * Use for broad design changes (themes, resets, global overrides) instead of per-element annotations.
+     * Rules persist across reloads and are transmitted to coding agents alongside element annotations.
+     *
+     * @param {string} css - Raw CSS rules, e.g. "body { background: #0d0d0d; } h1 { font-size: 48px; }"
+     * @param {Object} [options]
+     * @param {string} [options.comment] - Description of the stylesheet changes
+     * @returns {Promise<{ id: string, success: boolean }>}
+     */
+    createStyleAnnotation(css, options = {}) {
+      return request('createStyleAnnotation', { css, ...options });
+    },
+
+    /**
      * Get all annotations for the current page.
      * @returns {Promise<Array>} Annotations with id, selector, comment, pending_changes, element_context
      */
