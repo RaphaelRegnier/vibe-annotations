@@ -66,6 +66,19 @@ var VibeAPI = (() => {
     }
   }
 
+  async function loadProjectAnnotations() {
+    try {
+      const result = await chrome.storage.local.get(['annotations']);
+      const all = result.annotations || [];
+      const origin = window.location.origin;
+      return all.filter(a => {
+        try { return new URL(a.url).origin === origin; } catch { return false; }
+      });
+    } catch {
+      return [];
+    }
+  }
+
   async function saveAnnotation(annotation) {
     try {
       const r = await chrome.runtime.sendMessage({ action: 'saveAnnotation', annotation });
@@ -252,6 +265,7 @@ var VibeAPI = (() => {
     clearStatusCache,
     isFileProtocol,
     loadAnnotations,
+    loadProjectAnnotations,
     saveAnnotation,
     updateAnnotation,
     deleteAnnotation,

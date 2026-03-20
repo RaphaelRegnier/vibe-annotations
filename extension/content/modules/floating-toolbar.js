@@ -46,7 +46,9 @@ var VibeToolbar = (() => {
     back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
     clipboard: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
     check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    chevronRight: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+    chevronRight: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+    download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
@@ -276,10 +278,19 @@ var VibeToolbar = (() => {
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
             ${ICONS.keyboard}
-            <span>Shortcut</span>
+            <span>Trigger hotkey</span>
           </div>
           <button class="vibe-shortcut-btn" type="button">${escapeHTML(shortcutHint)}</button>
         </div>
+        <div class="vibe-settings-separator"></div>
+        <button class="vibe-settings-link vibe-export-btn" type="button">
+          ${ICONS.upload}
+          <span>Export annotations</span>
+        </button>
+        <button class="vibe-settings-link vibe-import-btn" type="button">
+          ${ICONS.download}
+          <span>Import annotations</span>
+        </button>
         <div class="vibe-settings-separator"></div>
         <button class="vibe-settings-link vibe-close-overlay" type="button">
           ${ICONS.eyeOff}
@@ -375,6 +386,18 @@ var VibeToolbar = (() => {
     // Get started
     settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
       showGetStarted();
+    });
+
+    // Export
+    settingsDropdown.querySelector('.vibe-export-btn').addEventListener('click', () => {
+      closeSettings();
+      showExportModal();
+    });
+
+    // Import
+    settingsDropdown.querySelector('.vibe-import-btn').addEventListener('click', () => {
+      closeSettings();
+      triggerImport();
     });
 
     // Close overlay
@@ -685,6 +708,252 @@ var VibeToolbar = (() => {
       });
       backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
     });
+  }
+
+  // --- Import / Export ---
+
+  function showExportModal() {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'vibe-confirm-backdrop';
+    backdrop.innerHTML = `
+      <div class="vibe-confirm">
+        <div class="vibe-confirm-title">Export annotations</div>
+        <div class="vibe-confirm-msg">Choose what to include in the export file.</div>
+        <div class="vibe-export-options">
+          <button class="vibe-export-option vibe-export-page" type="button">This page only</button>
+          <button class="vibe-export-option vibe-export-project" type="button">All from this site</button>
+        </div>
+        <div class="vibe-confirm-actions" style="margin-top:12px;justify-content:flex-start;">
+          <button class="vibe-btn vibe-btn-secondary vibe-export-cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+    root.appendChild(backdrop);
+
+    backdrop.querySelector('.vibe-export-cancel').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+    backdrop.querySelector('.vibe-export-page').addEventListener('click', async () => {
+      const annotations = await VibeAPI.loadAnnotations();
+      if (!annotations.length) {
+        backdrop.remove();
+        showInfoModal('Nothing to export', 'No annotations on this page.');
+        return;
+      }
+      doExport(annotations, 'page');
+      backdrop.remove();
+    });
+
+    backdrop.querySelector('.vibe-export-project').addEventListener('click', async () => {
+      const annotations = await VibeAPI.loadProjectAnnotations();
+      if (!annotations.length) {
+        backdrop.remove();
+        showInfoModal('Nothing to export', 'No annotations for this site.');
+        return;
+      }
+      doExport(annotations, 'project');
+      backdrop.remove();
+    });
+  }
+
+  function doExport(annotations, scope) {
+    const loc = window.location;
+    const exportData = {
+      vibe_annotations_export: true,
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      source: {
+        origin: loc.origin,
+        hostname: loc.hostname,
+        port: loc.port || ''
+      },
+      scope,
+      annotations: annotations.map(a => {
+        const cleaned = { ...a };
+        delete cleaned.screenshot;
+        return cleaned;
+      })
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const hostStr = loc.hostname + (loc.port ? '-' + loc.port : '');
+    const filename = `vibe-annotations-${hostStr}-${dateStr}.json`;
+
+    // Must append to document.body (not shadow root) for downloads to work
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function triggerImport() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      input.remove();
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await processImport(data);
+      } catch {
+        showInfoModal('Invalid file', 'The selected file is not valid JSON.');
+      }
+    });
+
+    input.click();
+  }
+
+  async function processImport(data) {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    // Validate envelope
+    if (!data || data.vibe_annotations_export !== true || !Array.isArray(data.annotations)) {
+      showInfoModal('Invalid format', 'This file is not a Vibe Annotations export.');
+      return;
+    }
+
+    // Validate origin match — offer remap if importing public URL annotations into localhost
+    const currentOrigin = window.location.origin;
+    let remapFrom = null;
+    if (data.source?.origin && data.source.origin !== currentOrigin) {
+      if (isLocalDev()) {
+        const accepted = await showRemapConfirm(root, data.source.origin, currentOrigin);
+        if (!accepted) return;
+        remapFrom = data.source.origin;
+      } else {
+        showInfoModal(
+          'Origin mismatch',
+          `These annotations were exported from ${data.source.origin} but you are on ${currentOrigin}. Origins must match to import.`
+        );
+        return;
+      }
+    }
+
+    // Remap URLs if importing from a different origin
+    if (remapFrom) {
+      for (const a of data.annotations) {
+        if (a.url) a.url = a.url.replace(remapFrom, currentOrigin);
+        if (a.url_path) { /* url_path is pathname-only, no origin to remap */ }
+      }
+    }
+
+    // Deduplicate against existing
+    const existing = await VibeAPI.loadProjectAnnotations();
+    const existingIds = new Set(existing.map(a => a.id));
+    const newAnnotations = data.annotations.filter(a => !existingIds.has(a.id));
+    const skipped = data.annotations.length - newAnnotations.length;
+
+    if (newAnnotations.length === 0) {
+      showInfoModal('Nothing to import', `All ${data.annotations.length} annotation${data.annotations.length !== 1 ? 's' : ''} already exist locally.`);
+      return;
+    }
+
+    // Confirm
+    const confirmed = await showImportConfirm(root, {
+      total: data.annotations.length,
+      newCount: newAnnotations.length,
+      skipped
+    });
+    if (!confirmed) return;
+
+    // Import via background script (handles storage lock + server sync)
+    await chrome.runtime.sendMessage({ action: 'importAnnotations', annotations: newAnnotations });
+    // Storage listener in content.js handles re-render automatically
+  }
+
+  function showImportConfirm(root, { total, newCount, skipped }) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'vibe-confirm-backdrop';
+      const skipText = skipped > 0 ? `<br>${skipped} already exist and will be skipped.` : '';
+      backdrop.innerHTML = `
+        <div class="vibe-confirm">
+          <div class="vibe-confirm-title">Import annotations</div>
+          <div class="vibe-confirm-msg">${newCount} annotation${newCount !== 1 ? 's' : ''} will be imported.${skipText}</div>
+          <div class="vibe-confirm-actions">
+            <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary vibe-confirm-yes">Import</button>
+          </div>
+        </div>
+      `;
+      root.appendChild(backdrop);
+
+      backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => { backdrop.remove(); resolve(false); });
+      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => { backdrop.remove(); resolve(true); });
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
+    });
+  }
+
+  function isLocalDev() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || h.endsWith('.test') || h.endsWith('.localhost');
+  }
+
+  function showRemapConfirm(root, sourceOrigin, currentOrigin) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'vibe-confirm-backdrop';
+      backdrop.innerHTML = `
+        <div class="vibe-confirm">
+          <div class="vibe-confirm-title">Remap annotations?</div>
+          <div class="vibe-confirm-msg">
+            These annotations were exported from <strong>${escapeHTML(sourceOrigin)}</strong>.
+            Remap URLs to <strong>${escapeHTML(currentOrigin)}</strong> for local development?
+          </div>
+          <div style="font-size:12px;color:var(--v-text-secondary);margin-top:8px;margin-bottom:4px;line-height:1.5;">
+            Important: Annotations might not perfectly anchor or apply the styling changes if the selectors aren't identical.
+          </div>
+          <div class="vibe-confirm-actions">
+            <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary vibe-confirm-yes">Remap & Import</button>
+          </div>
+        </div>
+      `;
+      root.appendChild(backdrop);
+
+      backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => { backdrop.remove(); resolve(false); });
+      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => { backdrop.remove(); resolve(true); });
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
+    });
+  }
+
+  function showInfoModal(title, message) {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'vibe-confirm-backdrop';
+    backdrop.innerHTML = `
+      <div class="vibe-confirm">
+        <div class="vibe-confirm-title">${escapeHTML(title)}</div>
+        <div class="vibe-confirm-msg">${escapeHTML(message)}</div>
+        <div class="vibe-confirm-actions">
+          <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">OK</button>
+        </div>
+      </div>
+    `;
+    root.appendChild(backdrop);
+
+    backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
   }
 
   // --- Helpers ---

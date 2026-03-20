@@ -146,6 +146,12 @@ class VibeAnnotationsBackground {
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
           
+        case 'importAnnotations':
+          this.importAnnotations(request.annotations)
+            .then(result => sendResponse({ success: true, ...result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+
         case 'forceMCPSync':
           this.forceAPISync()
             .then(result => sendResponse({ success: true, ...result }))
@@ -198,8 +204,10 @@ class VibeAnnotationsBackground {
 
   async onAnnotationsChanged(annotations) {
     // Update badges for all localhost tabs
+    // NOTE: Do NOT sync to server here — that's handled by smartSyncAnnotations (periodic),
+    // saveAnnotation, deleteAnnotation, and importAnnotations. Syncing here causes races
+    // because this fires on every storage write, including writes from smartSync itself.
     try {
-      
       const tabs = await chrome.tabs.query({});
       const supportedTabs = [];
       for (const tab of tabs) {
@@ -207,16 +215,8 @@ class VibeAnnotationsBackground {
       }
 
       for (const tab of supportedTabs) {
-        // Use direct local storage update for immediate response
         await this.updateBadgeFromLocalStorage(tab.id, tab.url);
       }
-
-      // Sync annotations to API server (in background)
-      this.syncAnnotationsToAPI(annotations).catch(error => {
-        console.error('Background sync failed:', error);
-      });
-      
-      
     } catch (error) {
       console.error('Error updating badges after storage change:', error);
     }
@@ -691,109 +691,106 @@ class VibeAnnotationsBackground {
   }
 
   async smartSyncAnnotations() {
+    // Fetch server state OUTSIDE the lock (network I/O shouldn't block storage writes)
+    let serverAnnotations;
     try {
-      // Get local state
-      const localResult = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
-      const localAnnotations = localResult.annotations || [];
-      const deletedIds = new Set(localResult.deletedAnnotationIds || []);
-
-      // Get server annotations
       const response = await fetch(`${this.apiServerUrl}/api/annotations`);
-      if (!response.ok) return; // Skip sync on server error
-
+      if (!response.ok) return;
       const serverResult = await response.json();
-      const serverAnnotations = serverResult.annotations || [];
+      serverAnnotations = serverResult.annotations || [];
+    } catch {
+      return; // Server unreachable, skip sync
+    }
 
-      // Build lookup maps
-      const localMap = new Map(localAnnotations.map(a => [a.id, a]));
-      const serverMap = new Map(serverAnnotations.map(a => [a.id, a]));
-      const allIds = new Set([...localMap.keys(), ...serverMap.keys()]);
+    // Merge inside the storage lock to serialize against save/delete/import
+    return this._withStorageLock(async () => {
+      try {
+        const localResult = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
+        const localAnnotations = localResult.annotations || [];
+        const deletedIds = new Set(localResult.deletedAnnotationIds || []);
 
-      const merged = [];
-      let changed = false;
+        // Build lookup maps
+        const localMap = new Map(localAnnotations.map(a => [a.id, a]));
+        const serverMap = new Map(serverAnnotations.map(a => [a.id, a]));
+        const allIds = new Set([...localMap.keys(), ...serverMap.keys()]);
 
-      for (const id of allIds) {
-        // Skip anything the user explicitly deleted locally
-        if (deletedIds.has(id)) {
-          // If server still has it, we'll push the deletion below
-          if (serverMap.has(id)) changed = true;
-          continue;
-        }
+        const merged = [];
+        let changed = false;
 
-        const local = localMap.get(id);
-        const server = serverMap.get(id);
+        for (const id of allIds) {
+          if (deletedIds.has(id)) {
+            if (serverMap.has(id)) changed = true;
+            continue;
+          }
 
-        if (local && server) {
-          // Both have it — most recent updated_at wins
-          const lt = new Date(local.updated_at || local.created_at || 0).getTime();
-          const st = new Date(server.updated_at || server.created_at || 0).getTime();
-          if (st > lt) {
+          const local = localMap.get(id);
+          const server = serverMap.get(id);
+
+          if (local && server) {
+            const lt = new Date(local.updated_at || local.created_at || 0).getTime();
+            const st = new Date(server.updated_at || server.created_at || 0).getTime();
+            if (st > lt) {
+              merged.push(server);
+              changed = true;
+            } else {
+              merged.push(local);
+              if (lt > st) changed = true;
+            }
+          } else if (local && !server) {
+            merged.push(local);
+            changed = true;
+          } else if (!local && server) {
             merged.push(server);
             changed = true;
-          } else {
-            merged.push(local);
-            if (lt > st) changed = true; // local is newer, need to push
           }
-        } else if (local && !server) {
-          // Local-only: new annotation created offline, push to server
-          merged.push(local);
-          changed = true;
-        } else if (!local && server) {
-          // Server-only: new annotation from MCP/Claude, pull to local
-          merged.push(server);
-          changed = true;
         }
-      }
 
-      if (!changed) return;
+        if (!changed) return;
 
-      // Persist merged result locally
-      await chrome.storage.local.set({
-        annotations: merged,
-        lastServerSync: Date.now()
-      });
-
-      // Push merged result to server (full sync replace)
-      try {
-        await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ annotations: merged })
+        // Persist merged result locally
+        await chrome.storage.local.set({
+          annotations: merged,
+          lastServerSync: Date.now()
         });
-      } catch (e) {
-        console.warn('Failed to push merged annotations to server:', e.message);
-      }
 
-      // Delete server-side tombstoned annotations
-      for (const id of deletedIds) {
-        if (serverMap.has(id)) {
-          this.deleteAnnotationFromAPI(id).catch(() => {});
+        // Push merged result to server
+        try {
+          await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ annotations: merged })
+          });
+        } catch (e) {
+          console.warn('Failed to push merged annotations to server:', e.message);
         }
-      }
 
-      // Prune tombstones: only keep IDs that the server still had
-      // (others are already gone from both sides)
-      const activeTombstones = [...deletedIds].filter(id => serverMap.has(id));
-      await chrome.storage.local.set({ deletedAnnotationIds: activeTombstones });
-
-      console.log(`[Vibe] Sync complete — merged: ${merged.length} annotations`);
-
-      // Update badges
-      await this.updateAllBadges();
-
-      // Notify content scripts to refresh
-      try {
-        const tabs = await chrome.tabs.query({});
-        for (const tab of tabs) {
-          if (await this.isSupportedUrl(tab.url)) {
-            chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+        // Delete server-side tombstoned annotations
+        for (const id of deletedIds) {
+          if (serverMap.has(id)) {
+            this.deleteAnnotationFromAPI(id).catch(() => {});
           }
         }
-      } catch { /* ignore */ }
 
-    } catch (error) {
-      console.error('Error during smart sync:', error);
-    }
+        const activeTombstones = [...deletedIds].filter(id => serverMap.has(id));
+        await chrome.storage.local.set({ deletedAnnotationIds: activeTombstones });
+
+        console.log(`[Vibe] Sync complete — merged: ${merged.length} annotations`);
+        await this.updateAllBadges();
+
+        // Notify content scripts to refresh
+        try {
+          const tabs = await chrome.tabs.query({});
+          for (const tab of tabs) {
+            if (await this.isSupportedUrl(tab.url)) {
+              chrome.tabs.sendMessage(tab.id, { action: 'annotationsUpdated' }).catch(() => {});
+            }
+          }
+        } catch { /* ignore */ }
+
+      } catch (error) {
+        console.error('Error during smart sync:', error);
+      }
+    });
   }
 
 
@@ -949,6 +946,50 @@ class VibeAnnotationsBackground {
       console.error('Error in forced API sync:', error);
       throw error;
     }
+  }
+
+  async importAnnotations(newAnnotations) {
+    if (!Array.isArray(newAnnotations) || !newAnnotations.length) {
+      return { imported: 0 };
+    }
+
+    return this._withStorageLock(async () => {
+      const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
+      const all = result.annotations || [];
+      const deletedIds = result.deletedAnnotationIds || [];
+      const existingIds = new Set(all.map(a => a.id));
+
+      let imported = 0;
+      const importedIds = [];
+      for (const a of newAnnotations) {
+        if (!existingIds.has(a.id)) {
+          all.push(a);
+          existingIds.add(a.id);
+          importedIds.push(a.id);
+          imported++;
+        }
+      }
+
+      if (imported > 0) {
+        // Clear imported IDs from tombstone list so smartSync doesn't remove them
+        const cleanedTombstones = deletedIds.filter(id => !importedIds.includes(id));
+        await chrome.storage.local.set({
+          annotations: all,
+          deletedAnnotationIds: cleanedTombstones
+        });
+
+        // Sync to server immediately
+        try {
+          await this.syncAnnotationsToAPI(all);
+        } catch (e) {
+          console.warn('Failed to sync imported annotations to server:', e.message);
+        }
+
+        await this.updateAllBadges();
+      }
+
+      return { imported, total: all.length };
+    });
   }
 
   // Utility function for generating IDs

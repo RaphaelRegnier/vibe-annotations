@@ -1252,4 +1252,38 @@ var VIBE_STYLES = `
 .vibe-btn-danger:hover {
   opacity: 0.9;
 }
+
+/* Export modal scope buttons */
+.vibe-export-options {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.vibe-export-option {
+  flex: 1;
+  padding: 10px 12px;
+  font-family: var(--v-font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v-text-primary);
+  background: var(--v-surface-hover);
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  line-height: 1.3;
+}
+.vibe-export-option:hover {
+  border-color: var(--v-text-secondary);
+}
+
+/* Primary button */
+.vibe-btn-primary {
+  background: var(--v-accent);
+  color: #fff;
+}
+.vibe-btn-primary:hover {
+  opacity: 0.9;
+}
 `;
