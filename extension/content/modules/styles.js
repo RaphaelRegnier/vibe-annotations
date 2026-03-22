@@ -927,6 +927,24 @@ var VIBE_STYLES = `
   padding: 0 4px;
 }
 
+/* Toolbar stylesheet annotation badge */
+.vibe-toolbar-style-count {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ec4899;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
 /* Toolbar tooltip */
 .vibe-toolbar-tip {
   position: absolute;

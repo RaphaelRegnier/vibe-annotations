@@ -96,7 +96,7 @@ var VibeBadgeManager = (() => {
 
     const badge = document.createElement('div');
     badge.className = 'vibe-badge';
-    badge.textContent = (lastTotal + 1).toString();
+    badge.textContent = (badges.length + 1).toString();
     badge.style.top = `${clientY - 11}px`;
     badge.style.left = `${clientX}px`;
     root.appendChild(badge);
@@ -146,7 +146,7 @@ var VibeBadgeManager = (() => {
     });
 
     lastTotal = annotations.length;
-    VibeEvents.emit('badges:rendered', { count: badges.length + styleInjections.length, total: annotations.length });
+    VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length, styleCount: styleInjections.filter(s => s.annotation.type === 'stylesheet').length });
   }
 
   function injectStyleAnnotation(annotation) {

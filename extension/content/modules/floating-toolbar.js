@@ -10,6 +10,7 @@ var VibeToolbar = (() => {
   let isCollapsed = false;
   let serverOnline = false;
   let annotationCount = 0;
+  let styleAnnotationCount = 0;
   let clearOnCopy = false;
   let screenshotEnabled = true;
   let badgeColor = '#4b5563';
@@ -78,8 +79,8 @@ var VibeToolbar = (() => {
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ total }) => { annotationCount = total; updateUI(); });
-    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = count; styleAnnotationCount = styleCount || 0; updateUI(); });
+    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
 
     // Periodic server status check
     setInterval(refreshServerStatus, 10000);
@@ -160,6 +161,7 @@ var VibeToolbar = (() => {
       if (clearOnCopy) {
         // Reset count immediately so UI stays consistent
         annotationCount = 0;
+        styleAnnotationCount = 0;
         VibeEvents.emit('annotations:cleared', { count: annotations.length });
         for (const a of annotations) {
           await VibeAPI.deleteAnnotation(a.id);
@@ -743,15 +745,17 @@ var VibeToolbar = (() => {
     }
 
     // Enable/disable copy + delete, badge on copy
+    const totalCount = annotationCount + styleAnnotationCount;
     const copyBtn = toolbarEl.querySelector('.vibe-tb-copy');
     const deleteBtn = toolbarEl.querySelector('.vibe-tb-delete');
     if (copyBtn) {
-      copyBtn.disabled = annotationCount === 0;
+      copyBtn.disabled = totalCount === 0;
       copyBtn.innerHTML = ICONS.copy +
         (annotationCount > 0 ? `<span class="vibe-toolbar-count">${annotationCount}</span>` : '') +
+        (styleAnnotationCount > 0 ? `<span class="vibe-toolbar-style-count">${styleAnnotationCount}</span>` : '') +
         '<span class="vibe-toolbar-tip">Copy all</span>';
     }
-    if (deleteBtn) deleteBtn.disabled = annotationCount === 0;
+    if (deleteBtn) deleteBtn.disabled = totalCount === 0;
   }
 
   async function refreshServerStatus() {

@@ -341,16 +341,17 @@ console.log('[Vibe] content.js loaded');
     // Clean up previous lazy observer
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 
+    const elementAnnotations = annotations.filter(a => a.type !== 'stylesheet');
     let attempts = 0;
     const tryShow = () => {
       attempts++;
       VibeEvents.emit('annotations:render', annotations);
       const found = VibeBadgeManager.getCount();
-      if (found < annotations.length && attempts < maxAttempts) {
+      if (found < elementAnnotations.length && attempts < maxAttempts) {
         setTimeout(tryShow, delay);
       }
       // After retries exhausted, if still missing badges, watch for lazy-loaded content
-      if (attempts >= maxAttempts && found < annotations.length) {
+      if (attempts >= maxAttempts && found < elementAnnotations.length) {
         startLazyElementObserver();
       }
     };
@@ -362,13 +363,14 @@ console.log('[Vibe] content.js loaded');
     if (lazyObserver) lazyObserver.disconnect();
 
     let debounceTimer = null;
+    const elementCount = annotations.filter(a => a.type !== 'stylesheet').length;
     lazyObserver = new MutationObserver(() => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         VibeEvents.emit('annotations:render', annotations);
         const found = VibeBadgeManager.getCount();
         // All badges found — stop watching
-        if (found >= annotations.length) {
+        if (found >= elementCount) {
           lazyObserver.disconnect();
           lazyObserver = null;
           console.log('[Vibe] All badges resolved via lazy observer');
