@@ -697,7 +697,8 @@ class VibeAnnotationsBackground {
       const response = await fetch(`${this.apiServerUrl}/api/annotations`);
       if (!response.ok) return;
       const serverResult = await response.json();
-      serverAnnotations = serverResult.annotations || [];
+      if (!Array.isArray(serverResult.annotations)) return; // Unexpected response (e.g. multi-project warning) — skip sync
+      serverAnnotations = serverResult.annotations;
     } catch {
       return; // Server unreachable, skip sync
     }

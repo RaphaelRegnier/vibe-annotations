@@ -11,6 +11,12 @@ var VibeAPI = (() => {
     return window.location.protocol === 'file:';
   }
 
+  function isLocalOrigin() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || h.endsWith('.test') || h.endsWith('.localhost');
+  }
+
   // --- Server status ---
 
   async function checkServerStatus() {
@@ -19,7 +25,8 @@ var VibeAPI = (() => {
 
     let status;
 
-    if (isFileProtocol()) {
+    if (isFileProtocol() || !isLocalOrigin()) {
+      // Non-local origins can't fetch localhost directly (CORS) — route via background
       status = await _checkViaBg();
     } else {
       try {
