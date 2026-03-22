@@ -80,6 +80,12 @@
     }
     .action-btn:hover { background: #c4684a; }
     .action-btn:disabled { background: #d1d5db; cursor: default; }
+    .action-btn.secondary {
+      background: transparent;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    .action-btn.secondary:hover { background: #f3f4f6; color: #374151; }
     .success {
       background: #d1fae5;
       border: 1px solid #10b981;
@@ -121,6 +127,8 @@
       .supported strong { color: #d1d5db; }
       .separator { border-color: #374151; }
       code { background: #374151; color: #e5e7eb; }
+      .action-btn.secondary { color: #9ca3af; }
+      .action-btn.secondary:hover { background: #374151; color: #e5e7eb; }
     }
   </style>
 </head>
@@ -140,6 +148,7 @@
   <div class="success hidden" id="success"></div>
   <div class="site-url hidden" id="siteUrl"></div>
   <button class="action-btn hidden" id="mainBtn"></button>
+  <button class="action-btn secondary hidden" id="allSitesBtn">Enable for all sites</button>
   <div class="separator"></div>
   <div class="supported">
     <strong>Auto-enabled:</strong><br>
