@@ -54,8 +54,18 @@ class LocalAnnotationsServer {
 
   setupExpress() {
     this.app.use(cors({
-      origin: true,
-      credentials: true
+      origin: (origin, cb) => {
+        // Allow: localhost/loopback, chrome-extension://, no origin (curl/MCP)
+        if (!origin
+          || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)
+          || origin.startsWith('chrome-extension://')
+          || origin.endsWith('.local') || origin.endsWith('.test') || origin.endsWith('.localhost')
+        ) {
+          cb(null, origin || '*');
+        } else {
+          cb(null, false);
+        }
+      }
     }));
     this.app.use(express.json());
 
