@@ -116,6 +116,12 @@ class VibeAnnotationsBackground {
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
           
+        case 'deleteAnnotationsByUrl':
+          this.deleteAnnotationsByUrl(request.url)
+            .then(({ count }) => sendResponse({ success: true, count }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+
         case 'updateAnnotation':
           this.updateAnnotation(request.id, request.updates)
             .then(() => sendResponse({ success: true }))
@@ -394,6 +400,36 @@ class VibeAnnotationsBackground {
         console.error('Error deleting annotation:', error);
         throw error;
       }
+    });
+  }
+
+  async deleteAnnotationsByUrl(url) {
+    return this._withStorageLock(async () => {
+      const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
+      const all = result.annotations || [];
+      const deletedIds = result.deletedAnnotationIds || [];
+
+      const toDelete = all.filter(a => a.url === url);
+      const remaining = all.filter(a => a.url !== url);
+
+      for (const a of toDelete) {
+        if (!deletedIds.includes(a.id)) deletedIds.push(a.id);
+      }
+
+      await chrome.storage.local.set({
+        annotations: remaining,
+        deletedAnnotationIds: deletedIds
+      });
+
+      // Fire-and-forget API deletes
+      for (const a of toDelete) {
+        this.deleteAnnotationFromAPI(a.id).catch(() => {});
+      }
+
+      await this.updateBadgeForUrl(url);
+      await this.updateAllBadges();
+
+      return { count: toDelete.length };
     });
   }
 

@@ -163,9 +163,7 @@ var VibeToolbar = (() => {
         annotationCount = 0;
         styleAnnotationCount = 0;
         VibeEvents.emit('annotations:cleared', { count: annotations.length });
-        for (const a of annotations) {
-          await VibeAPI.deleteAnnotation(a.id);
-        }
+        await VibeAPI.deleteAnnotationsByUrl();
       }
     });
 
@@ -182,10 +180,9 @@ var VibeToolbar = (() => {
 
       const annotations = await VibeAPI.loadAnnotations();
       annotationCount = 0;
+      styleAnnotationCount = 0;
       VibeEvents.emit('annotations:cleared', { count: annotations.length });
-      for (const a of annotations) {
-        await VibeAPI.deleteAnnotation(a.id);
-      }
+      await VibeAPI.deleteAnnotationsByUrl();
     });
 
     // Settings

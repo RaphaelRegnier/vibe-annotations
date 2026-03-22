@@ -135,6 +135,21 @@ var VibeAPI = (() => {
     }
   }
 
+  async function deleteAnnotationsByUrl() {
+    try {
+      const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotationsByUrl', url: window.location.href });
+      if (!r || !r.success) throw new Error(r?.error || 'bulk delete failed');
+      return r.count || 0;
+    } catch (e) {
+      console.warn('deleteAnnotationsByUrl bg failed, using storage fallback', e);
+      const result = await chrome.storage.local.get(['annotations']);
+      const all = result.annotations || [];
+      const remaining = all.filter(a => a.url !== window.location.href);
+      await chrome.storage.local.set({ annotations: remaining });
+      return all.length - remaining.length;
+    }
+  }
+
   // --- Storage listeners ---
 
   function onAnnotationsChanged(cb) {
@@ -276,6 +291,7 @@ var VibeAPI = (() => {
     saveAnnotation,
     updateAnnotation,
     deleteAnnotation,
+    deleteAnnotationsByUrl,
     onAnnotationsChanged,
     getScreenshotEnabled,
     saveScreenshotEnabled,
