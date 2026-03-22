@@ -13,6 +13,8 @@ var VibeAnnotationPopover = (() => {
   let activeElType = null;
   let activeRawCssOriginals = null; // Map of kebab-prop → original value, for dismiss cleanup
   let activeOriginalText = null; // Original textContent for revert on cancel
+  let activeTextDirty = false; // Whether user actually edited text content
+  let activeOriginalCssText = null; // Original inline style for revert on cancel
   let activeCssRulesStyleEl = null; // Companion <style> tag for CSS rules live preview
 
   // All design properties — used for dismiss/revert
@@ -369,6 +371,7 @@ var VibeAnnotationPopover = (() => {
 
     // Track active element for revert-on-dismiss
     activeElement = targetElement;
+    activeOriginalCssText = targetElement.style.cssText;
     activeExistingAnnotation = existingAnnotation;
     activeElType = elType;
 
@@ -690,6 +693,7 @@ var VibeAnnotationPopover = (() => {
 
     // Live-apply on input + auto-resize
     input.addEventListener('input', () => {
+      activeTextDirty = true;
       targetElement.textContent = input.value;
       autoResizeContentInput(input);
       popover._updateResetVisibility?.();
@@ -1926,16 +1930,10 @@ var VibeAnnotationPopover = (() => {
 
     // Revert design changes on cancel (not on save)
     if (hadPopover && !saved && activeElement) {
-      for (const prop of ALL_DESIGN_PROPS) activeElement.style[prop] = '';
-      // Also clear any extra raw CSS props not in ALL_DESIGN_PROPS
-      if (activeRawCssOriginals) {
-        for (const [kebab] of activeRawCssOriginals) {
-          const camel = kebabToCamel(kebab);
-          if (!ALL_DESIGN_PROPS.includes(camel)) activeElement.style[camel] = '';
-        }
-      }
-      // Revert text content change
-      if (activeOriginalText !== null) {
+      // Restore original inline styles
+      activeElement.style.cssText = activeOriginalCssText || '';
+      // Revert text content change (only if user actually edited it)
+      if (activeTextDirty && activeOriginalText !== null) {
         activeElement.textContent = activeOriginalText;
       }
       // Re-apply existing pending_changes if editing an annotation that had them
@@ -1964,6 +1962,8 @@ var VibeAnnotationPopover = (() => {
     activeElType = null;
     activeRawCssOriginals = null;
     activeOriginalText = null;
+    activeTextDirty = false;
+    activeOriginalCssText = null;
     if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }
