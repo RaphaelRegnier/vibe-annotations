@@ -25,6 +25,9 @@ class VibeAnnotationsBackground {
     // Re-register content scripts for user-enabled sites
     this.restoreEnabledSites();
 
+    // One-time migration: mark existing annotations as synced
+    this.migrateSyncFlags();
+
     // Start API server connection monitoring
     this.startAPIConnectionMonitoring();
   }
@@ -92,6 +95,20 @@ class VibeAnnotationsBackground {
     } catch (error) {
       console.error('Error during update migration:', error);
     }
+  }
+
+  async migrateSyncFlags() {
+    const result = await chrome.storage.local.get(['annotations', '_syncFlagsMigrated']);
+    if (result._syncFlagsMigrated) return;
+    const annotations = result.annotations || [];
+    if (annotations.length) {
+      let changed = false;
+      for (const a of annotations) {
+        if (!a._synced) { a._synced = true; changed = true; }
+      }
+      if (changed) await chrome.storage.local.set({ annotations });
+    }
+    await chrome.storage.local.set({ _syncFlagsMigrated: true });
   }
 
   setupMessageListener() {
@@ -197,6 +214,7 @@ class VibeAnnotationsBackground {
         }
       }
     });
+
   }
 
   setupStorageListener() {
@@ -322,10 +340,23 @@ class VibeAnnotationsBackground {
           annotations.push(annotation);
         }
 
+        // Save to local storage FIRST (before API call that might hang)
         await chrome.storage.local.set({ annotations });
 
-        // Also save to API server
-        await this.saveAnnotationToAPI(annotation);
+        // Then try API server — mark as synced on success
+        try {
+          await this.saveAnnotationToAPI(annotation);
+          // Re-read and update _synced flag
+          const fresh = await chrome.storage.local.get(['annotations']);
+          const arr = fresh.annotations || [];
+          const target = arr.find(a => a.id === annotation.id);
+          if (target && !target._synced) {
+            target._synced = true;
+            await chrome.storage.local.set({ annotations: arr });
+          }
+        } catch (apiErr) {
+          console.warn('Failed to save to API, will sync later:', apiErr.message);
+        }
 
         // Force badge update for all tabs with this URL
         await this.updateBadgeForUrl(annotation.url);
@@ -360,7 +391,7 @@ class VibeAnnotationsBackground {
       
     } catch (error) {
       console.warn('Failed to save to API server, annotation saved locally:', error.message);
-      // Don't throw - local storage save succeeded
+      throw error; // Re-throw so caller knows API failed (affects _synced flag)
     }
   }
 
@@ -752,7 +783,8 @@ class VibeAnnotationsBackground {
         const allIds = new Set([...localMap.keys(), ...serverMap.keys()]);
 
         const merged = [];
-        let changed = false;
+        let changed = false;   // content changed (additions, deletions, updates)
+        let flagsChanged = false; // _synced flags need persisting
 
         for (const id of allIds) {
           if (deletedIds.has(id)) {
@@ -767,22 +799,33 @@ class VibeAnnotationsBackground {
             const lt = new Date(local.updated_at || local.created_at || 0).getTime();
             const st = new Date(server.updated_at || server.created_at || 0).getTime();
             if (st > lt) {
+              server._synced = true;
               merged.push(server);
               changed = true;
             } else {
+              if (!local._synced) flagsChanged = true;
+              local._synced = true;
               merged.push(local);
               if (lt > st) changed = true;
             }
           } else if (local && !server) {
-            merged.push(local);
-            changed = true;
+            if (local._synced) {
+              // Was on server before, now gone → server-side deletion (MCP agent)
+              changed = true; // drop it — don't push back
+            } else {
+              // Never reached server (created offline) → push to server
+              merged.push(local);
+              changed = true;
+            }
           } else if (!local && server) {
+            server._synced = true;
             merged.push(server);
             changed = true;
           }
         }
 
-        if (!changed) return;
+        // Always persist _synced flag updates even if content didn't change
+        if (!changed && !flagsChanged) return;
 
         // Persist merged result locally
         await chrome.storage.local.set({
@@ -790,15 +833,25 @@ class VibeAnnotationsBackground {
           lastServerSync: Date.now()
         });
 
-        // Push merged result to server
-        try {
-          await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ annotations: merged })
-          });
-        } catch (e) {
-          console.warn('Failed to push merged annotations to server:', e.message);
+        // Push merged result to server only if content changed
+        if (changed) {
+          try {
+            await fetch(`${this.apiServerUrl}/api/annotations/sync`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ annotations: merged })
+            });
+            // Mark all as synced
+            let needsUpdate = false;
+            for (const a of merged) {
+              if (!a._synced) { a._synced = true; needsUpdate = true; }
+            }
+            if (needsUpdate) {
+              await chrome.storage.local.set({ annotations: merged });
+            }
+          } catch (e) {
+            console.warn('Failed to push merged annotations to server:', e.message);
+          }
         }
 
         // Delete server-side tombstoned annotations
@@ -1015,9 +1068,16 @@ class VibeAnnotationsBackground {
           deletedAnnotationIds: cleanedTombstones
         });
 
-        // Sync to server immediately
+        // Sync to server immediately and mark as synced
         try {
           await this.syncAnnotationsToAPI(all);
+          let flagsChanged = false;
+          for (const a of all) {
+            if (!a._synced) { a._synced = true; flagsChanged = true; }
+          }
+          if (flagsChanged) {
+            await chrome.storage.local.set({ annotations: all });
+          }
         } catch (e) {
           console.warn('Failed to sync imported annotations to server:', e.message);
         }

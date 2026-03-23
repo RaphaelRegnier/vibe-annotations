@@ -34,11 +34,8 @@ console.log('[Vibe] content.js loaded');
     // 1. Shadow host + styles
     VibeShadowHost.init();
 
-    // 1b. Restore closed state (user explicitly closed overlay)
-    const overlayClosed = await VibeAPI.getOverlayHidden();
-    if (overlayClosed) {
-      VibeShadowHost.getHost().style.display = 'none';
-    }
+    // 1b. Overlay hidden state is restored synchronously in VibeShadowHost.init()
+    const overlayClosed = VibeAPI.getOverlayHidden();
 
     // 2. Theme
     await VibeThemeManager.init();

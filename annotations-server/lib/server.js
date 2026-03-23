@@ -67,7 +67,7 @@ class LocalAnnotationsServer {
         }
       }
     }));
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: '5mb' }));
 
     // Health check with version info
     this.app.get('/health', (req, res) => {

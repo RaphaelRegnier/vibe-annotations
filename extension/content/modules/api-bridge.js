@@ -237,18 +237,18 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
-  async function getOverlayHidden() {
+  function getOverlayHidden() {
     try {
-      const r = await chrome.storage.local.get(['vibeOverlayHidden']);
-      return !!r.vibeOverlayHidden;
+      return sessionStorage.getItem('vibeOverlayHidden') === '1';
     } catch {
       return false;
     }
   }
 
-  async function saveOverlayHidden(hidden) {
+  function saveOverlayHidden(hidden) {
     try {
-      await chrome.storage.local.set({ vibeOverlayHidden: hidden });
+      if (hidden) sessionStorage.setItem('vibeOverlayHidden', '1');
+      else sessionStorage.removeItem('vibeOverlayHidden');
     } catch { /* ignore */ }
   }
 

@@ -27,6 +27,11 @@ var VibeShadowHost = (() => {
     styleEl.textContent = VIBE_STYLES;
     shadowRoot.appendChild(styleEl);
 
+    // Restore hidden state before appending to avoid flash
+    if (VibeAPI.getOverlayHidden()) {
+      hostEl.style.display = 'none';
+    }
+
     document.body.appendChild(hostEl);
 
     // Contain composed events at shadow boundary — prevents frameworks
