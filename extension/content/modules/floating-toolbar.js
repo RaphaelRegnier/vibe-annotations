@@ -1255,7 +1255,6 @@ var VibeToolbar = (() => {
         }
         if (changes.length) {
           lines.push(`   Design changes: ${changes.join(', ')}`);
-          lines.push(`   (Map to project design system: Tailwind class, CSS variable, or design token)`);
         }
       }
 
@@ -1267,7 +1266,7 @@ var VibeToolbar = (() => {
       return lines.join('\n');
     });
 
-    return header + '\n\nFollow my instructions on these elements:\n\n---\n\n' + blocks.join('\n\n');
+    return header + '\n\nFollow my instructions on these elements.\nWhen applying design changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens).\n\n---\n\n' + blocks.join('\n\n');
   }
 
   function formatStyles(styles) {
