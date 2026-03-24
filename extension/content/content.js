@@ -34,10 +34,8 @@ console.log('[Vibe] content.js loaded');
     // 1. Shadow host + styles
     VibeShadowHost.init();
 
-    // 1b. Restore hidden state (user explicitly closed overlay)
-    if (await VibeAPI.getOverlayHidden()) {
-      VibeShadowHost.getHost().style.display = 'none';
-    }
+    // 1b. Overlay hidden state is restored synchronously in VibeShadowHost.init()
+    const overlayClosed = VibeAPI.getOverlayHidden();
 
     // 2. Theme
     await VibeThemeManager.init();
@@ -51,6 +49,7 @@ console.log('[Vibe] content.js loaded');
     VibeBadgeManager.init();
     VibeInspectionMode.init();
     VibeAnnotationPopover.init();
+    VibeBridgeHandler.init(() => annotations);
     await VibeToolbar.init();
 
     // 6. Set up message listener (popup ↔ content)
@@ -68,8 +67,10 @@ console.log('[Vibe] content.js loaded');
     // 9. Wire up annotation lifecycle events
     setupAnnotationEvents();
 
-    // 10. Wait for hydration, then show badges
-    waitForHydrationAndShowAnnotations();
+    // 10. Wait for hydration, then show badges (skip if overlay is closed)
+    if (!overlayClosed) {
+      waitForHydrationAndShowAnnotations();
+    }
   }
 
   // --- Message listener (popup communication) ---
@@ -92,6 +93,11 @@ console.log('[Vibe] content.js loaded');
 
         case 'toggleOverlay':
           VibeShadowHost.toggle();
+          if (VibeShadowHost.isVisible()) {
+            VibeEvents.emit('overlay:opened');
+          } else {
+            VibeEvents.emit('overlay:closed');
+          }
           sendResponse({ success: true, visible: VibeShadowHost.isVisible() });
           break;
 
@@ -122,7 +128,9 @@ console.log('[Vibe] content.js loaded');
           // Server sync detected changes (e.g. MCP deletion) — reload from storage
           VibeAPI.loadAnnotations().then(fresh => {
             annotations = fresh;
-            VibeEvents.emit('annotations:render', annotations);
+            if (VibeShadowHost.isVisible()) {
+              VibeEvents.emit('annotations:render', annotations);
+            }
           });
           sendResponse({ success: true });
           break;
@@ -162,15 +170,17 @@ console.log('[Vibe] content.js loaded');
   async function reloadAnnotationsForCurrentRoute() {
     annotations = await VibeAPI.loadAnnotations();
     badgesShown = false;
-    VibeBadgeManager.clearAll();
-    // Immediately update toolbar count so it doesn't show stale numbers
-    VibeEvents.emit('badges:rendered', { count: 0, total: annotations.length });
+    if (VibeShadowHost.isVisible()) {
+      VibeBadgeManager.clearAll();
+      // Immediately update toolbar count so it doesn't show stale numbers
+      VibeEvents.emit('badges:rendered', { count: 0, total: annotations.length });
 
-    // Wait briefly for new route's DOM to render, then show badges
-    waitForDOMStability(() => {
-      badgesShown = true;
-      showAnnotationsWithRetry();
-    });
+      // Wait briefly for new route's DOM to render, then show badges
+      waitForDOMStability(() => {
+        badgesShown = true;
+        showAnnotationsWithRetry();
+      });
+    }
   }
 
   // --- Storage listener ---
@@ -181,7 +191,10 @@ console.log('[Vibe] content.js loaded');
         return;
       }
       annotations = (allAnnotations || []).filter(a => a.url === window.location.href);
-      VibeEvents.emit('annotations:render', annotations);
+      // Don't re-render if overlay is closed (styles should stay stripped)
+      if (VibeShadowHost.isVisible()) {
+        VibeEvents.emit('annotations:render', annotations);
+      }
     });
   }
 
@@ -240,12 +253,13 @@ console.log('[Vibe] content.js loaded');
     });
 
     // Annotation updated
-    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes }) => {
+    VibeEvents.on('annotation:updated', ({ id, comment, pending_changes, css }) => {
       localSaveCount++;
       const idx = annotations.findIndex(a => a.id === id);
       if (idx !== -1) {
         const updates = { comment, updated_at: new Date().toISOString() };
         if (pending_changes !== undefined) updates.pending_changes = pending_changes;
+        if (css !== undefined) updates.css = css;
         annotations[idx] = { ...annotations[idx], ...updates };
       }
     });
@@ -256,6 +270,17 @@ console.log('[Vibe] content.js loaded');
       annotations = annotations.filter(a => a.id !== id);
       // Re-render to update numbering
       VibeEvents.emit('annotations:render', annotations);
+    });
+
+    // Overlay closed — strip all visual changes from page
+    VibeEvents.on('overlay:closed', () => {
+      VibeBadgeManager.clearAll(annotations);
+    });
+
+    // Overlay opened — re-apply visual changes
+    VibeEvents.on('overlay:opened', () => {
+      badgesShown = false;
+      showAnnotationsWithRetry();
     });
 
     // All annotations cleared
@@ -313,16 +338,17 @@ console.log('[Vibe] content.js loaded');
     // Clean up previous lazy observer
     if (lazyObserver) { lazyObserver.disconnect(); lazyObserver = null; }
 
+    const elementAnnotations = annotations.filter(a => a.type !== 'stylesheet');
     let attempts = 0;
     const tryShow = () => {
       attempts++;
       VibeEvents.emit('annotations:render', annotations);
       const found = VibeBadgeManager.getCount();
-      if (found < annotations.length && attempts < maxAttempts) {
+      if (found < elementAnnotations.length && attempts < maxAttempts) {
         setTimeout(tryShow, delay);
       }
       // After retries exhausted, if still missing badges, watch for lazy-loaded content
-      if (attempts >= maxAttempts && found < annotations.length) {
+      if (attempts >= maxAttempts && found < elementAnnotations.length) {
         startLazyElementObserver();
       }
     };
@@ -334,13 +360,14 @@ console.log('[Vibe] content.js loaded');
     if (lazyObserver) lazyObserver.disconnect();
 
     let debounceTimer = null;
+    const elementCount = annotations.filter(a => a.type !== 'stylesheet').length;
     lazyObserver = new MutationObserver(() => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         VibeEvents.emit('annotations:render', annotations);
         const found = VibeBadgeManager.getCount();
         // All badges found — stop watching
-        if (found >= annotations.length) {
+        if (found >= elementCount) {
           lazyObserver.disconnect();
           lazyObserver = null;
           console.log('[Vibe] All badges resolved via lazy observer');

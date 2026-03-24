@@ -526,9 +526,6 @@ var VibeElementContext = (() => {
     const fw = detectFrameworkPatterns(element);
     if (fw.length) hints.push(...fw);
 
-    const loc = inferFileLocation(element, role);
-    if (loc) hints.push(`Likely file: ${loc}`);
-
     return hints.length ? hints : null;
   }
 
@@ -581,21 +578,6 @@ var VibeElementContext = (() => {
       p.push('CSS-in-JS styling detected');
     }
     return p;
-  }
-
-  function inferFileLocation(el, role) {
-    const segs = window.location.pathname.split('/').filter(s => s);
-    if (segs.length > 0) {
-      const last = segs[segs.length - 1];
-      if (role === 'header') return 'components/Header.tsx or app/layout.tsx';
-      if (role === 'footer') return 'components/Footer.tsx or app/layout.tsx';
-      if (role === 'navigation') return 'components/Navigation.tsx';
-      if (role === 'main-content') return `app/${segs.join('/')}/page.tsx`;
-      if (role === 'modal') return 'components/Modal.tsx or components/dialogs/';
-      if (last) return `app/${segs.join('/')}/page.tsx or components/${last.charAt(0).toUpperCase() + last.slice(1)}Page.tsx`;
-    }
-    if (role === 'main-content') return 'app/page.tsx or pages/index.tsx';
-    return null;
   }
 
   // --- Screenshot ---

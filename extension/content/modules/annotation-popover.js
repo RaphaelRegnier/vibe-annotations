@@ -13,6 +13,9 @@ var VibeAnnotationPopover = (() => {
   let activeElType = null;
   let activeRawCssOriginals = null; // Map of kebab-prop → original value, for dismiss cleanup
   let activeOriginalText = null; // Original textContent for revert on cancel
+  let activeTextDirty = false; // Whether user actually edited text content
+  let activeOriginalCssText = null; // Original inline style for revert on cancel
+  let activeCssRulesStyleEl = null; // Companion <style> tag for CSS rules live preview
 
   // All design properties — used for dismiss/revert
   const ALL_DESIGN_PROPS = [
@@ -285,7 +288,26 @@ var VibeAnnotationPopover = (() => {
     // Store element reference for Raw CSS computed style reading
     context._element = targetElement;
     const rawCssInitial = buildRawCssContent(context);
-    panelContent['raw-css'] = `<textarea class="vibe-raw-css" spellcheck="false">${escapeHTML(rawCssInitial)}</textarea>`;
+    const hasCssRules = !!(existingAnnotation?.css);
+    panelContent['raw-css'] = `
+      <div class="vibe-raw-css-section">
+        <button class="vibe-raw-css-toggle" type="button">
+          <span class="vibe-raw-css-chevron${hasCssRules ? '' : ' open'}">${ICONS.chevron}</span>
+          <span class="vibe-raw-css-label">Inline overrides</span>
+        </button>
+        <div class="vibe-raw-css-collapsible" style="display:${hasCssRules ? 'none' : ''}">
+          <textarea class="vibe-raw-css" spellcheck="false">${escapeHTML(rawCssInitial)}</textarea>
+        </div>
+      </div>
+      <div class="vibe-raw-css-section">
+        <button class="vibe-raw-css-toggle" type="button">
+          <span class="vibe-raw-css-chevron${hasCssRules ? ' open' : ''}">${ICONS.chevron}</span>
+          <span class="vibe-raw-css-label">CSS rules <span class="vibe-raw-css-hint">:hover, ::before, @media…</span></span>
+        </button>
+        <div class="vibe-raw-css-collapsible" style="display:${hasCssRules ? '' : 'none'}">
+          <textarea class="vibe-css-rules" spellcheck="false" placeholder="${escapeHTML(context.selector)} {\n  \n}">${escapeHTML(existingAnnotation?.css || '')}</textarea>
+        </div>
+      </div>`;
 
     // Build tabs — cold start: no active tab, all panels hidden
     const tabs = getTabsForType(elType);
@@ -349,6 +371,7 @@ var VibeAnnotationPopover = (() => {
 
     // Track active element for revert-on-dismiss
     activeElement = targetElement;
+    activeOriginalCssText = targetElement.style.cssText;
     activeExistingAnnotation = existingAnnotation;
     activeElType = elType;
 
@@ -369,14 +392,32 @@ var VibeAnnotationPopover = (() => {
           tab.classList.add('active');
           designToolbar.style.display = '';
           tabPanels.forEach(p => p.style.display = p.dataset.tabPanel === tab.dataset.tab ? '' : 'none');
+          // Auto-resize content textarea when switching to Content tab
+          if (tab.dataset.tab === 'content') {
+            const contentInput = popover.querySelector('.vibe-content-input');
+            if (contentInput) requestAnimationFrame(() => autoResizeContentInput(contentInput));
+          }
           // Refresh raw CSS textarea when switching to it
           if (tab.dataset.tab === 'raw-css') {
             const rawTA = popover.querySelector('.vibe-raw-css');
             if (rawTA && !rawTA._userEdited) {
               rawTA.value = buildRawCssContent(context);
             }
+            // No auto-refresh for CSS rules — user content only
           }
         }
+      });
+    });
+
+    // --- Collapsible toggles in CSS panel ---
+    popover.querySelectorAll('.vibe-raw-css-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const section = btn.closest('.vibe-raw-css-section');
+        const body = section.querySelector('.vibe-raw-css-collapsible');
+        const chevron = btn.querySelector('.vibe-raw-css-chevron');
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : '';
+        chevron.classList.toggle('open', !isOpen);
       });
     });
 
@@ -410,6 +451,27 @@ var VibeAnnotationPopover = (() => {
             targetElement.style[kebabToCamel(prop)] = '';
           }
         }
+        popover._updateResetVisibility?.();
+        popover._updateSave?.();
+      });
+    }
+
+    // --- CSS Rules panel wiring ---
+    const cssRulesTextarea = popover.querySelector('.vibe-css-rules');
+    const cssRulesOriginal = existingAnnotation?.css || '';
+    let cssRulesPreviewStyle = null;
+
+    if (cssRulesTextarea) {
+      // Create companion <style> for live preview
+      cssRulesPreviewStyle = document.createElement('style');
+      cssRulesPreviewStyle.setAttribute('data-vibe-css-preview', 'true');
+      if (cssRulesOriginal) cssRulesPreviewStyle.textContent = cssRulesOriginal;
+      document.head.appendChild(cssRulesPreviewStyle);
+      activeCssRulesStyleEl = cssRulesPreviewStyle;
+
+      cssRulesTextarea.addEventListener('input', () => {
+        cssRulesTextarea._userEdited = true;
+        cssRulesPreviewStyle.textContent = cssRulesTextarea.value;
         popover._updateResetVisibility?.();
         popover._updateSave?.();
       });
@@ -471,6 +533,12 @@ var VibeAnnotationPopover = (() => {
           targetElement.style[kebabToCamel(prop)] = '';
         }
       }
+      // Reset CSS rules textarea
+      if (cssRulesTextarea) {
+        cssRulesTextarea.value = cssRulesOriginal;
+        cssRulesTextarea._userEdited = false;
+        if (cssRulesPreviewStyle) cssRulesPreviewStyle.textContent = cssRulesOriginal;
+      }
     });
 
     function updateResetVisibility() {
@@ -498,7 +566,9 @@ var VibeAnnotationPopover = (() => {
         const commentChanged = text !== (existingAnnotation.comment || '');
         const savedPC = existingAnnotation.pending_changes || null;
         const designChanged = JSON.stringify(buildPendingChanges()) !== JSON.stringify(savedPC);
-        saveBtn.disabled = !commentChanged && !designChanged;
+        const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value : '';
+        const cssRulesChanged = cssRulesVal !== cssRulesOriginal;
+        saveBtn.disabled = !commentChanged && !designChanged && !cssRulesChanged;
         saveBtn.textContent = 'Save';
       } else {
         saveBtn.disabled = false;
@@ -576,13 +646,16 @@ var VibeAnnotationPopover = (() => {
     saveBtn.addEventListener('click', async () => {
       const comment = textarea.value.trim();
       const pendingChanges = buildPendingChanges();
+      const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value.trim() : '';
+      const cssField = cssRulesVal || null;
 
       if (isEdit) {
-        const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges };
+        const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges, css: cssField };
         await VibeAPI.updateAnnotation(existingAnnotation.id, updates);
-        VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges });
+        VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
       } else {
         const annotation = buildAnnotation(context, comment, pendingChanges);
+        if (cssField) annotation.css = cssField;
         if (clickX != null) {
           const r = targetElement.getBoundingClientRect();
           annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
@@ -602,7 +675,7 @@ var VibeAnnotationPopover = (() => {
     return `
       <div class="vibe-design-row vibe-content-row">
         <span class="vibe-design-icon vibe-content-icon" title="Text content">${ICONS.textContent}</span>
-        <textarea class="vibe-content-input" rows="1" spellcheck="false">${escapeHTML(currentText)}</textarea>
+        <textarea class="vibe-content-input" spellcheck="false">${escapeHTML(currentText)}</textarea>
       </div>`;
   }
 
@@ -617,14 +690,14 @@ var VibeAnnotationPopover = (() => {
     const input = popover.querySelector('.vibe-content-input');
     if (!input) return () => null;
 
-    // Initial auto-size
-    requestAnimationFrame(() => autoResizeContentInput(input));
+    // Note: initial auto-size deferred to tab activation (panel starts hidden)
 
     // Focus + select all on first click
     input.addEventListener('focus', () => input.select());
 
     // Live-apply on input + auto-resize
     input.addEventListener('input', () => {
+      activeTextDirty = true;
       targetElement.textContent = input.value;
       autoResizeContentInput(input);
       popover._updateResetVisibility?.();
@@ -1861,16 +1934,10 @@ var VibeAnnotationPopover = (() => {
 
     // Revert design changes on cancel (not on save)
     if (hadPopover && !saved && activeElement) {
-      for (const prop of ALL_DESIGN_PROPS) activeElement.style[prop] = '';
-      // Also clear any extra raw CSS props not in ALL_DESIGN_PROPS
-      if (activeRawCssOriginals) {
-        for (const [kebab] of activeRawCssOriginals) {
-          const camel = kebabToCamel(kebab);
-          if (!ALL_DESIGN_PROPS.includes(camel)) activeElement.style[camel] = '';
-        }
-      }
-      // Revert text content change
-      if (activeOriginalText !== null) {
+      // Restore original inline styles
+      activeElement.style.cssText = activeOriginalCssText || '';
+      // Revert text content change (only if user actually edited it)
+      if (activeTextDirty && activeOriginalText !== null) {
         activeElement.textContent = activeOriginalText;
       }
       // Re-apply existing pending_changes if editing an annotation that had them
@@ -1884,6 +1951,12 @@ var VibeAnnotationPopover = (() => {
       }
     }
 
+    // Remove CSS rules preview style tag (always — on save the badge manager takes over)
+    if (activeCssRulesStyleEl) {
+      activeCssRulesStyleEl.remove();
+      activeCssRulesStyleEl = null;
+    }
+
     if (currentPopover) { currentPopover.remove(); currentPopover = null; }
     stopHighlightRAF();
     if (currentTargetHighlight) { currentTargetHighlight.remove(); currentTargetHighlight = null; }
@@ -1893,6 +1966,8 @@ var VibeAnnotationPopover = (() => {
     activeElType = null;
     activeRawCssOriginals = null;
     activeOriginalText = null;
+    activeTextDirty = false;
+    activeOriginalCssText = null;
     if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }

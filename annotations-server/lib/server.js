@@ -54,10 +54,20 @@ class LocalAnnotationsServer {
 
   setupExpress() {
     this.app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:8080', 'http://127.0.0.1:3000'],
-      credentials: true
+      origin: (origin, cb) => {
+        // Allow: localhost/loopback, chrome-extension://, no origin (curl/MCP)
+        if (!origin
+          || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)
+          || origin.startsWith('chrome-extension://')
+          || origin.endsWith('.local') || origin.endsWith('.test') || origin.endsWith('.localhost')
+        ) {
+          cb(null, origin || '*');
+        } else {
+          cb(null, false);
+        }
+      }
     }));
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: '5mb' }));
 
     // Health check with version info
     this.app.get('/health', (req, res) => {
@@ -357,7 +367,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
             inputSchema: {
               type: 'object',
               properties: {

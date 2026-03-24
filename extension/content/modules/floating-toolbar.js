@@ -10,6 +10,7 @@ var VibeToolbar = (() => {
   let isCollapsed = false;
   let serverOnline = false;
   let annotationCount = 0;
+  let styleAnnotationCount = 0;
   let clearOnCopy = false;
   let screenshotEnabled = true;
   let badgeColor = '#4b5563';
@@ -31,6 +32,7 @@ var VibeToolbar = (() => {
     // Vibe logo — actual icon (set dynamically in buildToolbar)
     logo: '',
     eyeOff: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>',
+    power: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>',
     // Theme icons
     sun: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
     moon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
@@ -46,7 +48,14 @@ var VibeToolbar = (() => {
     back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
     clipboard: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
     check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    chevronRight: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+    chevronRight: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+    download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    upload: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+    users: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    webpage: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>',
+    globe: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+    robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
+    book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
@@ -71,8 +80,8 @@ var VibeToolbar = (() => {
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ total }) => { annotationCount = total; updateUI(); });
-    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = count; styleAnnotationCount = styleCount || 0; updateUI(); });
+    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
 
     // Periodic server status check
     setInterval(refreshServerStatus, 10000);
@@ -153,10 +162,9 @@ var VibeToolbar = (() => {
       if (clearOnCopy) {
         // Reset count immediately so UI stays consistent
         annotationCount = 0;
+        styleAnnotationCount = 0;
         VibeEvents.emit('annotations:cleared', { count: annotations.length });
-        for (const a of annotations) {
-          await VibeAPI.deleteAnnotation(a.id);
-        }
+        await VibeAPI.deleteAnnotationsByUrl();
       }
     });
 
@@ -173,10 +181,9 @@ var VibeToolbar = (() => {
 
       const annotations = await VibeAPI.loadAnnotations();
       annotationCount = 0;
+      styleAnnotationCount = 0;
       VibeEvents.emit('annotations:cleared', { count: annotations.length });
-      for (const a of annotations) {
-        await VibeAPI.deleteAnnotation(a.id);
-      }
+      await VibeAPI.deleteAnnotationsByUrl();
     });
 
     // Settings
@@ -213,7 +220,7 @@ var VibeToolbar = (() => {
       <div class="vibe-settings-header">
         <div>
           <span class="vibe-settings-title">${escapeHTML(route)}</span>
-          <span class="vibe-settings-version">v${escapeHTML(version)}</span>
+          <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-version">v${escapeHTML(version)}</a>
         </div>
         <div class="vibe-settings-header-right">
           <button class="vibe-theme-btn" title="${capitalize(currentTheme)} theme">
@@ -223,18 +230,10 @@ var VibeToolbar = (() => {
       </div>
       <div class="vibe-settings-body">
         <button class="vibe-settings-link vibe-get-started-btn" type="button">
-          ${ICONS.rocket}
-          <span>Get started</span>
+          ${ICONS.book}
+          <span>Documentation</span>
           <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
         </button>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.github}
-          <span>Documentation</span>
-        </a>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.newspaper}
-          <span>Release notes</span>
-        </a>
         <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
@@ -276,15 +275,23 @@ var VibeToolbar = (() => {
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
             ${ICONS.keyboard}
-            <span>Shortcut</span>
+            <span>Trigger hotkey</span>
           </div>
           <button class="vibe-shortcut-btn" type="button">${escapeHTML(shortcutHint)}</button>
         </div>
         <div class="vibe-settings-separator"></div>
+        <button class="vibe-settings-link vibe-export-btn" type="button">
+          ${ICONS.upload}
+          <span>Export annotations</span>
+        </button>
+        <button class="vibe-settings-link vibe-import-btn" type="button">
+          ${ICONS.download}
+          <span>Import annotations</span>
+        </button>
+        <div class="vibe-settings-separator"></div>
         <button class="vibe-settings-link vibe-close-overlay" type="button">
-          ${ICONS.eyeOff}
-          <span>Hide Vibe Annotations</span>
-          <span style="margin-left:auto;font-size:11px;opacity:0.5;">or click ext. icon</span>
+          ${ICONS.power}
+          <span>Close Vibe Annotations</span>
         </button>
       </div>
     `;
@@ -372,14 +379,27 @@ var VibeToolbar = (() => {
       });
     });
 
-    // Get started
+    // Documentation
     settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
-      showGetStarted();
+      showDocumentation();
     });
 
-    // Close overlay
+    // Export
+    settingsDropdown.querySelector('.vibe-export-btn').addEventListener('click', () => {
+      closeSettings();
+      showExportModal();
+    });
+
+    // Import
+    settingsDropdown.querySelector('.vibe-import-btn').addEventListener('click', () => {
+      closeSettings();
+      triggerImport();
+    });
+
+    // Close overlay — strip all visual changes from page
     settingsDropdown.querySelector('.vibe-close-overlay').addEventListener('click', () => {
       closeSettings();
+      VibeEvents.emit('overlay:closed');
       VibeShadowHost.hide();
     });
 
@@ -394,13 +414,82 @@ var VibeToolbar = (() => {
     }, 0);
   }
 
-  function showGetStarted() {
+  function showDocumentation() {
     if (!settingsDropdown) return;
     const header = settingsDropdown.querySelector('.vibe-settings-header');
     const body = settingsDropdown.querySelector('.vibe-settings-body');
     if (!header || !body) return;
 
+    const version = chrome.runtime.getManifest().version;
+
     // Replace header with back navigation
+    header.innerHTML = `
+      <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
+        ${ICONS.back}
+        <span style="color:var(--v-text-primary);font-weight:600;">Documentation</span>
+      </button>
+    `;
+
+    // Replace body with documentation links
+    body.innerHTML = `
+      <button class="vibe-settings-link vibe-get-started-guide-btn" type="button">
+        ${ICONS.rocket}
+        <span>Get started</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <div class="vibe-settings-separator"></div>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="single-page" type="button">
+        ${ICONS.webpage}
+        <span>Editing a single page</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="multi-page" type="button">
+        ${ICONS.globe}
+        <span>Editing multiple pages</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="collaborate" type="button">
+        ${ICONS.users}
+        <span>Collaborating</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="agents" type="button">
+        ${ICONS.robot}
+        <span>Annotating with agents</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <div class="vibe-settings-separator"></div>
+      <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
+        ${ICONS.github}
+        <span>Contribute to Vibe Annotations</span>
+      </a>
+      <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
+        ${ICONS.newspaper}
+        <span>Release notes</span>
+      </a>
+    `;
+
+    // Back button — restores full settings
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => {
+      closeSettings();
+      openSettings();
+    });
+
+    // Get started guide
+    body.querySelector('.vibe-get-started-guide-btn').addEventListener('click', () => showGetStartedGuide());
+
+    // Workflow navigation buttons
+    body.querySelectorAll('.vibe-workflow-btn').forEach(btn => {
+      btn.addEventListener('click', () => showWorkflow(btn.dataset.workflow));
+    });
+  }
+
+  function showGetStartedGuide() {
+    if (!settingsDropdown) return;
+    const header = settingsDropdown.querySelector('.vibe-settings-header');
+    const body = settingsDropdown.querySelector('.vibe-settings-body');
+    if (!header || !body) return;
+
     header.innerHTML = `
       <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
         ${ICONS.back}
@@ -408,11 +497,21 @@ var VibeToolbar = (() => {
       </button>
     `;
 
-    // Replace body with guide content
     body.innerHTML = `
       <div class="vibe-guide">
         <div class="vibe-guide-section">
-          <div class="vibe-guide-label">1. Start the server</div>
+          <div class="vibe-guide-label">1. Start annotating</div>
+          <p class="vibe-guide-text">Click the <strong>pencil button</strong> or your configured hotkey to enter inspection mode. Click any element to add a comment or modify its design.</p>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">2. Send to your agent</div>
+          <p class="vibe-guide-text">Hit <strong>Copy</strong> in the toolbar and paste into any AI chat, or <strong>Export</strong> to share a file. No server needed.</p>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">3. Install MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
+          <p class="vibe-guide-text">Let your coding agent fetch and resolve annotations automatically.</p>
           <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
             <code>npm install -g vibe-annotations-server</code>
             <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
@@ -421,21 +520,7 @@ var VibeToolbar = (() => {
             <code>vibe-annotations-server start</code>
             <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
           </div>
-        </div>
-
-        <div class="vibe-guide-section">
-          <div class="vibe-guide-label">2. Annotate</div>
-          <p class="vibe-guide-text">Click elements on the page and describe what should change. Use <strong>${shortcutHint}</strong> to toggle.</p>
-        </div>
-
-        <div class="vibe-guide-section">
-          <div class="vibe-guide-label">3. Copy to your agent</div>
-          <p class="vibe-guide-text">Hit the <strong>Copy</strong> button in the toolbar, then paste into any AI chat.</p>
-        </div>
-
-        <div class="vibe-guide-section">
-          <div class="vibe-guide-label">4. Install MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
-          <p class="vibe-guide-text">Recommended for power-use when annotating multiple pages or projects. Your agent fetches annotations automatically.</p>
+          <p class="vibe-guide-text" style="margin-top:8px;">Then connect your agent:</p>
           <div class="vibe-guide-tabs">
             <button class="vibe-guide-tab active" data-tab="claude">Claude Code</button>
             <button class="vibe-guide-tab" data-tab="cursor">Cursor</button>
@@ -481,11 +566,8 @@ var VibeToolbar = (() => {
       </div>
     `;
 
-    // Back button — restores full settings
-    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => {
-      closeSettings();
-      openSettings();
-    });
+    // Back → return to Documentation
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => showDocumentation());
 
     // Tab switching
     body.querySelectorAll('.vibe-guide-tab').forEach(tab => {
@@ -498,6 +580,144 @@ var VibeToolbar = (() => {
     });
 
     // Copy buttons
+    body.querySelectorAll('.vibe-guide-copy').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cmd = btn.closest('.vibe-guide-cmd').dataset.cmd;
+        await navigator.clipboard.writeText(cmd);
+        btn.innerHTML = ICONS.check;
+        setTimeout(() => { btn.innerHTML = ICONS.clipboard; }, 1500);
+      });
+    });
+  }
+
+  function showWorkflow(type) {
+    if (!settingsDropdown) return;
+    const header = settingsDropdown.querySelector('.vibe-settings-header');
+    const body = settingsDropdown.querySelector('.vibe-settings-body');
+    if (!header || !body) return;
+
+    const workflows = {
+      'single-page': {
+        title: 'Editing a single page',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Best for quick edits</div>
+            <p class="vibe-guide-text">For a few annotations on one page, <strong>copy & paste</strong> is the fastest option. No server, no setup.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. Annotate elements on the page (comments, CSS tweaks, text changes)</p>
+            <p class="vibe-guide-text">2. Click <strong>Copy</strong> in the toolbar</p>
+            <p class="vibe-guide-text">3. Paste into any AI chat (Claude, ChatGPT, Cursor...) and ask the agent to implement the changes</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Tips</div>
+            <p class="vibe-guide-text">Enable <strong>Clear on copy</strong> in settings to auto-delete annotations after copying. Keeps things clean between iterations.</p>
+            <p class="vibe-guide-text">Each annotation includes the selector, your comment, element context, and any pending changes. The agent gets everything it needs to locate and edit the right code.</p>
+          </div>
+        `
+      },
+      'multi-page': {
+        title: 'Editing multiple pages',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Best for cross-page changes</div>
+            <p class="vibe-guide-text">When you're annotating across multiple routes, the <strong>MCP server</strong> is preferable. Your coding agent can read and resolve annotations from all pages at once, without manual copy-paste per route.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Setup</div>
+            <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
+              <code>npm install -g vibe-annotations-server</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <div class="vibe-guide-cmd" data-cmd="vibe-annotations-server start">
+              <code>vibe-annotations-server start</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:8px;">Then connect your agent (e.g. Claude Code):</p>
+            <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+              <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. Navigate your app and annotate elements across as many routes as needed</p>
+            <p class="vibe-guide-text">2. Tell your agent: <em>"read vibe annotations and implement the changes"</em></p>
+            <p class="vibe-guide-text">3. The agent pulls all pending annotations via MCP, edits your source files, and deletes each one when done</p>
+          </div>
+        `
+      },
+      collaborate: {
+        title: 'Collaborating with annotations',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Annotations as a feedback tool</div>
+            <p class="vibe-guide-text">Anyone can annotate a website: add comments, tweak styles, edit text. Then <strong>export</strong> the annotations as a .json file and share it with a teammate.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. A reviewer annotates the live site (staging, production, or localhost)</p>
+            <p class="vibe-guide-text">2. They click <strong>Export</strong> and share the .json file (Slack, email, etc.)</p>
+            <p class="vibe-guide-text">3. A developer clicks <strong>Import</strong> on their localhost. Annotations, badges, and style previews appear instantly.</p>
+            <p class="vibe-guide-text">4. The developer copies or uses MCP to send the annotations to their coding agent</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Cross-origin remap</div>
+            <p class="vibe-guide-text">Importing annotations from a public URL into localhost? The extension offers to <strong>remap URLs</strong> automatically so annotations anchor to your local dev server.</p>
+          </div>
+        `
+      },
+      agents: {
+        title: 'Annotating with agents',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Let agents annotate for you</div>
+            <p class="vibe-guide-text">Agents can help you annotate collaboratively, or work fully autonomously to review any site.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Compatible agents</div>
+            <p class="vibe-guide-text"><strong>Claude Chrome extension</strong> has direct page access and can call the API from its javascript tool.</p>
+            <p class="vibe-guide-text"><strong>OpenClaw</strong> uses CDP evaluate to run JS on the page.</p>
+            <p class="vibe-guide-text"><strong>Claude Code, Cursor, Windsurf</strong> can access the page via a DevTools MCP server or Playwright.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Prompt to get started</div>
+            <p class="vibe-guide-text">Copy this and paste it into your agent's chat to orient it towards the bridge API:</p>
+            <div class="vibe-guide-cmd" data-cmd="Read window.__vibeAnnotations.help() and use this extension for my comments on this project.">
+              <code>Read window.__vibeAnnotations.help() and use this extension for my comments on this project.</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Requirement</div>
+            <p class="vibe-guide-text">The extension must be active on the page for the bridge API to be available. This works best when the agent uses <strong>your browser</strong> (Claude Chrome, DevTools MCP), since the extension is already installed.</p>
+            <p class="vibe-guide-text">Agents that launch their own browser (Playwright, Puppeteer) won't have the extension loaded by default. This can be configured by passing the extension path at launch, but requires some local setup.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">How it works</div>
+            <p class="vibe-guide-text">The agent calls <code>__vibeAnnotations.help()</code> to discover the API, then uses <strong>createStyleAnnotation</strong> for broad CSS changes and <strong>createAnnotation</strong> for single-element edits. Changes preview live in the browser and get recorded as annotations for a coding agent to implement in source.</p>
+          </div>
+        `
+      }
+    };
+
+    const wf = workflows[type];
+    if (!wf) return;
+
+    header.innerHTML = `
+      <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
+        ${ICONS.back}
+        <span style="color:var(--v-text-primary);font-weight:600;">${wf.title}</span>
+      </button>
+    `;
+
+    body.innerHTML = `<div class="vibe-guide">${wf.content}</div>`;
+
+    // Back → return to Documentation
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => showDocumentation());
+
+    // Copy buttons (for MCP workflow)
     body.querySelectorAll('.vibe-guide-copy').forEach(btn => {
       btn.addEventListener('click', async () => {
         const cmd = btn.closest('.vibe-guide-cmd').dataset.cmd;
@@ -548,15 +768,17 @@ var VibeToolbar = (() => {
     }
 
     // Enable/disable copy + delete, badge on copy
+    const totalCount = annotationCount + styleAnnotationCount;
     const copyBtn = toolbarEl.querySelector('.vibe-tb-copy');
     const deleteBtn = toolbarEl.querySelector('.vibe-tb-delete');
     if (copyBtn) {
-      copyBtn.disabled = annotationCount === 0;
+      copyBtn.disabled = totalCount === 0;
       copyBtn.innerHTML = ICONS.copy +
         (annotationCount > 0 ? `<span class="vibe-toolbar-count">${annotationCount}</span>` : '') +
+        (styleAnnotationCount > 0 ? `<span class="vibe-toolbar-style-count">${styleAnnotationCount}</span>` : '') +
         '<span class="vibe-toolbar-tip">Copy all</span>';
     }
-    if (deleteBtn) deleteBtn.disabled = annotationCount === 0;
+    if (deleteBtn) deleteBtn.disabled = totalCount === 0;
   }
 
   async function refreshServerStatus() {
@@ -687,6 +909,252 @@ var VibeToolbar = (() => {
     });
   }
 
+  // --- Import / Export ---
+
+  function showExportModal() {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'vibe-confirm-backdrop';
+    backdrop.innerHTML = `
+      <div class="vibe-confirm">
+        <div class="vibe-confirm-title">Export annotations</div>
+        <div class="vibe-confirm-msg">Choose what to include in the export file.</div>
+        <div class="vibe-export-options">
+          <button class="vibe-export-option vibe-export-page" type="button">This page only</button>
+          <button class="vibe-export-option vibe-export-project" type="button">All from this site</button>
+        </div>
+        <div class="vibe-confirm-actions" style="margin-top:12px;justify-content:flex-start;">
+          <button class="vibe-btn vibe-btn-secondary vibe-export-cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+    root.appendChild(backdrop);
+
+    backdrop.querySelector('.vibe-export-cancel').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+    backdrop.querySelector('.vibe-export-page').addEventListener('click', async () => {
+      const annotations = await VibeAPI.loadAnnotations();
+      if (!annotations.length) {
+        backdrop.remove();
+        showInfoModal('Nothing to export', 'No annotations on this page.');
+        return;
+      }
+      doExport(annotations, 'page');
+      backdrop.remove();
+    });
+
+    backdrop.querySelector('.vibe-export-project').addEventListener('click', async () => {
+      const annotations = await VibeAPI.loadProjectAnnotations();
+      if (!annotations.length) {
+        backdrop.remove();
+        showInfoModal('Nothing to export', 'No annotations for this site.');
+        return;
+      }
+      doExport(annotations, 'project');
+      backdrop.remove();
+    });
+  }
+
+  function doExport(annotations, scope) {
+    const loc = window.location;
+    const exportData = {
+      vibe_annotations_export: true,
+      version: '1.0',
+      exported_at: new Date().toISOString(),
+      source: {
+        origin: loc.origin,
+        hostname: loc.hostname,
+        port: loc.port || ''
+      },
+      scope,
+      annotations: annotations.map(a => {
+        const cleaned = { ...a };
+        delete cleaned.screenshot;
+        return cleaned;
+      })
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const hostStr = loc.hostname + (loc.port ? '-' + loc.port : '');
+    const filename = `vibe-annotations-${hostStr}-${dateStr}.json`;
+
+    // Must append to document.body (not shadow root) for downloads to work
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function triggerImport() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      input.remove();
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await processImport(data);
+      } catch {
+        showInfoModal('Invalid file', 'The selected file is not valid JSON.');
+      }
+    });
+
+    input.click();
+  }
+
+  async function processImport(data) {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    // Validate envelope
+    if (!data || data.vibe_annotations_export !== true || !Array.isArray(data.annotations)) {
+      showInfoModal('Invalid format', 'This file is not a Vibe Annotations export.');
+      return;
+    }
+
+    // Validate origin match — offer remap if importing public URL annotations into localhost
+    const currentOrigin = window.location.origin;
+    let remapFrom = null;
+    if (data.source?.origin && data.source.origin !== currentOrigin) {
+      if (isLocalDev()) {
+        const accepted = await showRemapConfirm(root, data.source.origin, currentOrigin);
+        if (!accepted) return;
+        remapFrom = data.source.origin;
+      } else {
+        showInfoModal(
+          'Origin mismatch',
+          `These annotations were exported from ${data.source.origin} but you are on ${currentOrigin}. Origins must match to import.`
+        );
+        return;
+      }
+    }
+
+    // Remap URLs if importing from a different origin
+    if (remapFrom) {
+      for (const a of data.annotations) {
+        if (a.url) a.url = a.url.replace(remapFrom, currentOrigin);
+        if (a.url_path) { /* url_path is pathname-only, no origin to remap */ }
+      }
+    }
+
+    // Deduplicate against existing
+    const existing = await VibeAPI.loadProjectAnnotations();
+    const existingIds = new Set(existing.map(a => a.id));
+    const newAnnotations = data.annotations.filter(a => !existingIds.has(a.id));
+    const skipped = data.annotations.length - newAnnotations.length;
+
+    if (newAnnotations.length === 0) {
+      showInfoModal('Nothing to import', `All ${data.annotations.length} annotation${data.annotations.length !== 1 ? 's' : ''} already exist locally.`);
+      return;
+    }
+
+    // Confirm
+    const confirmed = await showImportConfirm(root, {
+      total: data.annotations.length,
+      newCount: newAnnotations.length,
+      skipped
+    });
+    if (!confirmed) return;
+
+    // Import via background script (handles storage lock + server sync)
+    await chrome.runtime.sendMessage({ action: 'importAnnotations', annotations: newAnnotations });
+    // Storage listener in content.js handles re-render automatically
+  }
+
+  function showImportConfirm(root, { total, newCount, skipped }) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'vibe-confirm-backdrop';
+      const skipText = skipped > 0 ? `<br>${skipped} already exist and will be skipped.` : '';
+      backdrop.innerHTML = `
+        <div class="vibe-confirm">
+          <div class="vibe-confirm-title">Import annotations</div>
+          <div class="vibe-confirm-msg">${newCount} annotation${newCount !== 1 ? 's' : ''} will be imported.${skipText}</div>
+          <div class="vibe-confirm-actions">
+            <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary vibe-confirm-yes">Import</button>
+          </div>
+        </div>
+      `;
+      root.appendChild(backdrop);
+
+      backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => { backdrop.remove(); resolve(false); });
+      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => { backdrop.remove(); resolve(true); });
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
+    });
+  }
+
+  function isLocalDev() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || h.endsWith('.test') || h.endsWith('.localhost');
+  }
+
+  function showRemapConfirm(root, sourceOrigin, currentOrigin) {
+    return new Promise(resolve => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'vibe-confirm-backdrop';
+      backdrop.innerHTML = `
+        <div class="vibe-confirm">
+          <div class="vibe-confirm-title">Remap annotations?</div>
+          <div class="vibe-confirm-msg">
+            These annotations were exported from <strong>${escapeHTML(sourceOrigin)}</strong>.
+            Remap URLs to <strong>${escapeHTML(currentOrigin)}</strong> for local development?
+          </div>
+          <div style="font-size:12px;color:var(--v-text-secondary);margin-top:8px;margin-bottom:4px;line-height:1.5;">
+            Important: Annotations might not perfectly anchor or apply the styling changes if the selectors aren't identical.
+          </div>
+          <div class="vibe-confirm-actions">
+            <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">Cancel</button>
+            <button class="vibe-btn vibe-btn-primary vibe-confirm-yes">Remap & Import</button>
+          </div>
+        </div>
+      `;
+      root.appendChild(backdrop);
+
+      backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => { backdrop.remove(); resolve(false); });
+      backdrop.querySelector('.vibe-confirm-yes').addEventListener('click', () => { backdrop.remove(); resolve(true); });
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { backdrop.remove(); resolve(false); } });
+    });
+  }
+
+  function showInfoModal(title, message) {
+    const root = VibeShadowHost.getRoot();
+    if (!root) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'vibe-confirm-backdrop';
+    backdrop.innerHTML = `
+      <div class="vibe-confirm">
+        <div class="vibe-confirm-title">${escapeHTML(title)}</div>
+        <div class="vibe-confirm-msg">${escapeHTML(message)}</div>
+        <div class="vibe-confirm-actions">
+          <button class="vibe-btn vibe-btn-secondary vibe-confirm-no">OK</button>
+        </div>
+      </div>
+    `;
+    root.appendChild(backdrop);
+
+    backdrop.querySelector('.vibe-confirm-no').addEventListener('click', () => backdrop.remove());
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+  }
+
   // --- Helpers ---
 
   function escapeHTML(str) {
@@ -813,14 +1281,18 @@ var VibeToolbar = (() => {
         }
         if (changes.length) {
           lines.push(`   Design changes: ${changes.join(', ')}`);
-          lines.push(`   (Map to project design system: Tailwind class, CSS variable, or design token)`);
         }
+      }
+
+      // CSS rules (pseudo-elements, :hover, @media, etc.)
+      if (a.css) {
+        lines.push(`   CSS rules:\n${a.css.split('\n').map(l => '      ' + l).join('\n')}`);
       }
 
       return lines.join('\n');
     });
 
-    return header + '\n\nFollow my instructions on these elements:\n\n---\n\n' + blocks.join('\n\n');
+    return header + '\n\nFollow my instructions on these elements.\nWhen applying design changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens).\n\n---\n\n' + blocks.join('\n\n');
   }
 
   function formatStyles(styles) {

@@ -306,6 +306,60 @@ var VIBE_STYLES = `
 }
 .vibe-raw-css:focus { border-color: var(--v-accent); }
 
+/* Raw CSS panel sections */
+.vibe-raw-css-section { margin-bottom: 8px; }
+.vibe-raw-css-section:last-child { margin-bottom: 0; }
+.vibe-raw-css-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: var(--v-font);
+}
+.vibe-raw-css-toggle:hover .vibe-raw-css-label { color: var(--v-text-primary); }
+.vibe-raw-css-chevron {
+  display: flex;
+  align-items: center;
+  color: var(--v-text-secondary);
+  transition: transform 0.15s ease;
+  transform: rotate(0deg);
+  flex-shrink: 0;
+}
+.vibe-raw-css-chevron.open { transform: rotate(90deg); }
+.vibe-raw-css-collapsible { margin-top: 4px; }
+.vibe-raw-css-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--v-text-secondary);
+  display: inline;
+}
+.vibe-raw-css-hint { font-weight: 400; opacity: 0.6; }
+.vibe-css-rules {
+  width: 100%;
+  min-height: 100px;
+  max-height: 200px;
+  resize: vertical;
+  font-family: var(--v-font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--v-text-primary);
+  background: var(--v-textarea-bg);
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-xs);
+  padding: 8px;
+  outline: none;
+  white-space: pre;
+  overflow-x: auto;
+  tab-size: 2;
+  box-sizing: border-box;
+}
+.vibe-css-rules:focus { border-color: var(--v-accent); }
+
 /* Design toolbar */
 .vibe-design-toolbar {
   padding: 6px 14px;
@@ -376,6 +430,7 @@ var VIBE_STYLES = `
 .vibe-content-icon { padding-top: 4px; }
 .vibe-content-input {
   flex: 1;
+  width: 0;
   min-height: 22px;
   max-height: calc(11px * 1.5 * 8 + 10px); /* ~8 lines */
   border: 1px solid var(--v-outline);
@@ -873,6 +928,24 @@ var VIBE_STYLES = `
   padding: 0 4px;
 }
 
+/* Toolbar stylesheet annotation badge */
+.vibe-toolbar-style-count {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ec4899;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
 /* Toolbar tooltip */
 .vibe-toolbar-tip {
   position: absolute;
@@ -938,6 +1011,11 @@ var VIBE_STYLES = `
   color: var(--v-text-secondary);
   margin-left: 8px;
   font-weight: 400;
+  text-decoration: none;
+  cursor: pointer;
+}
+.vibe-settings-version:hover {
+  text-decoration: underline;
 }
 
 .vibe-settings-header-right {
@@ -971,7 +1049,7 @@ var VIBE_STYLES = `
 
 .vibe-settings-body {
   padding: 6px 0;
-  max-height: 420px;
+  max-height: min(calc(100vh - 120px), 600px);
   overflow-y: auto;
 }
 
@@ -1250,6 +1328,40 @@ var VIBE_STYLES = `
 }
 
 .vibe-btn-danger:hover {
+  opacity: 0.9;
+}
+
+/* Export modal scope buttons */
+.vibe-export-options {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.vibe-export-option {
+  flex: 1;
+  padding: 10px 12px;
+  font-family: var(--v-font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v-text-primary);
+  background: var(--v-surface-hover);
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  line-height: 1.3;
+}
+.vibe-export-option:hover {
+  border-color: var(--v-text-secondary);
+}
+
+/* Primary button */
+.vibe-btn-primary {
+  background: var(--v-accent);
+  color: #fff;
+}
+.vibe-btn-primary:hover {
   opacity: 0.9;
 }
 `;

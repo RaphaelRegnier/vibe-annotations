@@ -11,6 +11,12 @@ var VibeAPI = (() => {
     return window.location.protocol === 'file:';
   }
 
+  function isLocalOrigin() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || h.endsWith('.test') || h.endsWith('.localhost');
+  }
+
   // --- Server status ---
 
   async function checkServerStatus() {
@@ -19,7 +25,8 @@ var VibeAPI = (() => {
 
     let status;
 
-    if (isFileProtocol()) {
+    if (isFileProtocol() || !isLocalOrigin()) {
+      // Non-local origins can't fetch localhost directly (CORS) — route via background
       status = await _checkViaBg();
     } else {
       try {
@@ -61,6 +68,19 @@ var VibeAPI = (() => {
       const result = await chrome.storage.local.get(['annotations']);
       const all = result.annotations || [];
       return all.filter(a => a.url === window.location.href);
+    } catch {
+      return [];
+    }
+  }
+
+  async function loadProjectAnnotations() {
+    try {
+      const result = await chrome.storage.local.get(['annotations']);
+      const all = result.annotations || [];
+      const origin = window.location.origin;
+      return all.filter(a => {
+        try { return new URL(a.url).origin === origin; } catch { return false; }
+      });
     } catch {
       return [];
     }
@@ -112,6 +132,21 @@ var VibeAPI = (() => {
       const filtered = all.filter(a => a.id !== id);
       await chrome.storage.local.set({ annotations: filtered });
       return true;
+    }
+  }
+
+  async function deleteAnnotationsByUrl() {
+    try {
+      const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotationsByUrl', url: window.location.href });
+      if (!r || !r.success) throw new Error(r?.error || 'bulk delete failed');
+      return r.count || 0;
+    } catch (e) {
+      console.warn('deleteAnnotationsByUrl bg failed, using storage fallback', e);
+      const result = await chrome.storage.local.get(['annotations']);
+      const all = result.annotations || [];
+      const remaining = all.filter(a => a.url !== window.location.href);
+      await chrome.storage.local.set({ annotations: remaining });
+      return all.length - remaining.length;
     }
   }
 
@@ -202,18 +237,18 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
-  async function getOverlayHidden() {
+  function getOverlayHidden() {
     try {
-      const r = await chrome.storage.local.get(['vibeOverlayHidden']);
-      return !!r.vibeOverlayHidden;
+      return sessionStorage.getItem('vibeOverlayHidden') === '1';
     } catch {
       return false;
     }
   }
 
-  async function saveOverlayHidden(hidden) {
+  function saveOverlayHidden(hidden) {
     try {
-      await chrome.storage.local.set({ vibeOverlayHidden: hidden });
+      if (hidden) sessionStorage.setItem('vibeOverlayHidden', '1');
+      else sessionStorage.removeItem('vibeOverlayHidden');
     } catch { /* ignore */ }
   }
 
@@ -252,9 +287,11 @@ var VibeAPI = (() => {
     clearStatusCache,
     isFileProtocol,
     loadAnnotations,
+    loadProjectAnnotations,
     saveAnnotation,
     updateAnnotation,
     deleteAnnotation,
+    deleteAnnotationsByUrl,
     onAnnotationsChanged,
     getScreenshotEnabled,
     saveScreenshotEnabled,

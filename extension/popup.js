@@ -2,6 +2,7 @@
 
 (async () => {
   const mainBtn = document.getElementById('mainBtn');
+  const allSitesBtn = document.getElementById('allSitesBtn');
   const siteUrlEl = document.getElementById('siteUrl');
   const messageEl = document.getElementById('message');
   const successEl = document.getElementById('success');
@@ -75,7 +76,10 @@
 
   // --- Determine site support ---
   const isLocalhost = isLocalhostUrl(tab.url);
-  const granted = !isLocalhost && await chrome.permissions.contains({ origins: [originPattern] });
+  const granted = !isLocalhost && (
+    await chrome.permissions.contains({ origins: [originPattern] }) ||
+    await chrome.permissions.contains({ origins: ['*://*/*'] })
+  );
   const isSupported = isLocalhost || granted;
 
   if (isSupported) {
@@ -107,45 +111,58 @@
       });
     }
   } else {
-    // --- Non-supported site — offer per-site enable ---
+    // --- Non-supported site — offer per-site or all-sites enable ---
     messageEl.classList.remove('hidden');
-    messageEl.innerHTML = '<strong>This site isn\'t a local development URL.</strong> You can enable it for this specific site if you need to annotate here.';
+    messageEl.innerHTML = '<strong>This site isn\'t a local development URL.</strong> Enable it for this site, or allow on all sites to skip this step everywhere.';
     siteUrlEl.classList.remove('hidden');
     siteUrlEl.textContent = origin;
     mainBtn.classList.remove('hidden');
     mainBtn.textContent = 'Enable for this site';
 
+    // Show "all sites" button unless already granted
+    const allGranted = await chrome.permissions.contains({ origins: ['*://*/*'] });
+    if (!allGranted) allSitesBtn.classList.remove('hidden');
+
+    async function onEnabled(pattern, label) {
+      const result = await chrome.storage.local.get(['vibeEnabledSites']);
+      const sites = result.vibeEnabledSites || [];
+      if (!sites.includes(pattern)) {
+        sites.push(pattern);
+        await chrome.storage.local.set({ vibeEnabledSites: sites });
+      }
+      await chrome.runtime.sendMessage({
+        action: 'enableSite',
+        originPattern: pattern,
+        tabId: tab.id
+      });
+      messageEl.classList.add('hidden');
+      siteUrlEl.classList.add('hidden');
+      successEl.classList.remove('hidden');
+      successEl.innerHTML = `<strong>${label}</strong> Page is reloading.`;
+      mainBtn.classList.add('hidden');
+      allSitesBtn.classList.add('hidden');
+      setTimeout(() => window.close(), 1500);
+    }
+
     mainBtn.addEventListener('click', async () => {
       try {
         const ok = await chrome.permissions.request({ origins: [originPattern] });
-        if (ok) {
-          // Save to storage so background.js can track enabled sites
-          const result = await chrome.storage.local.get(['vibeEnabledSites']);
-          const sites = result.vibeEnabledSites || [];
-          if (!sites.includes(originPattern)) {
-            sites.push(originPattern);
-            await chrome.storage.local.set({ vibeEnabledSites: sites });
-          }
-
-          // Register content scripts and reload
-          await chrome.runtime.sendMessage({
-            action: 'enableSite',
-            originPattern,
-            tabId: tab.id
-          });
-
-          messageEl.classList.add('hidden');
-          siteUrlEl.classList.add('hidden');
-          successEl.classList.remove('hidden');
-          successEl.innerHTML = '<strong>Site enabled!</strong> Page is reloading.';
-          mainBtn.classList.add('hidden');
-
-          setTimeout(() => window.close(), 1500);
-        }
+        if (ok) await onEnabled(originPattern, 'Site enabled!');
       } catch (err) {
         console.error('Permission request failed:', err);
         mainBtn.textContent = 'Permission denied';
         mainBtn.disabled = true;
+      }
+    });
+
+    allSitesBtn.addEventListener('click', async () => {
+      try {
+        const ok = await chrome.permissions.request({ origins: ['*://*/*'] });
+        if (ok) await onEnabled(originPattern, 'All sites enabled!');
+      } catch (err) {
+        console.error('Permission request failed:', err);
+        allSitesBtn.textContent = 'Permission denied';
+        allSitesBtn.disabled = true;
       }
     });
   }
@@ -154,7 +171,7 @@
 
   function setToggleState(visible) {
     overlayVisible = visible;
-    mainBtn.textContent = visible ? 'Hide Vibe Annotations' : 'Show Vibe Annotations';
+    mainBtn.textContent = visible ? 'Close Vibe Annotations' : 'Open Vibe Annotations';
   }
 
   function isLocalhostUrl(url) {

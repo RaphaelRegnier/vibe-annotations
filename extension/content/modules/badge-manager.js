@@ -23,6 +23,7 @@ var VibeBadgeManager = (() => {
   }
 
   let badges = []; // { el, annotation, targetElement }
+  let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
   let provisionalBadge = null;
   let domObserver = null;
@@ -95,7 +96,7 @@ var VibeBadgeManager = (() => {
 
     const badge = document.createElement('div');
     badge.className = 'vibe-badge';
-    badge.textContent = (lastTotal + 1).toString();
+    badge.textContent = (badges.length + 1).toString();
     badge.style.top = `${clientY - 11}px`;
     badge.style.left = `${clientX}px`;
     root.appendChild(badge);
@@ -117,7 +118,14 @@ var VibeBadgeManager = (() => {
       new Date(a.created_at) - new Date(b.created_at)
     );
 
-    sorted.forEach((annotation, i) => {
+    let badgeIndex = 0;
+    sorted.forEach((annotation) => {
+      // Stylesheet annotations — inject as <style> tag
+      if (annotation.type === 'stylesheet' && annotation.css) {
+        injectStyleAnnotation(annotation);
+        return;
+      }
+
       const target = VibeElementContext.findElementBySelector(annotation);
       if (target) {
         // Rehydrate pending design changes
@@ -128,12 +136,25 @@ var VibeBadgeManager = (() => {
           }
           if (rpc.copyChange) target.textContent = rpc.copyChange.value;
         }
-        addBadge(target, annotation, i + 1);
+        // Inject companion CSS rules if present
+        if (annotation.css) {
+          injectStyleAnnotation(annotation);
+        }
+        badgeIndex++;
+        addBadge(target, annotation, badgeIndex);
       }
     });
 
     lastTotal = annotations.length;
-    VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length });
+    VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length, styleCount: styleInjections.filter(s => s.annotation.type === 'stylesheet').length });
+  }
+
+  function injectStyleAnnotation(annotation) {
+    const style = document.createElement('style');
+    style.setAttribute('data-vibe-style', annotation.id);
+    style.textContent = annotation.css;
+    document.head.appendChild(style);
+    styleInjections.push({ styleEl: style, annotation });
   }
 
   function addBadge(targetElement, annotation, index) {
@@ -199,6 +220,10 @@ var VibeBadgeManager = (() => {
   }
 
   function clearAll(annotations) {
+    // Clear injected stylesheets
+    for (const entry of styleInjections) entry.styleEl.remove();
+    styleInjections = [];
+
     // Clear tracked badges
     const clearedEls = new Set();
     for (const entry of badges) {
@@ -228,6 +253,15 @@ var VibeBadgeManager = (() => {
   }
 
   function onDeleted({ id, annotation }) {
+    // Remove companion style tag if any (both standalone stylesheet and element-anchored css)
+    const styleIdx = styleInjections.findIndex(s => s.annotation.id === id);
+    if (styleIdx !== -1) {
+      styleInjections[styleIdx].styleEl.remove();
+      styleInjections.splice(styleIdx, 1);
+      // If this was a pure stylesheet annotation (no badge), we're done
+      if (annotation?.type === 'stylesheet') return;
+    }
+
     const idx = badges.findIndex(b => b.annotation.id === id);
     if (idx !== -1) {
       const entry = badges[idx];
@@ -253,7 +287,7 @@ var VibeBadgeManager = (() => {
     });
   }
 
-  function onUpdated({ id, comment, pending_changes }) {
+  function onUpdated({ id, comment, pending_changes, css }) {
     const entry = badges.find(b => b.annotation.id === id);
     if (entry) {
       const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
@@ -261,13 +295,24 @@ var VibeBadgeManager = (() => {
       const oldPC = entry.annotation.pending_changes;
       // Revert old copy change before applying new state
       if (oldPC?.copyChange) entry.targetElement.textContent = oldPC.copyChange.original;
-      entry.annotation = { ...entry.annotation, comment, pending_changes };
+      entry.annotation = { ...entry.annotation, comment, pending_changes, css };
       for (const prop of getStyleProps(oldPC)) entry.targetElement.style[prop] = '';
       if (pending_changes) {
         for (const prop of getStyleProps(pending_changes)) {
           if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
         }
         if (pending_changes.copyChange) entry.targetElement.textContent = pending_changes.copyChange.value;
+      }
+
+      // Update companion style tag
+      const styleEntry = styleInjections.find(s => s.annotation.id === id);
+      if (css && styleEntry) {
+        styleEntry.styleEl.textContent = css;
+      } else if (css && !styleEntry) {
+        injectStyleAnnotation({ id, css });
+      } else if (css === null && styleEntry) {
+        styleEntry.styleEl.remove();
+        styleInjections.splice(styleInjections.indexOf(styleEntry), 1);
       }
     }
   }
