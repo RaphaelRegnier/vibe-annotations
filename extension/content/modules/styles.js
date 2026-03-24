@@ -1011,6 +1011,11 @@ var VIBE_STYLES = `
   color: var(--v-text-secondary);
   margin-left: 8px;
   font-weight: 400;
+  text-decoration: none;
+  cursor: pointer;
+}
+.vibe-settings-version:hover {
+  text-decoration: underline;
 }
 
 .vibe-settings-header-right {

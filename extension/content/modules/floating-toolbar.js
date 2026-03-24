@@ -54,7 +54,8 @@ var VibeToolbar = (() => {
     users: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     webpage: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>',
     globe: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
-    robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>'
+    robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
+    book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
@@ -219,7 +220,7 @@ var VibeToolbar = (() => {
       <div class="vibe-settings-header">
         <div>
           <span class="vibe-settings-title">${escapeHTML(route)}</span>
-          <span class="vibe-settings-version">v${escapeHTML(version)}</span>
+          <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-version">v${escapeHTML(version)}</a>
         </div>
         <div class="vibe-settings-header-right">
           <button class="vibe-theme-btn" title="${capitalize(currentTheme)} theme">
@@ -229,18 +230,10 @@ var VibeToolbar = (() => {
       </div>
       <div class="vibe-settings-body">
         <button class="vibe-settings-link vibe-get-started-btn" type="button">
-          ${ICONS.rocket}
-          <span>Get started</span>
+          ${ICONS.book}
+          <span>Documentation</span>
           <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
         </button>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.github}
-          <span>Documentation</span>
-        </a>
-        <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
-          ${ICONS.newspaper}
-          <span>Release notes</span>
-        </a>
         <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
@@ -386,9 +379,9 @@ var VibeToolbar = (() => {
       });
     });
 
-    // Get started
+    // Documentation
     settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
-      showGetStarted();
+      showDocumentation();
     });
 
     // Export
@@ -421,13 +414,82 @@ var VibeToolbar = (() => {
     }, 0);
   }
 
-  function showGetStarted() {
+  function showDocumentation() {
     if (!settingsDropdown) return;
     const header = settingsDropdown.querySelector('.vibe-settings-header');
     const body = settingsDropdown.querySelector('.vibe-settings-body');
     if (!header || !body) return;
 
+    const version = chrome.runtime.getManifest().version;
+
     // Replace header with back navigation
+    header.innerHTML = `
+      <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
+        ${ICONS.back}
+        <span style="color:var(--v-text-primary);font-weight:600;">Documentation</span>
+      </button>
+    `;
+
+    // Replace body with documentation links
+    body.innerHTML = `
+      <button class="vibe-settings-link vibe-get-started-guide-btn" type="button">
+        ${ICONS.rocket}
+        <span>Get started</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <div class="vibe-settings-separator"></div>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="single-page" type="button">
+        ${ICONS.webpage}
+        <span>Editing a single page</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="multi-page" type="button">
+        ${ICONS.globe}
+        <span>Editing multiple pages</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="collaborate" type="button">
+        ${ICONS.users}
+        <span>Collaborating</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="agents" type="button">
+        ${ICONS.robot}
+        <span>Annotating with agents</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <div class="vibe-settings-separator"></div>
+      <a href="https://github.com/RaphaelRegnier/vibe-annotations" target="_blank" rel="noopener" class="vibe-settings-link">
+        ${ICONS.github}
+        <span>Contribute to Vibe Annotations</span>
+      </a>
+      <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-link">
+        ${ICONS.newspaper}
+        <span>Release notes</span>
+      </a>
+    `;
+
+    // Back button — restores full settings
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => {
+      closeSettings();
+      openSettings();
+    });
+
+    // Get started guide
+    body.querySelector('.vibe-get-started-guide-btn').addEventListener('click', () => showGetStartedGuide());
+
+    // Workflow navigation buttons
+    body.querySelectorAll('.vibe-workflow-btn').forEach(btn => {
+      btn.addEventListener('click', () => showWorkflow(btn.dataset.workflow));
+    });
+  }
+
+  function showGetStartedGuide() {
+    if (!settingsDropdown) return;
+    const header = settingsDropdown.querySelector('.vibe-settings-header');
+    const body = settingsDropdown.querySelector('.vibe-settings-body');
+    if (!header || !body) return;
+
     header.innerHTML = `
       <button class="vibe-guide-back-btn" type="button" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--v-text-secondary);font-family:var(--v-font);font-size:13px;padding:0;">
         ${ICONS.back}
@@ -435,7 +497,6 @@ var VibeToolbar = (() => {
       </button>
     `;
 
-    // Replace body with guide content
     body.innerHTML = `
       <div class="vibe-guide">
         <div class="vibe-guide-section">
@@ -502,40 +563,11 @@ var VibeToolbar = (() => {
             </div>
           </div>
         </div>
-
-        <div class="vibe-settings-separator"></div>
-
-        <div class="vibe-guide-section">
-          <div class="vibe-guide-label" style="margin-bottom:4px;">Agentic workflows</div>
-          <button class="vibe-settings-link vibe-workflow-btn" data-workflow="single-page" type="button">
-            ${ICONS.webpage}
-            <span>Editing a single page</span>
-            <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-          </button>
-          <button class="vibe-settings-link vibe-workflow-btn" data-workflow="multi-page" type="button">
-            ${ICONS.globe}
-            <span>Editing multiple pages</span>
-            <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-          </button>
-          <button class="vibe-settings-link vibe-workflow-btn" data-workflow="collaborate" type="button">
-            ${ICONS.users}
-            <span>Collaborating</span>
-            <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-          </button>
-          <button class="vibe-settings-link vibe-workflow-btn" data-workflow="agents" type="button">
-            ${ICONS.robot}
-            <span>Annotating with agents</span>
-            <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-          </button>
-        </div>
       </div>
     `;
 
-    // Back button — restores full settings
-    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => {
-      closeSettings();
-      openSettings();
-    });
+    // Back → return to Documentation
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => showDocumentation());
 
     // Tab switching
     body.querySelectorAll('.vibe-guide-tab').forEach(tab => {
@@ -555,11 +587,6 @@ var VibeToolbar = (() => {
         btn.innerHTML = ICONS.check;
         setTimeout(() => { btn.innerHTML = ICONS.clipboard; }, 1500);
       });
-    });
-
-    // Workflow navigation buttons
-    body.querySelectorAll('.vibe-workflow-btn').forEach(btn => {
-      btn.addEventListener('click', () => showWorkflow(btn.dataset.workflow));
     });
   }
 
@@ -646,13 +673,21 @@ var VibeToolbar = (() => {
         content: `
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Let agents annotate for you</div>
-            <p class="vibe-guide-text">AI agents with browser access can use the <strong>window.__vibeAnnotations</strong> bridge API to create annotations directly. Think restyling a page, doing a copywriting pass, or reviewing accessibility.</p>
+            <p class="vibe-guide-text">Agents can help you annotate collaboratively, or work fully autonomously to review any site.</p>
           </div>
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Compatible agents</div>
             <p class="vibe-guide-text"><strong>Claude Chrome extension</strong> has direct page access and can call the API from its javascript tool.</p>
             <p class="vibe-guide-text"><strong>OpenClaw</strong> uses CDP evaluate to run JS on the page.</p>
             <p class="vibe-guide-text"><strong>Claude Code, Cursor, Windsurf</strong> can access the page via a DevTools MCP server or Playwright.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Prompt to get started</div>
+            <p class="vibe-guide-text">Copy this and paste it into your agent's chat to orient it towards the bridge API:</p>
+            <div class="vibe-guide-cmd" data-cmd="Read window.__vibeAnnotations.help() and use this extension for my comments on this project.">
+              <code>Read window.__vibeAnnotations.help() and use this extension for my comments on this project.</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
           </div>
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Requirement</div>
@@ -662,15 +697,6 @@ var VibeToolbar = (() => {
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">How it works</div>
             <p class="vibe-guide-text">The agent calls <code>__vibeAnnotations.help()</code> to discover the API, then uses <strong>createStyleAnnotation</strong> for broad CSS changes and <strong>createAnnotation</strong> for single-element edits. Changes preview live in the browser and get recorded as annotations for a coding agent to implement in source.</p>
-          </div>
-          <div class="vibe-guide-section">
-            <div class="vibe-guide-label">Prompt to get started</div>
-            <p class="vibe-guide-text">Copy this and paste it into your agent's chat to orient it towards the bridge API:</p>
-            <div class="vibe-guide-cmd" data-cmd="This page has the Vibe Annotations extension active. Call window.__vibeAnnotations.help() to learn the API, then use it to make design changes. Use createStyleAnnotation for broad CSS and createAnnotation for single-element edits.">
-              <code>This page has the Vibe Annotations extension active. Call window.__vibeAnnotations.help() to learn the API, then use it to make design changes.</code>
-              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
-            </div>
-            <p class="vibe-guide-text">Agents can help you annotate collaboratively, or work fully autonomously to review any site.</p>
           </div>
         `
       }
@@ -688,8 +714,8 @@ var VibeToolbar = (() => {
 
     body.innerHTML = `<div class="vibe-guide">${wf.content}</div>`;
 
-    // Back → return to Get Started
-    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => showGetStarted());
+    // Back → return to Documentation
+    header.querySelector('.vibe-guide-back-btn').addEventListener('click', () => showDocumentation());
 
     // Copy buttons (for MCP workflow)
     body.querySelectorAll('.vibe-guide-copy').forEach(btn => {
