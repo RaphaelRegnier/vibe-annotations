@@ -430,6 +430,7 @@ var VIBE_STYLES = `
 .vibe-content-icon { padding-top: 4px; }
 .vibe-content-input {
   flex: 1;
+  width: 0;
   min-height: 22px;
   max-height: calc(11px * 1.5 * 8 + 10px); /* ~8 lines */
   border: 1px solid var(--v-outline);

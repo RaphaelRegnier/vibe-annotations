@@ -392,6 +392,11 @@ var VibeAnnotationPopover = (() => {
           tab.classList.add('active');
           designToolbar.style.display = '';
           tabPanels.forEach(p => p.style.display = p.dataset.tabPanel === tab.dataset.tab ? '' : 'none');
+          // Auto-resize content textarea when switching to Content tab
+          if (tab.dataset.tab === 'content') {
+            const contentInput = popover.querySelector('.vibe-content-input');
+            if (contentInput) requestAnimationFrame(() => autoResizeContentInput(contentInput));
+          }
           // Refresh raw CSS textarea when switching to it
           if (tab.dataset.tab === 'raw-css') {
             const rawTA = popover.querySelector('.vibe-raw-css');
@@ -670,7 +675,7 @@ var VibeAnnotationPopover = (() => {
     return `
       <div class="vibe-design-row vibe-content-row">
         <span class="vibe-design-icon vibe-content-icon" title="Text content">${ICONS.textContent}</span>
-        <textarea class="vibe-content-input" rows="1" spellcheck="false">${escapeHTML(currentText)}</textarea>
+        <textarea class="vibe-content-input" spellcheck="false">${escapeHTML(currentText)}</textarea>
       </div>`;
   }
 
@@ -685,8 +690,7 @@ var VibeAnnotationPopover = (() => {
     const input = popover.querySelector('.vibe-content-input');
     if (!input) return () => null;
 
-    // Initial auto-size
-    requestAnimationFrame(() => autoResizeContentInput(input));
+    // Note: initial auto-size deferred to tab activation (panel starts hidden)
 
     // Focus + select all on first click
     input.addEventListener('focus', () => input.select());
