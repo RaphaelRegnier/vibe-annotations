@@ -761,7 +761,7 @@ class VibeAnnotationsBackground {
     // Fetch server state OUTSIDE the lock (network I/O shouldn't block storage writes)
     let serverAnnotations;
     try {
-      const response = await fetch(`${this.apiServerUrl}/api/annotations`);
+      const response = await fetch(`${this.apiServerUrl}/api/annotations?limit=0`);
       if (!response.ok) return;
       const serverResult = await response.json();
       if (!Array.isArray(serverResult.annotations)) return; // Unexpected response (e.g. multi-project warning) — skip sync

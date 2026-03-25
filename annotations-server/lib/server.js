@@ -95,7 +95,10 @@ class LocalAnnotationsServer {
           filtered = filtered.filter(a => a.url === url);
         }
         
-        filtered = filtered.slice(0, parseInt(limit));
+        const parsedLimit = parseInt(limit);
+        if (parsedLimit > 0) {
+          filtered = filtered.slice(0, parsedLimit);
+        }
         
         res.json({
           annotations: filtered,
