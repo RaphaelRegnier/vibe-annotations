@@ -1,0 +1,58 @@
+NOTICE
+======
+
+Vibe Annotations
+AI-powered visual annotation tool for localhost development via MCP integration.
+
+Copyright (c) 2025 Raphael Regnier / Spellbind Creative Studio
+https://www.vibe-annotations.com
+https://www.spellbind.me
+https://github.com/RaphaelRegnier
+
+All rights reserved under the PolyForm Shield License 1.0.0.
+
+---
+
+## Licensing History
+
+Versions released prior to March 2026 (up to and including v1.4.1)
+were published under the MIT License. Those versions remain covered by
+MIT terms as originally distributed.
+
+Starting from v1.5.0, all new versions of Vibe Annotations are licensed
+exclusively under the PolyForm Shield License 1.0.0. This license
+prohibits use of the Software to provide any product or service that
+competes with Vibe Annotations.
+
+The original MIT copyright notice, which applies to all past releases, is:
+
+  MIT License
+  Copyright (c) 2025 Raphael Regnier / Spellbind Creative Studio
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+---
+
+## Trademark Notice
+
+"Vibe Annotations" is a trademark of Raphael Regnier / Spellbind Creative Studio.
+Use of the name, logo, or brand identity in derivative works or redistributions
+is not permitted without explicit written authorization from the copyright holder.
+
+---
+
+## Third-Party Dependencies
+
+This Software includes third-party open source components. Their respective
+licenses are included in the /node_modules directories of each package, or
+can be found in the individual package repositories on npm and GitHub.
+
+---
+
+For licensing inquiries: contact via https://www.spellbind.me
