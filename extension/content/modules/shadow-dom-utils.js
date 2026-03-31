@@ -158,6 +158,16 @@ var VibeShadowDOMUtils = (() => {
     return current;
   }
 
+  // Returns preferred first child for keyboard drill-down:
+  // open shadow root first, then light DOM firstElementChild.
+  function getFirstDrillChild(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
+    if (element.shadowRoot && element.shadowRoot.firstElementChild) {
+      return element.shadowRoot.firstElementChild;
+    }
+    return element.firstElementChild || null;
+  }
+
   return {
     isShadowRoot,
     isInShadowDOM,
@@ -170,6 +180,7 @@ var VibeShadowDOMUtils = (() => {
     findByShadowSelector,
     isShadowSelector,
     elementFromPointDeep,
+    getFirstDrillChild,
     SHADOW_SEPARATOR
   };
 })();

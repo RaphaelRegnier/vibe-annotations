@@ -7,6 +7,7 @@ var VibeInspectionMode = (() => {
   let highlightEl = null;
   let toastEl = null;
   let hoveredElement = null;
+  let navigatedByKeyboard = false;
 
   // Bound handlers for removal
   let onMouseOver = null;
@@ -15,6 +16,7 @@ var VibeInspectionMode = (() => {
   let onPointerDown = null;
   let onMouseDown = null;
   let onClick = null;
+  let onKeyDown = null;
 
   function init() {
     VibeEvents.on('inspection:start', start);
@@ -44,6 +46,7 @@ var VibeInspectionMode = (() => {
     onPointerDown = handlePointerDown;
     onMouseDown = handleMouseDown;
     onClick = handleClick;
+    onKeyDown = handleKeyDown;
 
     document.addEventListener('mouseover', onMouseOver, true);
     document.addEventListener('mouseout', onMouseOut, true);
@@ -51,6 +54,7 @@ var VibeInspectionMode = (() => {
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
     listenersAttached = true;
 
     // Crosshair cursor on all host page elements
@@ -74,9 +78,10 @@ var VibeInspectionMode = (() => {
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('mousedown', onMouseDown, true);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
       listenersAttached = false;
     }
-    onMouseOver = onMouseOut = onPointerMove = onPointerDown = onMouseDown = onClick = null;
+    onMouseOver = onMouseOut = onPointerMove = onPointerDown = onMouseDown = onClick = onKeyDown = null;
 
     // Remove highlight
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
@@ -85,6 +90,7 @@ var VibeInspectionMode = (() => {
     if (toastEl) { toastEl.remove(); toastEl = null; }
 
     hoveredElement = null;
+    navigatedByKeyboard = false;
 
     // Restore cursor
     const cursorStyle = document.querySelector('[data-vibe-cursor]');
@@ -137,10 +143,12 @@ var VibeInspectionMode = (() => {
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('mousedown', onMouseDown, true);
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
       listenersAttached = false;
     }
     if (highlightEl) highlightEl.style.display = 'none';
     hoveredElement = null;
+    navigatedByKeyboard = false;
   }
 
   function reEnable() {
@@ -151,6 +159,7 @@ var VibeInspectionMode = (() => {
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('mousedown', onMouseDown, true);
     document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
     listenersAttached = true;
   }
 
@@ -187,8 +196,18 @@ var VibeInspectionMode = (() => {
     const target = getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY);
     if (!target || target === document.body || target === document.documentElement) return;
     if (target === hoveredElement) return;
+    if (
+      navigatedByKeyboard &&
+      hoveredElement &&
+      hoveredElement !== document.body &&
+      hoveredElement !== document.documentElement &&
+      hoveredElement.contains(target)
+    ) {
+      return;
+    }
 
     hoveredElement = target;
+    navigatedByKeyboard = false;
     updateHighlight(target);
   }
 
@@ -199,11 +218,35 @@ var VibeInspectionMode = (() => {
     e.preventDefault();
     e.stopImmediatePropagation();
 
-    const target = getDeepTarget(e);
+    const highlighted = hoveredElement && hoveredElement.isConnected ? hoveredElement : null;
+    const target = highlighted || getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY);
     if (!target || target === document.body || target === document.documentElement) return;
 
     tempDisable();
     VibeEvents.emit('inspection:elementClicked', { element: target, clientX: e.clientX, clientY: e.clientY });
+  }
+
+  function handleKeyDown(e) {
+    if (!active || isOurUI(e)) return;
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (e.defaultPrevented) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const current = hoveredElement;
+    if (!current) return;
+
+    const next = e.key === 'ArrowUp'
+      ? VibeShadowDOMUtils.getParentElement(current)
+      : VibeShadowDOMUtils.getFirstDrillChild(current);
+
+    if (!next || !next.isConnected) return;
+    if (next === document.documentElement || next === document.body) return;
+
+    hoveredElement = next;
+    navigatedByKeyboard = true;
+    updateHighlight(next);
   }
 
   // Safety nets — swallow mousedown/click so frameworks never see the interaction
@@ -236,6 +279,7 @@ var VibeInspectionMode = (() => {
     toastEl.className = 'vibe-toast';
     toastEl.innerHTML = `
       <p>Click any element to annotate</p>
+      <p class="sub">Use ↑/↓ to move through DOM</p>
       <p class="sub">Press ESC to exit</p>
     `;
     root.appendChild(toastEl);

@@ -18,6 +18,7 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
 ![New Annotation](docs/images/new-annotation.jpg)
 *2. Click any element — a popover appears to leave your feedback*
+*Tip: While annotating, use ↑/↓ to move across parent/child DOM elements and press ESC to exit annotation mode.*
 
 ![Copy to Clipboard](docs/images/copy-clipboard.jpg)
 *3. Your AI agent fetches annotations automatically via MCP, or you can copy them to clipboard with full element context*
