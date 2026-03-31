@@ -209,7 +209,7 @@ var VibeToolbar = (() => {
     const version = chrome.runtime.getManifest().version;
     const currentTheme = VibeThemeManager.getPreference();
     const themeIcon = THEME_ICONS[currentTheme] || THEME_ICONS.system;
-    const route = window.location.pathname;
+    const route = getLocationDisplayPath(window.location);
 
     settingsDropdown = document.createElement('div');
     const rect = toolbarEl.getBoundingClientRect();
@@ -1180,6 +1180,12 @@ var VibeToolbar = (() => {
 
   // --- Clipboard format ---
 
+  /** Path + query + hash for display (hash routers, history API, combined URLs). */
+  function getLocationDisplayPath(loc) {
+    const path = (loc.pathname || '/') + (loc.search || '') + (loc.hash || '');
+    return path || '/';
+  }
+
   const TRIVIAL_STYLES = {
     display: 'block',
     position: 'static',
@@ -1192,7 +1198,7 @@ var VibeToolbar = (() => {
 
   function formatAnnotationsForClipboard(annotations) {
     const loc = window.location;
-    const route = loc.pathname;
+    const route = getLocationDisplayPath(loc);
     const host = loc.host;
     const vp = annotations[0]?.viewport;
     const vpStr = vp ? `${vp.width}\u00D7${vp.height}` : '';

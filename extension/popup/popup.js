@@ -76,7 +76,7 @@ class AnnotationsPopup {
           const parentDir = parts[parts.length - 2] || '';
           routeElement.textContent = parentDir ? `${parentDir}/${filename}` : filename;
         } else {
-          routeElement.textContent = `${url.hostname}:${url.port}${url.pathname}`;
+          routeElement.textContent = `${url.hostname}:${url.port}${url.pathname}${url.search}${url.hash}`;
         }
       } else {
         routeElement.textContent = 'Not supported';
