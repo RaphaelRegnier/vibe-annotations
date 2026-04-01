@@ -29,3 +29,6 @@ var VibeEvents = (() => {
     }
   };
 })();
+
+/** Full display path: pathname + search + hash (supports hash routers & query params). */
+var vibeLocationPath = (loc) => (loc.pathname || '/') + (loc.search || '') + (loc.hash || '') || '/';
