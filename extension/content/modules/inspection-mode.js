@@ -227,9 +227,9 @@ var VibeInspectionMode = (() => {
   // Arrow key DOM navigation — ↑ parent, ↓ retrace path back to anchor
   function handleKeyDown(e) {
     if (!active) return;
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
 
-    // Always handle arrow keys in inspection mode, even if focus is on our toolbar
+    // Always handle these keys in inspection mode, even if focus is on our toolbar
     e.preventDefault();
     e.stopPropagation();
 
@@ -239,6 +239,18 @@ var VibeInspectionMode = (() => {
 
     const current = hoveredElement;
     if (!current) return;
+
+    // Enter — select the currently highlighted element
+    if (e.key === 'Enter') {
+      const rect = current.getBoundingClientRect();
+      tempDisable();
+      VibeEvents.emit('inspection:elementClicked', {
+        element: current,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2
+      });
+      return;
+    }
 
     let next;
     if (e.key === 'ArrowUp') {
@@ -289,7 +301,7 @@ var VibeInspectionMode = (() => {
     toastEl.className = 'vibe-toast';
     toastEl.innerHTML = `
       <p>Click any element to annotate</p>
-      <p class="sub">↑/↓ to traverse DOM · ESC to exit</p>
+      <p class="sub">↑/↓ to traverse DOM · Enter to select · ESC to exit</p>
     `;
     root.appendChild(toastEl);
 
