@@ -144,6 +144,31 @@ var VibeShadowDOMUtils = (() => {
     return selector && selector.includes(SHADOW_SEPARATOR);
   }
 
+  // --- Keyboard DOM navigation helpers ---
+
+  function isVibeHost(el) {
+    return el && el.id === 'vibe-annotations-root';
+  }
+
+  /** Walk up, skipping Vibe's own shadow host. */
+  function getNavigableParent(node) {
+    let parent = getParentElement(node);
+    if (parent && isVibeHost(parent)) parent = getParentElement(parent);
+    return parent;
+  }
+
+  /** Drill into first child, preferring open shadow roots. Skips Vibe UI. */
+  function getFirstDrillChild(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return null;
+    if (isVibeHost(element)) return null;
+    if (element.shadowRoot && element.shadowRoot.firstElementChild) {
+      const child = element.shadowRoot.firstElementChild;
+      return isVibeHost(child) ? null : child;
+    }
+    const child = element.firstElementChild;
+    return (child && isVibeHost(child)) ? child.nextElementSibling : child || null;
+  }
+
   // --- Deep elementFromPoint (drills into shadow roots) ---
 
   function elementFromPointDeep(clientX, clientY) {
@@ -170,6 +195,8 @@ var VibeShadowDOMUtils = (() => {
     findByShadowSelector,
     isShadowSelector,
     elementFromPointDeep,
+    getNavigableParent,
+    getFirstDrillChild,
     SHADOW_SEPARATOR
   };
 })();

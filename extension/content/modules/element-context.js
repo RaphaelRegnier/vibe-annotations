@@ -364,7 +364,7 @@ var VibeElementContext = (() => {
     try {
       const srcInfo = extractSourceInfo(element);
       const projectArea = getProjectAreaFromURL();
-      const urlPath = new URL(window.location.href).pathname;
+      const urlPath = vibeLocationPath(window.location);
       const hints = generateContextHints(element);
       return {
         source_file_path: srcInfo.filePath || null,
@@ -379,7 +379,7 @@ var VibeElementContext = (() => {
         source_file_path: null,
         source_line_range: null,
         project_area: 'unknown',
-        url_path: window.location.pathname || '/',
+        url_path: vibeLocationPath(window.location),
         source_map_available: false,
         context_hints: generateContextHints(element)
       };
