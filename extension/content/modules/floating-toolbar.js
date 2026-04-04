@@ -82,6 +82,7 @@ var VibeToolbar = (() => {
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = count; styleAnnotationCount = styleCount || 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
+    VibeEvents.on('overlay:closed', resetPosition);
 
     // Periodic server status check
     setInterval(refreshServerStatus, 10000);
@@ -872,6 +873,14 @@ var VibeToolbar = (() => {
       toolbarEl.style.right = pos.right;
       toolbarEl.style.top = pos.top;
     }
+  }
+
+  function resetPosition() {
+    if (toolbarEl) {
+      toolbarEl.style.right = '';
+      toolbarEl.style.top = '';
+    }
+    VibeAPI.saveToolbarPosition(null);
   }
 
   // --- Delete confirm ---

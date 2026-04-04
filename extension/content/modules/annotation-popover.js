@@ -629,6 +629,7 @@ var VibeAnnotationPopover = (() => {
           await VibeAPI.deleteAnnotation(existingAnnotation.id);
           VibeEvents.emit('annotation:deleted', { id: existingAnnotation.id });
           activeExistingAnnotation = null;
+          activeOriginalCssText = null;
           dismiss(true);
           return;
         }
@@ -637,6 +638,7 @@ var VibeAnnotationPopover = (() => {
           await VibeAPI.deleteAnnotation(existingAnnotation.id);
           VibeEvents.emit('annotation:deleted', { id: existingAnnotation.id, annotation: existingAnnotation });
           activeExistingAnnotation = null;
+          activeOriginalCssText = null;
           dismiss(true);
         }
       });
@@ -648,6 +650,18 @@ var VibeAnnotationPopover = (() => {
       const pendingChanges = buildPendingChanges();
       const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value.trim() : '';
       const cssField = cssRulesVal || null;
+
+      // Clean up collateral inline styles from live-preview handlers
+      // (e.g. applyPadVH writes all 4 paddings even when only vertical changed).
+      // Restore to pre-popover baseline, then apply only tracked changes.
+      // This is synchronous so the browser paints a single frame — no clip.
+      targetElement.style.cssText = activeOriginalCssText || '';
+      if (pendingChanges) {
+        for (const prop of Object.keys(pendingChanges)) {
+          if (prop === 'copyChange') continue;
+          if (pendingChanges[prop]) targetElement.style[prop] = pendingChanges[prop].value;
+        }
+      }
 
       if (isEdit) {
         const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges, css: cssField };
@@ -1932,21 +1946,21 @@ var VibeAnnotationPopover = (() => {
   function dismiss(reEnableInspection = false, saved = false) {
     const hadPopover = !!currentPopover;
 
-    // Revert design changes on cancel (not on save)
-    if (hadPopover && !saved && activeElement) {
-      // Restore original inline styles
-      activeElement.style.cssText = activeOriginalCssText || '';
-      // Revert text content change (only if user actually edited it)
+    // Revert on cancel only. Save and delete handle their own cleanup:
+    // - Save: save handler restores cssText + applies pendingChanges before dismiss
+    // - Delete: onDeleted restores originals via revertPendingChanges, then
+    //   nulls activeOriginalCssText so we skip here
+    if (hadPopover && !saved && activeElement && activeOriginalCssText !== null) {
+      activeElement.style.cssText = activeOriginalCssText;
       if (activeTextDirty && activeOriginalText !== null) {
         activeElement.textContent = activeOriginalText;
       }
-      // Re-apply existing pending_changes if editing an annotation that had them
+      // Re-apply existing pending_changes if cancelling an edit
       const apc = activeExistingAnnotation?.pending_changes;
       if (apc) {
         for (const prop of ALL_DESIGN_PROPS) {
           if (apc[prop]) activeElement.style[prop] = apc[prop].value;
         }
-        // Re-apply copy change
         if (apc.copyChange) activeElement.textContent = apc.copyChange.value;
       }
     }

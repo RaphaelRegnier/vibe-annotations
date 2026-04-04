@@ -22,6 +22,25 @@ var VibeBadgeManager = (() => {
     return keys;
   }
 
+  // Revert pending_changes by restoring each prop's original value.
+  // Uses the stored original instead of blanking to '' so that pre-existing
+  // inline styles (e.g. style="padding: 40px") are preserved.
+  function revertPendingChanges(el, pc) {
+    for (const prop of Object.keys(pc)) {
+      if (prop === 'copyChange') {
+        el.textContent = pc.copyChange.original;
+        continue;
+      }
+      const entry = pc[prop];
+      if (!entry || !entry.original) { el.style[prop] = ''; continue; }
+      // Restore original: if it was a "real" value, set it; if it was empty/default, clear
+      const orig = entry.original;
+      // Values like "0px", "auto", "none" are real originals — restore them.
+      // Only clear if original was explicitly empty.
+      el.style[prop] = orig === '' ? '' : orig;
+    }
+  }
+
   let badges = []; // { el, annotation, targetElement }
   let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
@@ -228,8 +247,9 @@ var VibeBadgeManager = (() => {
     const clearedEls = new Set();
     for (const entry of badges) {
       const pc = entry.annotation.pending_changes;
-      for (const prop of DESIGN_PROPS) entry.targetElement.style[prop] = '';
-      if (pc?.copyChange) entry.targetElement.textContent = pc.copyChange.original;
+      if (pc) {
+        revertPendingChanges(entry.targetElement, pc);
+      }
       clearedEls.add(entry.targetElement);
       entry.el.remove();
     }
@@ -244,9 +264,7 @@ var VibeBadgeManager = (() => {
         if (!a.pending_changes) continue;
         const el = VibeElementContext.findElementBySelector(a);
         if (el && !clearedEls.has(el)) {
-          const pc = a.pending_changes;
-          for (const prop of getStyleProps(pc)) el.style[prop] = '';
-          if (pc.copyChange) el.textContent = pc.copyChange.original;
+          revertPendingChanges(el, a.pending_changes);
         }
       }
     }
@@ -266,17 +284,16 @@ var VibeBadgeManager = (() => {
     if (idx !== -1) {
       const entry = badges[idx];
       const pc = entry.annotation.pending_changes;
-      for (const prop of getStyleProps(pc)) entry.targetElement.style[prop] = '';
-      if (pc?.copyChange) entry.targetElement.textContent = pc.copyChange.original;
+      if (pc) {
+        revertPendingChanges(entry.targetElement, pc);
+      }
       entry.el.remove();
       badges.splice(idx, 1);
     } else if (annotation?.pending_changes) {
       // Badge was lost but element may still have inline styles — retry selector
       const el = VibeElementContext.findElementBySelector(annotation);
       if (el) {
-        const pc = annotation.pending_changes;
-        for (const prop of getStyleProps(pc)) el.style[prop] = '';
-        if (pc.copyChange) el.textContent = pc.copyChange.original;
+        revertPendingChanges(el, annotation.pending_changes);
       }
     }
     if (!badges.length) stopRAF();
@@ -293,10 +310,11 @@ var VibeBadgeManager = (() => {
       const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
       if (tooltip) tooltip.textContent = comment;
       const oldPC = entry.annotation.pending_changes;
-      // Revert old copy change before applying new state
-      if (oldPC?.copyChange) entry.targetElement.textContent = oldPC.copyChange.original;
+      // Revert old changes before applying new state
+      if (oldPC) {
+        revertPendingChanges(entry.targetElement, oldPC);
+      }
       entry.annotation = { ...entry.annotation, comment, pending_changes, css };
-      for (const prop of getStyleProps(oldPC)) entry.targetElement.style[prop] = '';
       if (pending_changes) {
         for (const prop of getStyleProps(pending_changes)) {
           if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
