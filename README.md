@@ -30,13 +30,14 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
 ## Features
 
-- **Annotate anything**: Click elements to leave comments, edit text, and tweak CSS (font size, colors, layout, spacing) with live preview
-- **Watch mode**: Tell your agent "Start watching Vibe Annotations" — it picks up annotations as you drop them, implements changes, and loops. Hands-free
-- **Multi-page**: Annotate across routes, then bulk-process everything at once
-- **Collaborate**: Export annotations as JSON, share with teammates, import on their localhost with automatic URL remapping
-- **Agent bridge API**: Browser-based agents (Claude Chrome extension, OpenClaw) can create annotations via `window.__vibeAnnotations`
-- **Keyboard-driven**: Enter to select elements, arrow keys to navigate siblings, hotkey to toggle annotation mode
-- **Local only**: Works on localhost, .local, .test, .localhost, and file:// URLs. No data leaves your machine
+- 📌 **Drop annotations**: Click any element to leave a comment or an empty pointer for your AI agent to pick up and act on
+- 🎨 **Direct design edits**: Tweak CSS properties (font size, colors, layout, spacing) with live preview — changes are captured as annotations for your agent to implement in source
+- 👁️ **Watch mode**: Tell your agent "Start watching Vibe Annotations" — it picks up annotations as you drop them, implements changes, and loops. Hands-free
+- 📑 **Multi-page**: Annotate across routes, then bulk-process everything at once
+- 🤝 **Collaborate**: Export annotations as JSON, share with teammates, import on their localhost with automatic URL remapping
+- 🤖 **Agent bridge API**: Browser-based agents (Claude Chrome extension, OpenClaw) can create annotations via `window.__vibeAnnotations`
+- ⌨️ **Keyboard-driven**: Enter to select elements, arrow keys to navigate siblings, hotkey to toggle annotation mode
+- 🌐 **Works on any URL**: Full capabilities on localhost, .local, .test, .localhost, and file:// URLs. Also works on public sites for review and collaboration
 
 ## Architecture
 
@@ -306,7 +307,7 @@ Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-
 ### Common Issues
 
 - **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
-- **Extension not working**: Check that you're on a local development URL (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost)
+- **Extension not working on public URLs**: The extension works on any URL, but MCP server features (auto-sync, watch mode) require localhost. On public sites, use copy/paste or export
 - **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
 - **SSE connection drops/timeouts**: If experiencing "TypeError: terminated" or frequent disconnections, switch to HTTP transport (replace `/sse` with `/mcp` in your configuration)
 
