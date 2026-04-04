@@ -55,7 +55,9 @@ jobs:
         PUBLISH_VERSION=$(npx semver $LOCAL_VERSION $NPM_PATCH_VERSION | tail -1)
 
         echo "Publishing version: $PUBLISH_VERSION"
-        npm version $PUBLISH_VERSION --no-git-tag-version
+        if [ "$LOCAL_VERSION" != "$PUBLISH_VERSION" ]; then
+          npm version $PUBLISH_VERSION --no-git-tag-version
+        fi
 
         # Publish to NPM
         npm publish
