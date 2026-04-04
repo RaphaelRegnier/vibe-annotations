@@ -47,9 +47,48 @@ class LocalAnnotationsServer {
     this.transports = {}; // Track transport sessions
     this.connections = new Set(); // Track HTTP connections
     this.saveLock = Promise.resolve(); // Serialize save operations to prevent race conditions
-    
+    this.watchers = new Map(); // watcherId → { url, registeredAt, lastSeenAt, polling, abort }
+    this.WATCHER_GRACE_MS = 120_000; // Watcher stays "active" for 2min after last seen (covers agent processing)
+
     this.setupExpress();
     this.setupMCP();
+
+    // Periodic sweep: remove watchers whose grace period expired
+    this.watcherSweepInterval = setInterval(() => this.pruneStaleWatchers(), 15_000);
+  }
+
+  pruneStaleWatchers() {
+    const now = Date.now();
+    for (const [id, w] of this.watchers) {
+      const graceExpired = !w.polling && now - w.lastSeenAt > this.WATCHER_GRACE_MS;
+      // Hard max: force-kill watchers registered longer than their timeout + grace (orphaned loops)
+      const hardExpired = now - w.registeredAt > (w.timeoutMs || 300_000) + this.WATCHER_GRACE_MS;
+      if (graceExpired || hardExpired) {
+        if (w.abort) w.abort.abort();
+        this.watchers.delete(id);
+        console.log(`Pruned ${hardExpired ? 'expired' : 'stale'} watcher: ${id} (url: ${w.url})`);
+      }
+    }
+  }
+
+  stopAllWatchers() {
+    for (const [id, w] of this.watchers) {
+      if (w.abort) w.abort.abort();
+      console.log(`Stopped watcher: ${id} (url: ${w.url})`);
+    }
+    this.watchers.clear();
+  }
+
+  getActiveWatchers() {
+    const now = Date.now();
+    const active = [];
+    for (const [id, w] of this.watchers) {
+      // Active if loop is running OR within grace period after returning
+      if (w.polling || now - w.lastSeenAt <= this.WATCHER_GRACE_MS) {
+        active.push({ id, url: w.url, registeredAt: w.registeredAt });
+      }
+    }
+    return active;
   }
 
   setupExpress() {
@@ -225,6 +264,18 @@ class LocalAnnotationsServer {
         console.error('Error deleting annotation:', error);
         res.status(500).json({ error: 'Failed to delete annotation' });
       }
+    });
+
+    // Watcher status endpoint (for extension to poll)
+    this.app.get('/api/watchers', (req, res) => {
+      const watchers = this.getActiveWatchers();
+      res.json({ watchers, watching: watchers.length > 0 });
+    });
+
+    // Stop all watchers (called by extension eye button)
+    this.app.post('/api/watchers/stop', (req, res) => {
+      this.stopAllWatchers();
+      res.json({ success: true });
     });
 
     // SSE endpoint for MCP connection (proper MCP SSE transport)
@@ -465,6 +516,28 @@ class LocalAnnotationsServer {
               required: ['id'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'watch_annotations',
+            description: 'Watch for new annotations on a localhost project. This tool blocks until pending annotations appear, then returns them. Use this in a loop for hands-free mode: call watch_annotations → implement each annotation → call delete_annotation → call watch_annotations again. The tool polls every 10 seconds and automatically stops after the timeout period (default 5 minutes) of no new annotations appearing. IMPORTANT: You must know the localhost URL of the project you are watching. If you do not know it, ask the user before calling this tool. Example: "http://localhost:3000/*" watches all pages on port 3000.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url: {
+                  type: 'string',
+                  description: 'Localhost URL pattern to watch (e.g., "http://localhost:3000/*" or "http://localhost:5173/*"). Required — ask the user if unknown.'
+                },
+                timeout: {
+                  type: 'number',
+                  default: 300,
+                  minimum: 30,
+                  maximum: 1800,
+                  description: 'Seconds of empty polls before auto-stopping (default: 300 = 5 minutes)'
+                }
+              },
+              required: ['url'],
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -559,6 +632,25 @@ class LocalAnnotationsServer {
                     tool: 'get_annotation_screenshot',
                     status: 'success',
                     data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'watch_annotations': {
+            const result = await this.watchAnnotations(args || {});
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'watch_annotations',
+                    status: result.timeout ? 'timeout' : 'success',
+                    data: result.annotations || [],
+                    count: result.annotations?.length || 0,
+                    message: result.message,
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -807,6 +899,84 @@ class LocalAnnotationsServer {
     };
   }
 
+  async watchAnnotations(args) {
+    const { url, timeout = 300 } = args;
+    if (!url) throw new Error('url parameter is required');
+
+    // Abort any existing watchers for the same URL (prevents accumulation)
+    for (const [id, w] of this.watchers) {
+      if (w.url === url) {
+        if (w.abort) w.abort.abort();
+        this.watchers.delete(id);
+        console.log(`Replaced watcher ${id} for ${url}`);
+      }
+    }
+
+    const watcherId = randomUUID();
+    const ac = new AbortController();
+    const now = Date.now();
+    const timeoutMs = timeout * 1000;
+    this.watchers.set(watcherId, { url, registeredAt: now, lastSeenAt: now, polling: true, abort: ac, timeoutMs });
+    console.log(`Watcher started: ${watcherId} watching ${url} (timeout: ${timeout}s)`);
+
+    const pollIntervalMs = 10_000; // 10 seconds
+    const startTime = Date.now();
+
+    // URL filter helper (same logic as readAnnotations)
+    const matchesUrl = (annotationUrl) => {
+      if (url.includes('*') || url.endsWith('/')) {
+        const baseUrl = url.replace('*', '').replace(/\/$/, '');
+        return annotationUrl.startsWith(baseUrl);
+      }
+      return annotationUrl === url;
+    };
+
+    // Abortable sleep
+    const sleep = (ms) => new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, ms);
+      ac.signal.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true });
+    });
+
+    try {
+      while (Date.now() - startTime < timeoutMs) {
+        if (ac.signal.aborted) break;
+
+        const annotations = await this.loadAnnotations();
+        const pending = annotations.filter(a => a.status === 'pending' && matchesUrl(a.url));
+
+        if (pending.length > 0) {
+          // Mark not polling, update lastSeenAt — grace period covers agent processing time
+          const w = this.watchers.get(watcherId);
+          if (w) { w.polling = false; w.lastSeenAt = Date.now(); }
+          console.log(`Watcher ${watcherId}: found ${pending.length} annotations`);
+
+          // Strip screenshots, add flag (same as readAnnotations)
+          const cleaned = pending.map(({ screenshot, ...rest }) => ({
+            ...rest,
+            has_screenshot: !!(screenshot && screenshot.data_url)
+          }));
+
+          return { annotations: cleaned, message: `Found ${cleaned.length} pending annotations` };
+        }
+
+        // Don't update lastSeenAt during idle polling — let the sweep detect abandoned watchers
+        await sleep(pollIntervalMs);
+      }
+
+      // Timeout — no annotations found, fully remove watcher
+      this.watchers.delete(watcherId);
+      console.log(`Watcher ${watcherId}: timed out after ${timeout}s`);
+      return { timeout: true, annotations: [], message: `No new annotations for ${timeout} seconds, watch stopped. Call watch_annotations again to resume.` };
+    } catch (error) {
+      this.watchers.delete(watcherId);  // Fully remove on error
+      if (error.message === 'aborted') {
+        console.log(`Watcher ${watcherId}: aborted`);
+        return { timeout: true, annotations: [], message: 'Watch aborted' };
+      }
+      throw error;
+    }
+  }
+
   async deleteAnnotation(args) {
     const { id } = args;
     
@@ -814,7 +984,8 @@ class LocalAnnotationsServer {
     const index = annotations.findIndex(a => a.id === id);
     
     if (index === -1) {
-      throw new Error(`Annotation with id ${id} not found`);
+      // Already gone — treat as success (extension may have synced/removed it)
+      return { id, deleted: true, message: `Annotation ${id} already deleted or not found` };
     }
     
     const deletedAnnotation = annotations[index];

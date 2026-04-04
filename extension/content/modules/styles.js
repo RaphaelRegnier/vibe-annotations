@@ -152,6 +152,22 @@ var VIBE_STYLES = `
   box-shadow: 0 0 0 3px var(--v-highlight), 0 2px 8px rgba(0,0,0,0.18);
 }
 
+.vibe-badge-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.vibe-badge.watching {
+  animation: vibe-watch-pulse 2s ease-in-out infinite;
+}
+
+@keyframes vibe-watch-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  50% { box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 3px rgba(217,119,87,0.3); }
+}
+
 /* Badge tooltip */
 .vibe-badge-tooltip {
   position: absolute;
@@ -1073,6 +1089,11 @@ var VIBE_STYLES = `
   height: 16px;
   color: var(--v-text-secondary);
   flex-shrink: 0;
+}
+
+.vibe-settings-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .vibe-settings-link {
