@@ -41,14 +41,21 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
 ## Architecture
 
-Vibe Annotations uses a two-piece architecture:
+Vibe Annotations is split into two independent pieces that talk over HTTP:
 
-1. **Browser Extension** (`/extension`): UI, annotation management, live design previews
-2. **NPM Package** (`vibe-annotations-server`): MCP server, HTTP API, data storage
+1. **Browser Extension** (`/extension`) — Injects a floating toolbar on any page. Handles inspection mode, annotation popovers, live CSS previews, badge rendering, import/export, and clipboard copy. Stores annotations in Chrome Storage and syncs them to the server when available.
+
+2. **MCP Server** (`vibe-annotations-server`) — A global npm package that runs locally. Exposes an HTTP API for the extension and MCP endpoints for AI coding agents. Stores annotations as JSON on disk. Agents connect via MCP to read, watch, and delete annotations.
 
 ```
-Browser Extension ←→ HTTP API ←→ Server ←→ MCP ←→ AI Coding Agents
+┌─────────────────┐         HTTP          ┌─────────────────┐         MCP
+│                  │  ←── sync/CRUD ───→   │                 │  ←── tools ───→  AI Agents
+│  Browser Extension │                     │  MCP Server      │                (Claude Code,
+│  (Chrome)         │                      │  (port 3846)     │                 Cursor, etc.)
+└─────────────────┘                        └─────────────────┘
 ```
+
+The extension works standalone (copy/paste, export) but the server unlocks MCP integration and watch mode.
 
 ## Quick Start
 
