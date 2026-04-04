@@ -5,9 +5,9 @@
 [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-🌐 Website: https://www.vibe-annotations.com/
+Website: https://www.vibe-annotations.com/
 
-AI-powered development annotations for local development projects. Drop comments on your local development apps and let your AI coding agent implement the fixes automatically.
+Drop visual comments on your localhost apps and let AI coding agents implement the fixes. Click elements, leave feedback, tweak styles — your agent picks it all up via MCP.
 
 https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 
@@ -17,31 +17,45 @@ https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
 *1. Open your localhost app and click "Annotate" in the floating toolbar*
 
 ![New Annotation](docs/images/new-annotation.jpg)
-*2. Click any element — a popover appears to leave your feedback*
+*2. Click any element — leave a comment, edit text, or tweak styles directly*
 
 ![Copy to Clipboard](docs/images/copy-clipboard.jpg)
-*3. Your AI agent fetches annotations automatically via MCP, or you can copy them to clipboard with full element context*
+*3. Copy annotations to clipboard, or let your agent fetch them automatically via MCP*
 
 ![Settings](docs/images/settings-opened.jpg)
-*4. Settings: MCP server status, clear-after-copy, screenshots, theme toggle*
+*4. Settings: MCP server status and setup, clear-after-copy, screenshots, theme toggle*
 
 ![Done](docs/images/done.jpg)
-*5. AI agent implements fixes and deletes annotations via MCP — all from your browser*
+*5. AI agent implements fixes and deletes annotations — all from your browser*
 
 ## Features
 
-- 🏠 **Local development focused**: Works on localhost, .local, .test, .localhost domains
-- 📑 **Multi-page annotations**: Create feedback across multiple routes in your app, then bulk-process all annotations at once for efficient fixes
-- 🤖 **AI-powered**: Integrates with AI coding agents via MCP
-- ⚡ **Instant feedback**: Click, comment, bulk-fix
-- 👨‍💻 **Developer-friendly**: Built for modern web development
+- 📌 **Drop annotations**: Click any element to leave a comment or an empty pointer for your AI agent to pick up and act on
+- 🎨 **Direct design edits**: Tweak CSS properties (font size, colors, layout, spacing) with live preview — changes are captured as annotations for your agent to implement in source
+- 👁️ **Watch mode**: Tell your agent "Start watching Vibe Annotations" — it picks up annotations as you drop them, implements changes, and loops. Hands-free
+- 📑 **Multi-page**: Annotate across routes, then bulk-process everything at once
+- 🤝 **Collaborate**: Export annotations as JSON, share with teammates, import on their localhost with automatic URL remapping
+- 🤖 **Agent bridge API**: Browser-based agents (Claude Chrome extension, OpenClaw) can create annotations via `window.__vibeAnnotations`
+- ⌨️ **Keyboard-driven**: Enter to select elements, arrow keys to navigate siblings, hotkey to toggle annotation mode
+- 🌐 **Works on any URL**: Full capabilities on localhost, .local, .test, .localhost, and file:// URLs. Also works on public sites for review and collaboration
 
 ## Architecture
 
-Vibe Annotations uses a two-piece architecture:
+Vibe Annotations is split into two independent pieces that talk over HTTP:
 
-1. **Browser Extension** (`/extension`): UI, setup guidance, annotation management
-2. **NPM Package** (`vibe-annotations-server`): MCP server, local HTTP API, data storage
+1. **Browser Extension** (`/extension`) — Injects a floating toolbar on any page. Handles inspection mode, annotation popovers, live CSS previews, badge rendering, import/export, and clipboard copy. Stores annotations in Chrome Storage and syncs them to the server when available.
+
+2. **MCP Server** (`vibe-annotations-server`) — A global npm package that runs locally. Exposes an HTTP API for the extension and MCP endpoints for AI coding agents. Stores annotations as JSON on disk. Agents connect via MCP to read, watch, and delete annotations.
+
+```
+┌─────────────────┐         HTTP          ┌─────────────────┐         MCP
+│                  │  ←── sync/CRUD ───→   │                 │  ←── tools ───→  AI Agents
+│  Browser Extension │                     │  MCP Server      │                (Claude Code,
+│  (Chrome)         │                      │  (port 3846)     │                 Cursor, etc.)
+└─────────────────┘                        └─────────────────┘
+```
+
+The extension works standalone (copy/paste, export) but the server unlocks MCP integration and watch mode.
 
 ## Quick Start
 
@@ -158,10 +172,13 @@ Install an AI extension that supports MCP, then add this configuration to your M
 }
 ```
 
-### 5. Start Using Annotations
-- Open the extension popup for detailed setup instructions
-- Start annotating your local development projects!
-- Use your AI coding agent to automatically implement fixes
+### 5. Start Annotating
+
+Open a localhost page, click **Annotate** in the toolbar, and click any element to leave feedback. Then either:
+
+- **Copy & paste**: Click **Copy** in the toolbar and paste into any AI chat
+- **MCP (automatic)**: Tell your agent to read and implement vibe annotations
+- **Watch mode (hands-free)**: Tell your agent "Start watching Vibe Annotations" — it loops automatically
 
 ### 6. (Optional) Enable Local File Support
 
@@ -174,12 +191,44 @@ To annotate local HTML files (file:// URLs) instead of localhost:
 
 **Note:** This is only needed for local files. Localhost development servers work without this step.
 
-## User Experience Flow
+## Watch Mode
 
-1. **Extension Installation**: Install from Chrome Web Store
-2. **Setup Instructions**: Extension popup guides through terminal setup
-3. **Server Detection**: Extension automatically detects running server
-4. **Daily Usage**: Create annotations → Use your AI coding agent → Fixes implemented
+Watch mode lets your agent automatically pick up and implement annotations as you drop them.
+
+1. Make sure the MCP server is running and connected
+2. Tell your agent: **"Start watching Vibe Annotations"**
+3. Annotate elements in the browser — the agent picks them up, implements changes, and deletes them
+4. An eye icon replaces the copy button while an agent is watching. Click the eye to stop
+5. Auto-stops after 5 minutes of inactivity
+
+The agent calls `watch_annotations` in a loop under the hood — it polls every 10 seconds for new annotations matching the localhost URL you're working on.
+
+## MCP Tools
+
+The server exposes these tools to connected agents:
+
+| Tool | Description |
+|------|-------------|
+| `read_annotations` | Retrieve pending annotations with URL filtering and pagination |
+| `watch_annotations` | Long-poll for new annotations (used in watch mode loops) |
+| `delete_annotation` | Remove an annotation after implementing the fix |
+| `delete_project_annotations` | Batch delete all annotations for a project URL |
+| `get_project_context` | Infer framework and tech stack from a localhost URL |
+| `get_annotation_screenshot` | Get screenshot data for visual context |
+
+## Workflows
+
+### Single page — copy & paste
+Annotate a few elements, click **Copy**, paste into any AI chat. Enable **Clear after copy** in settings to auto-delete after copying.
+
+### Multi-page — MCP server
+Annotate across routes, then tell your agent to read and implement all annotations. The agent pulls everything via MCP, implements fixes, and deletes each annotation when done.
+
+### Collaboration — export & import
+A reviewer exports annotations as JSON and shares the file. A developer imports them on their localhost — URLs are automatically remapped.
+
+### Watch mode — hands-free
+Tell your agent "Start watching Vibe Annotations". Annotate at your own pace — the agent picks up each annotation as it appears, implements the change, and deletes it.
 
 ## Server Management
 
@@ -265,7 +314,7 @@ Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-
 ### Common Issues
 
 - **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
-- **Extension not working**: Check that you're on a local development URL (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost)
+- **Extension not working on public URLs**: The extension works on any URL, but MCP server features (auto-sync, watch mode) require localhost. On public sites, use copy/paste or export
 - **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
 - **SSE connection drops/timeouts**: If experiencing "TypeError: terminated" or frequent disconnections, switch to HTTP transport (replace `/sse` with `/mcp` in your configuration)
 
