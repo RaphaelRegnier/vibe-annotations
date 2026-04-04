@@ -5,6 +5,9 @@
 var VibeInspectionMode = (() => {
   let active = false;
   let highlightEl = null;
+  let hoverLabelEl = null;
+  let hoverLabelTitleEl = null;
+  let hoverLabelMetaEl = null;
   let toastEl = null;
   let hoveredElement = null;
   let navigatedByKeyboard = false;
@@ -36,6 +39,17 @@ var VibeInspectionMode = (() => {
     highlightEl.className = 'vibe-highlight';
     highlightEl.style.display = 'none';
     root.appendChild(highlightEl);
+
+    hoverLabelEl = document.createElement('div');
+    hoverLabelEl.className = 'vibe-hover-label';
+    hoverLabelEl.style.display = 'none';
+    hoverLabelTitleEl = document.createElement('div');
+    hoverLabelTitleEl.className = 'vibe-hover-label__title';
+    hoverLabelMetaEl = document.createElement('div');
+    hoverLabelMetaEl.className = 'vibe-hover-label__meta';
+    hoverLabelEl.appendChild(hoverLabelTitleEl);
+    hoverLabelEl.appendChild(hoverLabelMetaEl);
+    root.appendChild(hoverLabelEl);
 
     // Show instruction toast
     showToast(root);
@@ -86,6 +100,10 @@ var VibeInspectionMode = (() => {
 
     // Remove highlight
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
+    if (hoverLabelEl) { hoverLabelEl.remove(); }
+    hoverLabelEl = null;
+    hoverLabelTitleEl = null;
+    hoverLabelMetaEl = null;
 
     // Remove toast
     if (toastEl) { toastEl.remove(); toastEl = null; }
@@ -149,6 +167,7 @@ var VibeInspectionMode = (() => {
       listenersAttached = false;
     }
     if (highlightEl) highlightEl.style.display = 'none';
+    hideHoverLabel();
     hoveredElement = null;
     navigatedByKeyboard = false;
     navStack = [];
@@ -188,6 +207,7 @@ var VibeInspectionMode = (() => {
 
     hoveredElement = null;
     if (highlightEl) highlightEl.style.display = 'none';
+    hideHoverLabel();
   }
 
   // Reliable hover across nested shadow roots — pointermove fires for
@@ -294,6 +314,62 @@ var VibeInspectionMode = (() => {
     highlightEl.style.left = `${rect.left}px`;
     highlightEl.style.width = `${rect.width}px`;
     highlightEl.style.height = `${rect.height}px`;
+
+    updateHoverLabel(element, rect);
+  }
+
+  function updateHoverLabel(element, rect) {
+    if (!hoverLabelEl || !hoverLabelTitleEl || !hoverLabelMetaEl) return;
+
+    const info = VibeElementContext.getHoverLabelData(element);
+    const titleParts = [];
+    if (info.component_name) titleParts.push(info.component_name);
+    titleParts.push(info.tag);
+
+    const metaParts = [];
+    if (info.id) metaParts.push(`#${info.id}`);
+    if (info.classes.length) metaParts.push(...info.classes.map(cls => `.${cls}`));
+
+    hoverLabelTitleEl.textContent = titleParts.join(' · ');
+    hoverLabelMetaEl.textContent = metaParts.join(' ');
+    hoverLabelMetaEl.style.display = metaParts.length ? 'block' : 'none';
+    hoverLabelEl.style.display = 'block';
+
+    positionHoverLabel(rect);
+  }
+
+  function positionHoverLabel(targetRect) {
+    if (!hoverLabelEl) return;
+
+    const offset = 8;
+    const viewportPadding = 8;
+    const labelRect = hoverLabelEl.getBoundingClientRect();
+
+    let top = targetRect.top - labelRect.height - offset;
+    let placement = 'top';
+    if (top < viewportPadding) {
+      top = targetRect.bottom + offset;
+      placement = 'bottom';
+    }
+    if (top + labelRect.height > window.innerHeight - viewportPadding) {
+      top = Math.max(viewportPadding, window.innerHeight - labelRect.height - viewportPadding);
+    }
+
+    let left = targetRect.left;
+    if (left + labelRect.width > window.innerWidth - viewportPadding) {
+      left = window.innerWidth - labelRect.width - viewportPadding;
+    }
+    left = Math.max(viewportPadding, left);
+
+    hoverLabelEl.dataset.placement = placement;
+    hoverLabelEl.style.top = `${top}px`;
+    hoverLabelEl.style.left = `${left}px`;
+  }
+
+  function hideHoverLabel() {
+    if (!hoverLabelEl) return;
+    hoverLabelEl.style.display = 'none';
+    hoverLabelEl.dataset.placement = 'top';
   }
 
   function showToast(root) {
