@@ -282,6 +282,24 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
+  async function stopWatchers() {
+    try {
+      await fetch(`${SERVER_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
+    } catch { /* ignore */ }
+  }
+
+  async function getWatchers() {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/watchers`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      if (!res.ok) return { watchers: [], watching: false };
+      return await res.json();
+    } catch {
+      return { watchers: [], watching: false };
+    }
+  }
+
   return {
     checkServerStatus,
     clearStatusCache,
@@ -308,6 +326,8 @@ var VibeAPI = (() => {
     getSkipDeleteConfirm,
     saveSkipDeleteConfirm,
     getCustomShortcut,
-    saveCustomShortcut
+    saveCustomShortcut,
+    getWatchers,
+    stopWatchers
   };
 })();

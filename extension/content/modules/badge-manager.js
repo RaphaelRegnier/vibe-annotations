@@ -48,6 +48,9 @@ var VibeBadgeManager = (() => {
   let domObserver = null;
   let rematchDebounceTimer = null;
   let lastTotal = 0; // total annotations (including unanchored)
+  let watchMode = false;
+
+  const EYE_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 
   function init() {
     VibeEvents.on('annotations:render', render);
@@ -55,7 +58,24 @@ var VibeBadgeManager = (() => {
     VibeEvents.on('annotation:updated', onUpdated);
     VibeEvents.on('inspection:elementClicked', onProvisionalPin);
     VibeEvents.on('popover:cancelled', removeProvisional);
+    VibeEvents.on('watch:changed', onWatchChanged);
     startDOMObserver();
+  }
+
+  function onWatchChanged({ active }) {
+    watchMode = active;
+    // Update all existing badges
+    badges.forEach((entry, i) => {
+      const label = entry.el.querySelector('.vibe-badge-label');
+      if (!label) return;
+      if (watchMode) {
+        label.innerHTML = EYE_SVG;
+        entry.el.classList.add('watching');
+      } else {
+        label.textContent = (i + 1).toString();
+        entry.el.classList.remove('watching');
+      }
+    });
   }
 
   // --- DOM observer: detect when framework re-renders replace annotated elements ---
@@ -114,8 +134,11 @@ var VibeBadgeManager = (() => {
     if (!root || clientX == null) return;
 
     const badge = document.createElement('div');
-    badge.className = 'vibe-badge';
-    badge.textContent = (badges.length + 1).toString();
+    badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
+    const label = document.createElement('span');
+    label.className = 'vibe-badge-label';
+    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = (badges.length + 1).toString(); }
+    badge.appendChild(label);
     badge.style.top = `${clientY - 11}px`;
     badge.style.left = `${clientX}px`;
     root.appendChild(badge);
@@ -131,7 +154,8 @@ var VibeBadgeManager = (() => {
 
   function render(annotations) {
     removeProvisional();
-    clearAll();
+    // In watch mode, don't revert pending changes — agent implemented them in source
+    clearAll(undefined, { skipRevert: watchMode });
 
     const sorted = [...annotations].sort((a, b) =>
       new Date(a.created_at) - new Date(b.created_at)
@@ -181,9 +205,14 @@ var VibeBadgeManager = (() => {
     if (!root) return;
 
     const badge = document.createElement('div');
-    badge.className = 'vibe-badge';
-    badge.textContent = index.toString();
+    badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
     badge.dataset.annotationId = annotation.id;
+
+    // Label span (number or eye)
+    const label = document.createElement('span');
+    label.className = 'vibe-badge-label';
+    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = index.toString(); }
+    badge.appendChild(label);
 
     // Tooltip
     const tooltip = document.createElement('div');
@@ -238,7 +267,7 @@ var VibeBadgeManager = (() => {
     }
   }
 
-  function clearAll(annotations) {
+  function clearAll(annotations, { skipRevert = false } = {}) {
     // Clear injected stylesheets
     for (const entry of styleInjections) entry.styleEl.remove();
     styleInjections = [];
@@ -247,7 +276,7 @@ var VibeBadgeManager = (() => {
     const clearedEls = new Set();
     for (const entry of badges) {
       const pc = entry.annotation.pending_changes;
-      if (pc) {
+      if (pc && !skipRevert) {
         revertPendingChanges(entry.targetElement, pc);
       }
       clearedEls.add(entry.targetElement);
@@ -259,7 +288,7 @@ var VibeBadgeManager = (() => {
     clearTimeout(rematchDebounceTimer);
 
     // Sweep for orphaned styled elements (badges lost their target but styles remain)
-    if (annotations) {
+    if (annotations && !skipRevert) {
       for (const a of annotations) {
         if (!a.pending_changes) continue;
         const el = VibeElementContext.findElementBySelector(a);
@@ -284,12 +313,13 @@ var VibeBadgeManager = (() => {
     if (idx !== -1) {
       const entry = badges[idx];
       const pc = entry.annotation.pending_changes;
-      if (pc) {
+      // In watch mode, agent implemented the change in source — don't revert DOM preview
+      if (pc && !watchMode) {
         revertPendingChanges(entry.targetElement, pc);
       }
       entry.el.remove();
       badges.splice(idx, 1);
-    } else if (annotation?.pending_changes) {
+    } else if (annotation?.pending_changes && !watchMode) {
       // Badge was lost but element may still have inline styles — retry selector
       const el = VibeElementContext.findElementBySelector(annotation);
       if (el) {
@@ -298,9 +328,15 @@ var VibeBadgeManager = (() => {
     }
     if (!badges.length) stopRAF();
 
-    // Re-number remaining badges
+    // Re-number remaining badges (or keep eye icons in watch mode)
     badges.forEach((entry, i) => {
-      entry.el.childNodes[0].textContent = (i + 1).toString();
+      const label = entry.el.querySelector('.vibe-badge-label');
+      if (!label) return;
+      if (watchMode) {
+        label.innerHTML = EYE_SVG;
+      } else {
+        label.textContent = (i + 1).toString();
+      }
     });
   }
 

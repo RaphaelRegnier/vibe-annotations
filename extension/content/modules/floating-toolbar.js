@@ -14,6 +14,7 @@ var VibeToolbar = (() => {
   let clearOnCopy = false;
   let screenshotEnabled = true;
   let badgeColor = '#4b5563';
+  let watcherActive = false;
 
   const BADGE_COLORS = ['#4b5563', '#d97757', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -55,11 +56,19 @@ var VibeToolbar = (() => {
     webpage: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>',
     globe: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
     robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
-    book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>'
+    book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+    eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
   const THEME_ICONS = { light: ICONS.sun, dark: ICONS.moon, system: ICONS.system };
   const THEME_CYCLE = ['light', 'dark', 'system'];
+
+  function isLocalhost() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0'
+      || h.endsWith('.local') || h.endsWith('.test') || h.endsWith('.localhost')
+      || window.location.protocol === 'file:';
+  }
 
   async function init() {
     const root = VibeShadowHost.getRoot();
@@ -84,8 +93,10 @@ var VibeToolbar = (() => {
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', resetPosition);
 
-    // Periodic server status check
+    // Periodic server status + watcher check
     setInterval(refreshServerStatus, 10000);
+    refreshWatchers();
+    setInterval(refreshWatchers, 5000);
   }
 
   function buildToolbar(root) {
@@ -141,8 +152,15 @@ var VibeToolbar = (() => {
       }
     });
 
-    // Copy all
+    // Copy all — or stop watch mode when active
     toolbarEl.querySelector('.vibe-tb-copy').addEventListener('click', async () => {
+      if (watcherActive) {
+        await VibeAPI.stopWatchers();
+        watcherActive = false;
+        updateUI();
+        VibeEvents.emit('watch:changed', { active: false });
+        return;
+      }
       const annotations = await VibeAPI.loadAnnotations();
       if (!annotations.length) return;
       const text = formatAnnotationsForClipboard(annotations);
@@ -236,16 +254,15 @@ var VibeToolbar = (() => {
           <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
         </button>
         <div class="vibe-settings-separator"></div>
-        <div class="vibe-settings-item">
-          <div class="vibe-settings-item-left">
-            ${ICONS.server}
-            <span>MCP Server</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
+        <button class="vibe-settings-link vibe-mcp-server-btn" type="button">
+          ${ICONS.server}
+          <span>MCP Server</span>
+          <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <span class="vibe-status-dot ${serverOnline ? 'online' : 'offline'}"></span>
             <span style="font-size:12px;color:var(--v-text-secondary);">${serverOnline ? 'Connected' : 'Offline'}</span>
-          </div>
-        </div>
+            <span style="color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+          </span>
+        </button>
         <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
@@ -380,6 +397,11 @@ var VibeToolbar = (() => {
       });
     });
 
+    // MCP Server setup
+    settingsDropdown.querySelector('.vibe-mcp-server-btn').addEventListener('click', () => {
+      showWorkflow('mcp-setup');
+    });
+
     // Documentation
     settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
       showDocumentation();
@@ -457,6 +479,11 @@ var VibeToolbar = (() => {
       <button class="vibe-settings-link vibe-workflow-btn" data-workflow="agents" type="button">
         ${ICONS.robot}
         <span>Annotating with agents</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="watch-mode" type="button">
+        ${ICONS.eye}
+        <span>Watch mode</span>
         <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
       </button>
       <div class="vibe-settings-separator"></div>
@@ -598,6 +625,75 @@ var VibeToolbar = (() => {
     if (!header || !body) return;
 
     const workflows = {
+      'mcp-setup': {
+        title: 'MCP Server',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">1. Install and start the server</div>
+            <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
+              <code>npm install -g vibe-annotations-server</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <div class="vibe-guide-cmd" data-cmd="vibe-annotations-server start">
+              <code>vibe-annotations-server start</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">2. Connect your agent</div>
+            <div class="vibe-guide-tabs">
+              <button class="vibe-guide-tab active" data-tab="claude">Claude Code</button>
+              <button class="vibe-guide-tab" data-tab="cursor">Cursor</button>
+              <button class="vibe-guide-tab" data-tab="windsurf">Windsurf</button>
+              <button class="vibe-guide-tab" data-tab="codex">Codex</button>
+              <button class="vibe-guide-tab" data-tab="openclaw">OpenClaw</button>
+            </div>
+            <div class="vibe-guide-panel active" data-panel="claude">
+              <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+                <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+                <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+              </div>
+            </div>
+            <div class="vibe-guide-panel" data-panel="cursor">
+              <p class="vibe-guide-text">Add to <strong>.cursor/mcp.json</strong>:</p>
+              <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}'>
+                <code>{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}</code>
+                <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+              </div>
+            </div>
+            <div class="vibe-guide-panel" data-panel="windsurf">
+              <p class="vibe-guide-text">Add to Windsurf MCP settings:</p>
+              <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/mcp"}}}'>
+                <code>{"mcpServers":{"vibe-annotations":{"serverUrl":"http://127.0.0.1:3846/mcp"}}}</code>
+                <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+              </div>
+            </div>
+            <div class="vibe-guide-panel" data-panel="codex">
+              <p class="vibe-guide-text">Add to <strong>~/.codex/config.toml</strong>:</p>
+              <div class="vibe-guide-cmd" data-cmd="[mcp_servers.vibe-annotations]&#10;url = &quot;http://127.0.0.1:3846/mcp&quot;">
+                <code>[mcp_servers.vibe-annotations] url = "..."</code>
+                <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+              </div>
+            </div>
+            <div class="vibe-guide-panel" data-panel="openclaw">
+              <p class="vibe-guide-text">Add to <strong>~/.openclaw/openclaw.json</strong>:</p>
+              <div class="vibe-guide-cmd" data-cmd='{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}'>
+                <code>{"mcpServers":{"vibe-annotations":{"url":"http://127.0.0.1:3846/mcp"}}}</code>
+                <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+              </div>
+            </div>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">3. Watch mode <span style="font-weight:400;color:var(--v-text-secondary);">(hands-free)</span></div>
+            <p class="vibe-guide-text">Your agent can automatically pick up annotations as you drop them. Just tell it:</p>
+            <div class="vibe-guide-cmd" data-cmd="Start watching Vibe Annotations">
+              <code>Start watching Vibe Annotations</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:8px;">The agent calls <code>watch_annotations</code> in a loop, implements each change, and deletes the annotation when done. An eye icon appears in the toolbar and on badges while watching. Click the eye to stop.</p>
+          </div>
+        `
+      },
       'single-page': {
         title: 'Editing a single page',
         content: `
@@ -666,6 +762,29 @@ var VibeToolbar = (() => {
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Cross-origin remap</div>
             <p class="vibe-guide-text">Importing annotations from a public URL into localhost? The extension offers to <strong>remap URLs</strong> automatically so annotations anchor to your local dev server.</p>
+          </div>
+        `
+      },
+      'watch-mode': {
+        title: 'Watch mode',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Hands-free annotation processing</div>
+            <p class="vibe-guide-text">Your coding agent automatically picks up and implements annotations as you drop them. No copy-paste, no manual triggering. Requires the MCP server.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Start watching</div>
+            <p class="vibe-guide-text">Tell your agent:</p>
+            <div class="vibe-guide-cmd" data-cmd="Start watching Vibe Annotations">
+              <code>Start watching Vibe Annotations</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:8px;">The agent calls <code>watch_annotations</code> in a loop, implements each change, and deletes the annotation when done.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Visual feedback</div>
+            <p class="vibe-guide-text">While watching, an eye icon replaces the copy button in the toolbar, and badges show eyes instead of numbers. Click the eye to stop watching.</p>
+            <p class="vibe-guide-text">Auto-stops after 5 minutes of inactivity.</p>
           </div>
         `
       },
@@ -768,16 +887,25 @@ var VibeToolbar = (() => {
         `<span class="vibe-toolbar-tip">${isAnnotating ? 'Stop' : 'Annotate'} (${shortcutHint})</span>`;
     }
 
-    // Enable/disable copy + delete, badge on copy
+    // Copy button — swaps to eye indicator when watch mode is active
     const totalCount = annotationCount + styleAnnotationCount;
     const copyBtn = toolbarEl.querySelector('.vibe-tb-copy');
     const deleteBtn = toolbarEl.querySelector('.vibe-tb-delete');
     if (copyBtn) {
-      copyBtn.disabled = totalCount === 0;
-      copyBtn.innerHTML = ICONS.copy +
-        (annotationCount > 0 ? `<span class="vibe-toolbar-count">${annotationCount}</span>` : '') +
-        (styleAnnotationCount > 0 ? `<span class="vibe-toolbar-style-count">${styleAnnotationCount}</span>` : '') +
-        '<span class="vibe-toolbar-tip">Copy all</span>';
+      if (watcherActive) {
+        copyBtn.disabled = false;
+        copyBtn.classList.add('active');
+        copyBtn.innerHTML = ICONS.eye + '<span class="vibe-toolbar-tip">Stop watching</span>';
+        copyBtn.title = 'Click to stop watch mode';
+      } else {
+        copyBtn.classList.remove('active');
+        copyBtn.disabled = totalCount === 0;
+        copyBtn.innerHTML = ICONS.copy +
+          (annotationCount > 0 ? `<span class="vibe-toolbar-count">${annotationCount}</span>` : '') +
+          (styleAnnotationCount > 0 ? `<span class="vibe-toolbar-style-count">${styleAnnotationCount}</span>` : '') +
+          '<span class="vibe-toolbar-tip">Copy all</span>';
+        copyBtn.title = 'Copy all annotations';
+      }
     }
     if (deleteBtn) deleteBtn.disabled = totalCount === 0;
   }
@@ -793,6 +921,29 @@ var VibeToolbar = (() => {
         const dot = settingsDropdown.querySelector('.vibe-status-dot');
         if (dot) dot.className = `vibe-status-dot ${serverOnline ? 'online' : 'offline'}`;
       }
+    }
+  }
+
+  async function refreshWatchers() {
+    if (!serverOnline) {
+      if (watcherActive) {
+        watcherActive = false;
+        updateUI();
+        VibeEvents.emit('watch:changed', { active: false });
+      }
+      return;
+    }
+    const data = await VibeAPI.getWatchers();
+    const wasActive = watcherActive;
+    // Only show watch mode if a watcher matches the current page's origin
+    const origin = window.location.origin; // e.g. "http://localhost:3001"
+    watcherActive = (data.watchers || []).some(w => {
+      const base = w.url.replace('*', '').replace(/\/$/, '');
+      return origin.startsWith(base) || base.startsWith(origin);
+    });
+    if (wasActive !== watcherActive) {
+      updateUI();
+      VibeEvents.emit('watch:changed', { active: watcherActive });
     }
   }
 
