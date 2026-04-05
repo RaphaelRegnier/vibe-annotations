@@ -9,9 +9,6 @@ var VibeInspectionMode = (() => {
   let hoveredElement = null;
   let navigatedByKeyboard = false;
   let navStack = []; // ancestors visited via ArrowUp, for ArrowDown to retrace
-  let tempDisabled = false;
-  let modifierSuspended = false;
-  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
   // Bound handlers for removal
   let onMouseOver = null;
@@ -21,9 +18,6 @@ var VibeInspectionMode = (() => {
   let onMouseDown = null;
   let onClick = null;
   let onKeyDown = null;
-  let onGlobalKeyDown = null;
-  let onGlobalKeyUp = null;
-  let onWindowBlur = null;
 
   function init() {
     VibeEvents.on('inspection:start', start);
@@ -33,8 +27,6 @@ var VibeInspectionMode = (() => {
   function start() {
     if (active) return;
     active = true;
-    tempDisabled = false;
-    modifierSuspended = false;
 
     const root = VibeShadowHost.getRoot();
     if (!root) return;
@@ -56,17 +48,21 @@ var VibeInspectionMode = (() => {
     onMouseDown = handleMouseDown;
     onClick = handleClick;
     onKeyDown = handleKeyDown;
-    onGlobalKeyDown = handleGlobalKeyDown;
-    onGlobalKeyUp = handleGlobalKeyUp;
-    onWindowBlur = handleWindowBlur;
 
-    attachInteractionListeners();
-    document.addEventListener('keydown', onGlobalKeyDown, true);
-    document.addEventListener('keyup', onGlobalKeyUp, true);
-    window.addEventListener('blur', onWindowBlur);
+    document.addEventListener('mouseover', onMouseOver, true);
+    document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('pointermove', onPointerMove, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('mousedown', onMouseDown, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    listenersAttached = true;
 
     // Crosshair cursor on all host page elements
-    setInspectionCursorEnabled(true);
+    const cursorStyle = document.createElement('style');
+    cursorStyle.setAttribute('data-vibe-cursor', '');
+    cursorStyle.textContent = '*, *::before, *::after { cursor: crosshair !important; }';
+    document.head.appendChild(cursorStyle);
 
     VibeEvents.emit('inspection:started');
   }
@@ -74,16 +70,20 @@ var VibeInspectionMode = (() => {
   function stop() {
     if (!active) return;
     active = false;
-    tempDisabled = false;
-    modifierSuspended = false;
 
     // Remove listeners
-    detachInteractionListeners();
-    document.removeEventListener('keydown', onGlobalKeyDown, true);
-    document.removeEventListener('keyup', onGlobalKeyUp, true);
-    window.removeEventListener('blur', onWindowBlur);
+    if (listenersAttached) {
+      document.removeEventListener('mouseover', onMouseOver, true);
+      document.removeEventListener('mouseout', onMouseOut, true);
+      document.removeEventListener('pointermove', onPointerMove, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onMouseDown, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+      listenersAttached = false;
+    }
     onMouseOver = onMouseOut = onPointerMove = onPointerDown = onMouseDown = onClick = onKeyDown = null;
-    onGlobalKeyDown = onGlobalKeyUp = onWindowBlur = null;
+
     // Remove highlight
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
 
@@ -95,7 +95,8 @@ var VibeInspectionMode = (() => {
     navStack = [];
 
     // Restore cursor
-    setInspectionCursorEnabled(false);
+    const cursorStyle = document.querySelector('[data-vibe-cursor]');
+    if (cursorStyle) cursorStyle.remove();
 
     VibeEvents.emit('inspection:stopped');
   }
@@ -105,43 +106,6 @@ var VibeInspectionMode = (() => {
   }
 
   let listenersAttached = false;
-
-  function attachInteractionListeners() {
-    if (listenersAttached) return;
-    document.addEventListener('mouseover', onMouseOver, true);
-    document.addEventListener('mouseout', onMouseOut, true);
-    document.addEventListener('pointermove', onPointerMove, true);
-    document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('mousedown', onMouseDown, true);
-    document.addEventListener('click', onClick, true);
-    document.addEventListener('keydown', onKeyDown, true);
-    listenersAttached = true;
-  }
-
-  function detachInteractionListeners() {
-    if (!listenersAttached) return;
-    document.removeEventListener('mouseover', onMouseOver, true);
-    document.removeEventListener('mouseout', onMouseOut, true);
-    document.removeEventListener('pointermove', onPointerMove, true);
-    document.removeEventListener('pointerdown', onPointerDown, true);
-    document.removeEventListener('mousedown', onMouseDown, true);
-    document.removeEventListener('click', onClick, true);
-    document.removeEventListener('keydown', onKeyDown, true);
-    listenersAttached = false;
-  }
-
-  function setInspectionCursorEnabled(enabled) {
-    const cursorStyle = document.querySelector('[data-vibe-cursor]');
-    if (enabled) {
-      if (cursorStyle) return;
-      const style = document.createElement('style');
-      style.setAttribute('data-vibe-cursor', '');
-      style.textContent = '*, *::before, *::after { cursor: crosshair !important; }';
-      document.head.appendChild(style);
-      return;
-    }
-    if (cursorStyle) cursorStyle.remove();
-  }
 
   // --- Shadow-aware target resolution ---
 
@@ -174,55 +138,32 @@ var VibeInspectionMode = (() => {
 
   function tempDisable() {
     // Remove listeners but keep active=true so we can re-enable
-    tempDisabled = true;
-    suspendInteractions();
-  }
-
-  function reEnable() {
-    tempDisabled = false;
-    if (!active || modifierSuspended) return;
-    attachInteractionListeners();
-  }
-
-  function suspendInteractions() {
-    detachInteractionListeners();
+    if (listenersAttached) {
+      document.removeEventListener('mouseover', onMouseOver, true);
+      document.removeEventListener('mouseout', onMouseOut, true);
+      document.removeEventListener('pointermove', onPointerMove, true);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onMouseDown, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+      listenersAttached = false;
+    }
     if (highlightEl) highlightEl.style.display = 'none';
     hoveredElement = null;
     navigatedByKeyboard = false;
     navStack = [];
   }
 
-  function isPrimaryModifierKey(key) {
-    return isMac ? key === 'Meta' : key === 'Control';
-  }
-
-  function isPrimaryModifierPressed(e) {
-    return isMac ? !!e.metaKey : !!e.ctrlKey;
-  }
-
-  function handleGlobalKeyDown(e) {
-    if (!active || modifierSuspended) return;
-    if (!isPrimaryModifierKey(e.key) && !isPrimaryModifierPressed(e)) return;
-
-    modifierSuspended = true;
-    suspendInteractions();
-    setInspectionCursorEnabled(false);
-  }
-
-  function handleGlobalKeyUp(e) {
-    if (!active || !modifierSuspended) return;
-    if (isPrimaryModifierPressed(e)) return;
-
-    modifierSuspended = false;
-    setInspectionCursorEnabled(true);
-    if (!tempDisabled) attachInteractionListeners();
-  }
-
-  function handleWindowBlur() {
-    if (!active || !modifierSuspended) return;
-    modifierSuspended = false;
-    setInspectionCursorEnabled(true);
-    if (!tempDisabled) attachInteractionListeners();
+  function reEnable() {
+    if (!active || listenersAttached) return;
+    document.addEventListener('mouseover', onMouseOver, true);
+    document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('pointermove', onPointerMove, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('mousedown', onMouseDown, true);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    listenersAttached = true;
   }
 
   // --- Handlers ---

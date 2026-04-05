@@ -10,11 +10,12 @@ var VibeElementContext = (() => {
     const selector = generateSelector(element);
     const computedStyle = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
+    const classes = getDisplayClasses(element);
 
     const context = {
       selector,
       tag: element.tagName.toLowerCase(),
-      classes: Array.from(element.classList),
+      classes,
       text: element.textContent.substring(0, 100).trim(),
       path: getElementLocationPath(element),
       styles: {
@@ -246,10 +247,7 @@ var VibeElementContext = (() => {
 
   function generateClassSelector(element) {
     if (!element.className) return null;
-    const classes = Array.from(element.classList)
-      .filter(c => !c.startsWith('vibe-'))
-      .filter(isStableClass)
-      .slice(0, 4);
+    const classes = getDisplayClasses(element).slice(0, 4);
     if (!classes.length) return null;
     return `${element.tagName.toLowerCase()}.${classes.map(c => CSS.escape(c)).join('.')}`;
   }
@@ -641,10 +639,7 @@ var VibeElementContext = (() => {
     const tag = element.tagName.toLowerCase();
     if (element.id) return `${tag}#${sanitizePathValue(element.id)}`;
 
-    const classes = Array.from(element.classList)
-      .filter(c => !c.startsWith('vibe-'))
-      .filter(isDisplayClass)
-      .slice(0, 4);
+    const classes = getDisplayClasses(element).slice(0, 4);
     if (classes.length) {
       return `${tag}[class="${classes.map(c => sanitizePathValue(c, 48)).join(' ')}"]`;
     }
@@ -670,8 +665,8 @@ var VibeElementContext = (() => {
     return String(value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
   }
 
-  function isDisplayClass(cls) {
-    return isStableClass(cls) && ![
+  function isGenericFrameworkClass(cls) {
+    return [
       /^ng-tns-[\w-]+$/i,
       /^ng-star-inserted$/i,
       /^ng-trigger(?:-[\w-]+)?$/i,
@@ -685,6 +680,18 @@ var VibeElementContext = (() => {
     ].some((pattern) => pattern.test(cls));
   }
 
+  function getDisplayClasses(source) {
+    const classes = source instanceof Element
+      ? Array.from(source.classList)
+      : Array.isArray(source) ? source : [];
+
+    return classes
+      .filter(Boolean)
+      .filter(c => !c.startsWith('vibe-'))
+      .filter(isStableClass)
+      .filter(c => !isGenericFrameworkClass(c));
+  }
+
   function getParentChainContext(element, maxDepth = 3) {
     const chain = [];
     let current = VibeShadowDOMUtils.getParentElement(element);
@@ -692,7 +699,7 @@ var VibeElementContext = (() => {
     while (current && depth < maxDepth && current.tagName !== 'BODY') {
       const info = {
         tag: current.tagName.toLowerCase(),
-        classes: Array.from(current.classList),
+        classes: getDisplayClasses(current),
         id: current.id || null,
         role: current.getAttribute('role') || null,
         text_sample: current.textContent.substring(0, 50).trim()
@@ -926,6 +933,7 @@ var VibeElementContext = (() => {
     generate,
     generateSelector,
     findElementBySelector,
-    scanPageColorVariables
+    scanPageColorVariables,
+    getDisplayClasses
   };
 })();

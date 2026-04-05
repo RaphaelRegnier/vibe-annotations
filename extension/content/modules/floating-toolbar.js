@@ -1507,7 +1507,7 @@ var VibeToolbar = (() => {
 
     const ec = annotation.element_context || {};
     const attrs = [];
-    const classes = filterDisplayClasses(ec.classes).slice(0, 6);
+    const classes = VibeElementContext.getDisplayClasses(ec.classes).slice(0, 6);
     if (classes.length) attrs.push(`class="${classes.join(' ')}"`);
     if (ec.id) attrs.push(`id="${ec.id}"`);
     if (ec.role) attrs.push(`role="${ec.role}"`);
@@ -1523,7 +1523,7 @@ var VibeToolbar = (() => {
     const tag = node.tag || 'element';
     if (node.id) return `${tag}#${sanitizePathToken(node.id)}`;
 
-    const classes = filterDisplayClasses(node.classes).slice(0, 4);
+    const classes = VibeElementContext.getDisplayClasses(node.classes).slice(0, 4);
     if (classes.length) {
       return `${tag}[class="${classes.map(c => sanitizePathToken(c, 48)).join(' ')}"]`;
     }
@@ -1556,26 +1556,6 @@ var VibeToolbar = (() => {
     const pc = annotation.pending_changes;
     if (!pc) return false;
     return ['width', 'minWidth', 'maxWidth', 'height', 'minHeight', 'maxHeight'].some((key) => !!pc[key]);
-  }
-
-  function filterDisplayClasses(classes) {
-    if (!Array.isArray(classes)) return [];
-    return classes.filter(Boolean).filter((cls) => !isGenericFrameworkClass(cls));
-  }
-
-  function isGenericFrameworkClass(cls) {
-    return [
-      /^ng-tns-[\w-]+$/i,
-      /^ng-star-inserted$/i,
-      /^ng-trigger(?:-[\w-]+)?$/i,
-      /^ng-[\w-]+-\d+$/i,
-      /^cdk-[\w-]+(?:-\d+)?$/i,
-      /^css-[a-z0-9]+$/i,
-      /^sc-[a-z0-9]+$/i,
-      /^jsx-\d+$/i,
-      /^jss\d+$/i,
-      /^__[\w-]+__$/i
-    ].some((pattern) => pattern.test(cls));
   }
 
   function applyBadgeColor(color) {

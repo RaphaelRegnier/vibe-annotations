@@ -2166,8 +2166,7 @@ var VibeAnnotationPopover = (() => {
       attrs.push(`${name}="${escapeHTML(normalized.slice(0, maxLen))}"`);
     };
 
-    const classPreview = Array.from(element.classList)
-      .filter(filterDisplayClassName)
+    const classPreview = VibeElementContext.getDisplayClasses(element)
       .slice(0, 6)
       .join(' ');
 
@@ -2182,22 +2181,6 @@ var VibeAnnotationPopover = (() => {
     }
 
     return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
-  }
-
-  function filterDisplayClassName(cls) {
-    if (!cls || cls.startsWith('vibe-')) return false;
-    return ![
-      /^ng-tns-[\w-]+$/i,
-      /^ng-star-inserted$/i,
-      /^ng-trigger(?:-[\w-]+)?$/i,
-      /^ng-[\w-]+-\d+$/i,
-      /^cdk-[\w-]+(?:-\d+)?$/i,
-      /^css-[a-z0-9]+$/i,
-      /^sc-[a-z0-9]+$/i,
-      /^jsx-\d+$/i,
-      /^jss\d+$/i,
-      /^__[\w-]+__$/i
-    ].some((pattern) => pattern.test(cls));
   }
 
   // --- Helpers ---
