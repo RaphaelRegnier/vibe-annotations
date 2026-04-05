@@ -1340,15 +1340,7 @@ var VibeToolbar = (() => {
 
   // --- Clipboard format ---
 
-  const TRIVIAL_STYLES = {
-    display: 'block',
-    position: 'static',
-    fontSize: '16px',
-    color: 'rgb(0, 0, 0)',
-    backgroundColor: 'rgba(0, 0, 0, 0)',
-    margin: '0px',
-    padding: '0px'
-  };
+
 
   function formatAnnotationsForClipboard(annotations) {
     const loc = window.location;
@@ -1372,17 +1364,9 @@ var VibeToolbar = (() => {
       const lines = [];
       lines.push(`${i + 1}. ${identity}`);
       lines.push(`   Comment: ${a.comment}`);
-      lines.push(`   Selector: ${a.selector}`);
-
-      // Styles — only non-trivial
-      const styleStr = formatStyles(ec.styles);
-      if (styleStr) lines.push(`   Styles: ${styleStr}`);
-
-      // Size from position
-      const pos = ec.position;
-      if (pos && pos.width && pos.height) {
-        lines.push(`   Size: ${Math.round(pos.width)}\u00D7${Math.round(pos.height)}`);
-      }
+      lines.push(`   Selector: ${formatAnnotationSelector(a)}`);
+      const pathStr = formatAnnotationPath(a);
+      if (pathStr) lines.push(`   Path: ${pathStr}`);
 
       // Source file
       if (a.source_file_path) {
@@ -1392,10 +1376,6 @@ var VibeToolbar = (() => {
       }
 
       // Context hints
-      if (a.context_hints && a.context_hints.length) {
-        lines.push(`   Hints: ${a.context_hints.join(' \u00B7 ')}`);
-      }
-
       // Design changes
       const pc = a.pending_changes;
       if (pc) {
@@ -1455,25 +1435,62 @@ var VibeToolbar = (() => {
     return header + '\n\nFollow my instructions on these elements.\nWhen applying design changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens).\n\n---\n\n' + blocks.join('\n\n');
   }
 
-  function formatStyles(styles) {
-    if (!styles) return '';
-    const STYLE_KEYS = {
-      display: 'display',
-      fontSize: 'font-size',
-      color: 'color',
-      backgroundColor: 'background-color',
-      padding: 'padding',
-      margin: 'margin',
-      position: 'position'
-    };
-    const parts = [];
-    for (const [key, cssName] of Object.entries(STYLE_KEYS)) {
-      const val = styles[key];
-      if (!val) continue;
-      if (TRIVIAL_STYLES[key] === val) continue;
-      parts.push(`${cssName}:${val}`);
+  function formatAnnotationPath(annotation) {
+    const ec = annotation.element_context || {};
+    if (ec.path) return ec.path;
+
+    const segments = [];
+    if (annotation.parent_chain?.length) {
+      annotation.parent_chain
+        .slice()
+        .reverse()
+        .forEach(node => segments.push(formatPathNode(node)));
     }
-    return parts.join(' \u00B7 ');
+    if (ec.tag) {
+      segments.push(formatPathNode({
+        tag: ec.tag,
+        classes: ec.classes || [],
+        id: ec.id || null,
+        role: ec.role || null
+      }));
+    }
+
+    if (!segments.length) return '';
+    return segments.slice(-4).join(' > ');
+  }
+
+  function formatAnnotationSelector(annotation) {
+    if (annotation.selector_preview) return annotation.selector_preview;
+
+    const ec = annotation.element_context || {};
+    const attrs = [];
+    const classes = VibeElementContext.getDisplayClasses(ec.classes).slice(0, 6);
+    if (classes.length) attrs.push(`class="${classes.join(' ')}"`);
+    if (ec.id) attrs.push(`id="${ec.id}"`);
+    if (ec.role) attrs.push(`role="${ec.role}"`);
+
+    if (ec.tag) {
+      return `<${ec.tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
+    }
+
+    return annotation.selector;
+  }
+
+  function formatPathNode(node) {
+    const tag = node.tag || 'element';
+    if (node.id) return `${tag}#${sanitizePathToken(node.id)}`;
+
+    const classes = VibeElementContext.getDisplayClasses(node.classes).slice(0, 4);
+    if (classes.length) {
+      return `${tag}[class="${classes.map(c => sanitizePathToken(c, 48)).join(' ')}"]`;
+    }
+
+    if (node.role) return `${tag}[role="${sanitizePathToken(node.role)}"]`;
+    return tag;
+  }
+
+  function sanitizePathToken(value, maxLen = 48) {
+    return String(value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
   }
 
   function applyBadgeColor(color) {

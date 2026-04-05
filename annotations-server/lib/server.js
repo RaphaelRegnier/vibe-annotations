@@ -882,21 +882,67 @@ class LocalAnnotationsServer {
       has_more: (offset + limit) < total
     };
 
-    // Transform annotations to strip screenshot data and add has_screenshot flag
-    const annotationsWithScreenshotFlag = paginatedResults.map(annotation => {
-      const { screenshot, ...annotationWithoutScreenshot } = annotation;
-      return {
-        ...annotationWithoutScreenshot,
+    // Transform annotations for MCP consumers: strip screenshots, styles, and noise
+    const optimized = paginatedResults.map(annotation => {
+      const { screenshot, ...rest } = annotation;
+      const optimized = {
+        ...rest,
         has_screenshot: !!(screenshot && screenshot.data_url)
       };
+      return this.optimizeForAgent(optimized);
     });
 
     return {
-      annotations: annotationsWithScreenshotFlag,
+      annotations: optimized,
       pagination: pagination,
       projectInfo: projectInfo,
       multiProjectWarning: multiProjectWarning
     };
+  }
+
+  /**
+   * Optimize annotation for AI agent consumption:
+   * - Strip element_context.styles (computed values, not in source code)
+   * - Strip internal extension fields (_synced, badge_offset)
+   * - Strip null/empty fields to reduce token noise
+   */
+  optimizeForAgent(annotation) {
+    const { _synced, badge_offset, context_hints, ...clean } = annotation;
+
+    // Strip computed styles — agents use classes/path/selector_preview to find elements,
+    // and pending_changes for design deltas. Computed styles are never useful.
+    if (clean.element_context) {
+      const { styles, ...ecWithoutStyles } = clean.element_context;
+      clean.element_context = ecWithoutStyles;
+
+      // Strip null values from element_context
+      for (const key of Object.keys(clean.element_context)) {
+        if (clean.element_context[key] == null) delete clean.element_context[key];
+      }
+    }
+
+    // Strip null values from parent_chain entries
+    if (Array.isArray(clean.parent_chain)) {
+      clean.parent_chain = clean.parent_chain.map(node => {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(node)) {
+          if (value != null) cleaned[key] = value;
+        }
+        return cleaned;
+      });
+    }
+
+    // Strip null/empty fields that add no information
+    // Preserve: comment (empty string is intentional), has_screenshot (false is informative)
+    const keepFields = new Set(['comment', 'has_screenshot', 'status', 'id', 'url', 'created_at', 'updated_at']);
+    for (const [key, value] of Object.entries(clean)) {
+      if (keepFields.has(key)) continue;
+      if (value == null || value === false || (Array.isArray(value) && value.length === 0)) {
+        delete clean[key];
+      }
+    }
+
+    return clean;
   }
 
   async watchAnnotations(args) {
@@ -950,11 +996,14 @@ class LocalAnnotationsServer {
           if (w) { w.polling = false; w.lastSeenAt = Date.now(); }
           console.log(`Watcher ${watcherId}: found ${pending.length} annotations`);
 
-          // Strip screenshots, add flag (same as readAnnotations)
-          const cleaned = pending.map(({ screenshot, ...rest }) => ({
-            ...rest,
-            has_screenshot: !!(screenshot && screenshot.data_url)
-          }));
+          // Strip screenshots, styles, and noise (same as readAnnotations)
+          const cleaned = pending.map(({ screenshot, ...rest }) => {
+            const annotation = {
+              ...rest,
+              has_screenshot: !!(screenshot && screenshot.data_url)
+            };
+            return this.optimizeForAgent(annotation);
+          });
 
           return { annotations: cleaned, message: `Found ${cleaned.length} pending annotations` };
         }

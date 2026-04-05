@@ -10,12 +10,14 @@ var VibeElementContext = (() => {
     const selector = generateSelector(element);
     const computedStyle = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
+    const classes = getDisplayClasses(element);
 
     const context = {
       selector,
       tag: element.tagName.toLowerCase(),
-      classes: Array.from(element.classList),
+      classes,
       text: element.textContent.substring(0, 100).trim(),
+      path: getElementLocationPath(element),
       styles: {
         display: computedStyle.display,
         position: computedStyle.position,
@@ -67,7 +69,7 @@ var VibeElementContext = (() => {
       },
       source_mapping: generateSourceMapping(element),
       screenshot: null,
-      parent_chain: getParentChainContext(element)
+      parent_chain: getParentChainContext(element, 4)
     };
 
     // Screenshot
@@ -245,10 +247,7 @@ var VibeElementContext = (() => {
 
   function generateClassSelector(element) {
     if (!element.className) return null;
-    const classes = Array.from(element.classList)
-      .filter(c => !c.startsWith('vibe-'))
-      .filter(isStableClass)
-      .slice(0, 4);
+    const classes = getDisplayClasses(element).slice(0, 4);
     if (!classes.length) return null;
     return `${element.tagName.toLowerCase()}.${classes.map(c => CSS.escape(c)).join('.')}`;
   }
@@ -626,6 +625,73 @@ var VibeElementContext = (() => {
 
   // --- Parent chain ---
 
+  function getElementLocationPath(element, maxDepth = 4) {
+    const segments = [];
+    let current = element;
+    while (current && current.tagName !== 'BODY' && segments.length < maxDepth) {
+      segments.unshift(formatPathSegment(current));
+      current = VibeShadowDOMUtils.getParentElement(current);
+    }
+    return segments.join(' > ');
+  }
+
+  function formatPathSegment(element) {
+    const tag = element.tagName.toLowerCase();
+    if (element.id) return `${tag}#${sanitizePathValue(element.id)}`;
+
+    const classes = getDisplayClasses(element).slice(0, 4);
+    if (classes.length) {
+      return `${tag}[class="${classes.map(c => sanitizePathValue(c, 48)).join(' ')}"]`;
+    }
+
+    const role = element.getAttribute('role');
+    if (role) return `${tag}[role="${sanitizePathValue(role)}"]`;
+
+    const ariaLabel = element.getAttribute('aria-label');
+    if (ariaLabel) return `${tag}[aria-label="${sanitizePathValue(ariaLabel, 24)}"]`;
+
+    const parent = VibeShadowDOMUtils.getParentElement(element);
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(el => el.tagName === element.tagName);
+      if (siblings.length > 1) {
+        return `${tag}:nth-of-type(${siblings.indexOf(element) + 1})`;
+      }
+    }
+
+    return tag;
+  }
+
+  function sanitizePathValue(value, maxLen = 48) {
+    return String(value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+  }
+
+  function isGenericFrameworkClass(cls) {
+    return [
+      /^ng-tns-[\w-]+$/i,
+      /^ng-star-inserted$/i,
+      /^ng-trigger(?:-[\w-]+)?$/i,
+      /^ng-[\w-]+-\d+$/i,
+      /^cdk-[\w-]+(?:-\d+)?$/i,
+      /^css-[a-z0-9]+$/i,
+      /^sc-[a-z0-9]+$/i,
+      /^jsx-\d+$/i,
+      /^jss\d+$/i,
+      /^__[\w-]+__$/i
+    ].some((pattern) => pattern.test(cls));
+  }
+
+  function getDisplayClasses(source) {
+    const classes = source instanceof Element
+      ? Array.from(source.classList)
+      : Array.isArray(source) ? source : [];
+
+    return classes
+      .filter(Boolean)
+      .filter(c => !c.startsWith('vibe-'))
+      .filter(isStableClass)
+      .filter(c => !isGenericFrameworkClass(c));
+  }
+
   function getParentChainContext(element, maxDepth = 3) {
     const chain = [];
     let current = VibeShadowDOMUtils.getParentElement(element);
@@ -633,7 +699,7 @@ var VibeElementContext = (() => {
     while (current && depth < maxDepth && current.tagName !== 'BODY') {
       const info = {
         tag: current.tagName.toLowerCase(),
-        classes: Array.from(current.classList),
+        classes: getDisplayClasses(current),
         id: current.id || null,
         role: current.getAttribute('role') || null,
         text_sample: current.textContent.substring(0, 50).trim()
@@ -867,6 +933,7 @@ var VibeElementContext = (() => {
     generate,
     generateSelector,
     findElementBySelector,
-    scanPageColorVariables
+    scanPageColorVariables,
+    getDisplayClasses
   };
 })();
