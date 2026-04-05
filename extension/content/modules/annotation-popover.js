@@ -305,7 +305,7 @@ var VibeAnnotationPopover = (() => {
           <span class="vibe-raw-css-label">CSS rules <span class="vibe-raw-css-hint">:hover, ::before, @media…</span></span>
         </button>
         <div class="vibe-raw-css-collapsible" style="display:${hasCssRules ? '' : 'none'}">
-          <textarea class="vibe-css-rules" spellcheck="false" placeholder="${escapeHTML(context.selector)} {\n  \n}">${escapeHTML(existingAnnotation?.css || '')}</textarea>
+          <textarea class="vibe-css-rules" spellcheck="false" placeholder=".element:hover {\n  opacity: 0.8;\n}">${escapeHTML(existingAnnotation?.css || '')}</textarea>
         </div>
       </div>`;
 
@@ -669,6 +669,9 @@ var VibeAnnotationPopover = (() => {
         VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
       } else {
         const annotation = buildAnnotation(context, comment, pendingChanges);
+        annotation.selector_preview = getElementOpenTagPreview(targetElement);
+        annotation.element_context.id = targetElement.id || null;
+        annotation.element_context.role = targetElement.getAttribute('role') || null;
         if (cssField) annotation.css = cssField;
         if (clickX != null) {
           const r = targetElement.getBoundingClientRect();
@@ -2131,6 +2134,7 @@ var VibeAnnotationPopover = (() => {
         tag: context.tag,
         classes: context.classes,
         text: context.text,
+        path: context.path || null,
         styles: context.styles,
         position: context.position
       },
@@ -2148,6 +2152,31 @@ var VibeAnnotationPopover = (() => {
     };
     if (pendingChanges) annotation.pending_changes = pendingChanges;
     return annotation;
+  }
+
+  function getElementOpenTagPreview(element) {
+    if (!(element instanceof Element)) return '';
+    const tag = element.tagName.toLowerCase();
+    const attrs = [];
+
+    const pushAttr = (name, value, { includeEmpty = false, maxLen = 160 } = {}) => {
+      if (value == null) return;
+      const normalized = String(value).replace(/\s+/g, ' ').trim();
+      if (!normalized && !includeEmpty) return;
+      attrs.push(`${name}="${escapeHTML(normalized.slice(0, maxLen))}"`);
+    };
+
+    const classPreview = VibeElementContext.getDisplayClasses(element)
+      .slice(0, 6)
+      .join(' ');
+
+    pushAttr('class', classPreview);
+    pushAttr('id', element.id);
+    pushAttr('role', element.getAttribute('role'));
+    pushAttr('name', element.getAttribute('name'));
+    pushAttr('type', element.getAttribute('type'));
+
+    return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
   }
 
   // --- Helpers ---

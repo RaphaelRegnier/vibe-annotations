@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vibe Annotations - Visual Feedback for AI Coding Agents",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Visual annotations for localhost dev projects. Send feedback to AI coding agents like Claude & Cursor via MCP.",
   "author": "Raphael Regnier - Spellbind Creative Studio",
   "permissions": [

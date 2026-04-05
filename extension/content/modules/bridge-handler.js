@@ -116,9 +116,13 @@ var VibeBridgeHandler = (() => {
         tag: context.tag,
         classes: context.classes,
         text: context.text,
+        path: context.path || null,
         styles: context.styles,
-        position: context.position
+        position: context.position,
+        id: el.id || null,
+        role: el.getAttribute('role') || null
       },
+      selector_preview: buildOpenTagPreview(el, context),
       source_file_path: context.source_mapping?.source_file_path || null,
       source_line_range: context.source_mapping?.source_line_range || null,
       project_area: context.source_mapping?.project_area || 'unknown',
@@ -226,6 +230,21 @@ var VibeBridgeHandler = (() => {
   async function handleStatus() {
     const server = await VibeAPI.checkServerStatus();
     return { extension: true, server: server.connected };
+  }
+
+  function buildOpenTagPreview(el, context) {
+    const tag = (context.tag || el.tagName || 'div').toLowerCase();
+    const attrs = [];
+    const classes = (context.classes || []).slice(0, 6).join(' ');
+    if (classes) attrs.push(`class="${classes}"`);
+    if (el.id) attrs.push(`id="${el.id}"`);
+    const role = el.getAttribute('role');
+    if (role) attrs.push(`role="${role}"`);
+    const name = el.getAttribute('name');
+    if (name) attrs.push(`name="${name}"`);
+    const type = el.getAttribute('type');
+    if (type) attrs.push(`type="${type}"`);
+    return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
   }
 
   return { init };
