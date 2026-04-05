@@ -1372,15 +1372,17 @@ var VibeToolbar = (() => {
       const lines = [];
       lines.push(`${i + 1}. ${identity}`);
       lines.push(`   Comment: ${a.comment}`);
-      lines.push(`   Selector: ${a.selector}`);
+      lines.push(`   Selector: ${formatAnnotationSelector(a)}`);
+      const pathStr = formatAnnotationPath(a);
+      if (pathStr) lines.push(`   Path: ${pathStr}`);
 
-      // Styles — only non-trivial
-      const styleStr = formatStyles(ec.styles);
+      // Styles — only when the user actually changed styles
+      const styleStr = hasVisualStyleChanges(a) ? formatStyles(ec.styles) : '';
       if (styleStr) lines.push(`   Styles: ${styleStr}`);
 
-      // Size from position
+      // Size — only when the user changed sizing
       const pos = ec.position;
-      if (pos && pos.width && pos.height) {
+      if (hasSizeChanges(a) && pos && pos.width && pos.height) {
         lines.push(`   Size: ${Math.round(pos.width)}\u00D7${Math.round(pos.height)}`);
       }
 
@@ -1474,6 +1476,106 @@ var VibeToolbar = (() => {
       parts.push(`${cssName}:${val}`);
     }
     return parts.join(' \u00B7 ');
+  }
+
+  function formatAnnotationPath(annotation) {
+    const ec = annotation.element_context || {};
+    if (ec.path) return ec.path;
+
+    const segments = [];
+    if (annotation.parent_chain?.length) {
+      annotation.parent_chain
+        .slice()
+        .reverse()
+        .forEach(node => segments.push(formatPathNode(node)));
+    }
+    if (ec.tag) {
+      segments.push(formatPathNode({
+        tag: ec.tag,
+        classes: ec.classes || [],
+        id: ec.id || null,
+        role: ec.role || null
+      }));
+    }
+
+    if (!segments.length) return '';
+    return segments.slice(-4).join(' > ');
+  }
+
+  function formatAnnotationSelector(annotation) {
+    if (annotation.selector_preview) return annotation.selector_preview;
+
+    const ec = annotation.element_context || {};
+    const attrs = [];
+    const classes = filterDisplayClasses(ec.classes).slice(0, 6);
+    if (classes.length) attrs.push(`class="${classes.join(' ')}"`);
+    if (ec.id) attrs.push(`id="${ec.id}"`);
+    if (ec.role) attrs.push(`role="${ec.role}"`);
+
+    if (ec.tag) {
+      return `<${ec.tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
+    }
+
+    return annotation.selector;
+  }
+
+  function formatPathNode(node) {
+    const tag = node.tag || 'element';
+    if (node.id) return `${tag}#${sanitizePathToken(node.id)}`;
+
+    const classes = filterDisplayClasses(node.classes).slice(0, 4);
+    if (classes.length) {
+      return `${tag}[class="${classes.map(c => sanitizePathToken(c, 48)).join(' ')}"]`;
+    }
+
+    if (node.role) return `${tag}[role="${sanitizePathToken(node.role)}"]`;
+    return tag;
+  }
+
+  function sanitizePathToken(value, maxLen = 48) {
+    return String(value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+  }
+
+  function hasVisualStyleChanges(annotation) {
+    if (annotation.css) return true;
+    const pc = annotation.pending_changes;
+    if (!pc) return false;
+
+    return [
+      'fontSize','fontWeight','lineHeight','textAlign',
+      'paddingTop','paddingRight','paddingBottom','paddingLeft',
+      'marginTop','marginRight','marginBottom','marginLeft',
+      'display','flexDirection','flexWrap','gap','columnGap','rowGap',
+      'justifyContent','alignItems','gridTemplateColumns','gridTemplateRows',
+      'borderWidth','borderRadius','borderStyle',
+      'color','backgroundColor','borderColor'
+    ].some((key) => !!pc[key]);
+  }
+
+  function hasSizeChanges(annotation) {
+    const pc = annotation.pending_changes;
+    if (!pc) return false;
+    return ['width', 'minWidth', 'maxWidth', 'height', 'minHeight', 'maxHeight'].some((key) => !!pc[key]);
+  }
+
+  function filterDisplayClasses(classes) {
+    if (!Array.isArray(classes)) return [];
+    return classes.filter(Boolean).filter((cls) => !isGenericFrameworkClass(cls));
+  }
+
+  function isGenericFrameworkClass(cls) {
+    return [
+      /^ng-tns-[\w-]+$/i,
+      /^ng-star-inserted$/i,
+      /^ng-trigger(?:-[\w-]+)?$/i,
+      /^ng-[\w-]+-\d+$/i,
+      /^cdk-[\w-]+(?:-\d+)?$/i,
+      /^css-[a-z0-9]+$/i,
+      /^sc-[a-z0-9]+$/i,
+      /^jsx-\d+$/i,
+      /^jss\d+$/i,
+      /^__[\w-]+__$/i
+    ].some((pattern) => pattern.test(cls));
   }
 
   function applyBadgeColor(color) {

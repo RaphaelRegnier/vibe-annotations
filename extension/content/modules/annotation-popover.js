@@ -669,6 +669,9 @@ var VibeAnnotationPopover = (() => {
         VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
       } else {
         const annotation = buildAnnotation(context, comment, pendingChanges);
+        annotation.selector_preview = getElementOpenTagPreview(targetElement);
+        annotation.element_context.id = targetElement.id || null;
+        annotation.element_context.role = targetElement.getAttribute('role') || null;
         if (cssField) annotation.css = cssField;
         if (clickX != null) {
           const r = targetElement.getBoundingClientRect();
@@ -2131,6 +2134,7 @@ var VibeAnnotationPopover = (() => {
         tag: context.tag,
         classes: context.classes,
         text: context.text,
+        path: context.path || null,
         styles: context.styles,
         position: context.position
       },
@@ -2148,6 +2152,52 @@ var VibeAnnotationPopover = (() => {
     };
     if (pendingChanges) annotation.pending_changes = pendingChanges;
     return annotation;
+  }
+
+  function getElementOpenTagPreview(element) {
+    if (!(element instanceof Element)) return '';
+    const tag = element.tagName.toLowerCase();
+    const attrs = [];
+
+    const pushAttr = (name, value, { includeEmpty = false, maxLen = 160 } = {}) => {
+      if (value == null) return;
+      const normalized = String(value).replace(/\s+/g, ' ').trim();
+      if (!normalized && !includeEmpty) return;
+      attrs.push(`${name}="${escapeHTML(normalized.slice(0, maxLen))}"`);
+    };
+
+    const classPreview = Array.from(element.classList)
+      .filter(filterDisplayClassName)
+      .slice(0, 6)
+      .join(' ');
+
+    pushAttr('class', classPreview);
+    pushAttr('id', element.id);
+    pushAttr('role', element.getAttribute('role'));
+    pushAttr('name', element.getAttribute('name'));
+    pushAttr('type', element.getAttribute('type'));
+    pushAttr('tabindex', element.getAttribute('tabindex'));
+    if (element.hasAttribute('style')) {
+      pushAttr('style', element.getAttribute('style'), { includeEmpty: true, maxLen: 200 });
+    }
+
+    return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
+  }
+
+  function filterDisplayClassName(cls) {
+    if (!cls || cls.startsWith('vibe-')) return false;
+    return ![
+      /^ng-tns-[\w-]+$/i,
+      /^ng-star-inserted$/i,
+      /^ng-trigger(?:-[\w-]+)?$/i,
+      /^ng-[\w-]+-\d+$/i,
+      /^cdk-[\w-]+(?:-\d+)?$/i,
+      /^css-[a-z0-9]+$/i,
+      /^sc-[a-z0-9]+$/i,
+      /^jsx-\d+$/i,
+      /^jss\d+$/i,
+      /^__[\w-]+__$/i
+    ].some((pattern) => pattern.test(cls));
   }
 
   // --- Helpers ---

@@ -16,6 +16,7 @@ var VibeElementContext = (() => {
       tag: element.tagName.toLowerCase(),
       classes: Array.from(element.classList),
       text: element.textContent.substring(0, 100).trim(),
+      path: getElementLocationPath(element),
       styles: {
         display: computedStyle.display,
         position: computedStyle.position,
@@ -67,7 +68,7 @@ var VibeElementContext = (() => {
       },
       source_mapping: generateSourceMapping(element),
       screenshot: null,
-      parent_chain: getParentChainContext(element)
+      parent_chain: getParentChainContext(element, 4)
     };
 
     // Screenshot
@@ -625,6 +626,64 @@ var VibeElementContext = (() => {
   }
 
   // --- Parent chain ---
+
+  function getElementLocationPath(element, maxDepth = 4) {
+    const segments = [];
+    let current = element;
+    while (current && current.tagName !== 'BODY' && segments.length < maxDepth) {
+      segments.unshift(formatPathSegment(current));
+      current = VibeShadowDOMUtils.getParentElement(current);
+    }
+    return segments.join(' > ');
+  }
+
+  function formatPathSegment(element) {
+    const tag = element.tagName.toLowerCase();
+    if (element.id) return `${tag}#${sanitizePathValue(element.id)}`;
+
+    const classes = Array.from(element.classList)
+      .filter(c => !c.startsWith('vibe-'))
+      .filter(isDisplayClass)
+      .slice(0, 4);
+    if (classes.length) {
+      return `${tag}[class="${classes.map(c => sanitizePathValue(c, 48)).join(' ')}"]`;
+    }
+
+    const role = element.getAttribute('role');
+    if (role) return `${tag}[role="${sanitizePathValue(role)}"]`;
+
+    const ariaLabel = element.getAttribute('aria-label');
+    if (ariaLabel) return `${tag}[aria-label="${sanitizePathValue(ariaLabel, 24)}"]`;
+
+    const parent = VibeShadowDOMUtils.getParentElement(element);
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(el => el.tagName === element.tagName);
+      if (siblings.length > 1) {
+        return `${tag}:nth-of-type(${siblings.indexOf(element) + 1})`;
+      }
+    }
+
+    return tag;
+  }
+
+  function sanitizePathValue(value, maxLen = 48) {
+    return String(value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
+  }
+
+  function isDisplayClass(cls) {
+    return isStableClass(cls) && ![
+      /^ng-tns-[\w-]+$/i,
+      /^ng-star-inserted$/i,
+      /^ng-trigger(?:-[\w-]+)?$/i,
+      /^ng-[\w-]+-\d+$/i,
+      /^cdk-[\w-]+(?:-\d+)?$/i,
+      /^css-[a-z0-9]+$/i,
+      /^sc-[a-z0-9]+$/i,
+      /^jsx-\d+$/i,
+      /^jss\d+$/i,
+      /^__[\w-]+__$/i
+    ].some((pattern) => pattern.test(cls));
+  }
 
   function getParentChainContext(element, maxDepth = 3) {
     const chain = [];
