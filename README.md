@@ -10,8 +10,10 @@ _[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative
 ---
 
 **Get started:** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb)
-<br>**What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
-<br>**Should I use it?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
+
+**What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
+
+**Should I use it?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
 
 ## Feature demos
 
