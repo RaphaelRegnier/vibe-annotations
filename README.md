@@ -1,21 +1,19 @@
 # Vibe Annotations
 
 [![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)](https://polyformproject.org/licenses/shield/1.0.0)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green)](https://chrome.google.com/webstore)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-6K+_users-green?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
 [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-_[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative tool your AI coding agent and teammates_
+_[Vibe Annotations](https://www.vibe-annotations.com/) is an AI-native visual feedback tool for your web apps. Ask changes, make design tweaks to your pages and share the structured output to your AI coding agent or teammates._
 
 ---
 
 **Get started:** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb)
 
-**What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
+**🧐 Is it for me?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with AI coding agents, then Vibe Annotations is made for you. 
 
-**Should I use it?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
-
-_Vibe Annotations doesn't require a package installation. It can be used by anyone to modify a website's look & copy and share the result, without prior CSS or design knowledge._
+_Vibe Annotations can be used to request changes on a website's look & copy without design or development knowledge. Learn more in the examples below._
 
 ## Feature demos
 
