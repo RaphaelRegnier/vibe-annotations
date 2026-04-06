@@ -5,7 +5,7 @@
 [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-_[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative tool for you and your AI coding agent_
+_[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative tool your AI coding agent and teammates_
 
 ---
 
@@ -14,6 +14,8 @@ _[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative
 **What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
 
 **Should I use it?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
+
+_Vibe Annotations doesn't require a package installation. It can be used by anyone to modify a website's look & copy and share the result, without prior CSS or design knowledge._
 
 ## Feature demos
 
@@ -32,6 +34,8 @@ https://github.com/user-attachments/assets/2dc8e03c-a760-4e31-afac-537200387788
 **🤖 Annotate with a browser-capable AI coding agent:**
 
 https://github.com/user-attachments/assets/5839d3df-f3e6-4b05-b58a-fdd619487aa4
+
+_Pro tip_: This is using [Claude browser extension](https://chromewebstore.google.com/detail/fcoeoabgfenejglbffodgkkbkcdhcgfn?utm_source=item-share-cb), with a shortcut added (Settings>Shortcut) to trigger `vibe window.__vibeAnnotations.help()` when typing `/vibe` on first prompt.
 
 **🤝 Collaborate with teammates using export / import features:**
 
