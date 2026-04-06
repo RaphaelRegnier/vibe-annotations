@@ -8,9 +8,10 @@
 _[Vibe Annotations](https://www.vibe-annotations.com/) is a visual collaborative tool for you and your AI coding agent_
 
 ---
+
 **Get started:** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb)
-**What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
-**Should I use it?** If you're a PM, Marketer, Designer or Developper having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
+<br>**What it does:** Annotate any website or app, make direct design tweaks, collaborate with your AI coding agent or teammates.
+<br>**Should I use it?** If you're a PM, Marketer, Designer or Developer having to review websites regularly, and looking for an efficient way to convey intent and share context with your AI, then Vibe Annotations is made for you.
 
 ## Feature demos
 
@@ -31,7 +32,6 @@ https://github.com/user-attachments/assets/58de5fad-d7fa-490d-849f-d25771758067
 
 👀 Use watch mode, never leave your website:
 https://github.com/user-attachments/assets/c74d3a43-61c4-4542-ab43-c559cd6e44bf
-
 
 ## Documentation (available in the extension)
 
@@ -185,6 +185,7 @@ Vibe Annotations is split into two independent pieces that talk over HTTP:
 
 The extension works standalone (copy/paste, export) but the server unlocks MCP integration and watch mode.
 
+### MCP Tools
 
 The server exposes these tools to connected agents:
 
