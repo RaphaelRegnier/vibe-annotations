@@ -7,7 +7,6 @@ var VibeToolbar = (() => {
   let settingsDropdown = null;
   let activeRecordingCleanup = null;
   let isAnnotating = false;
-  let isCollapsed = false;
   let serverOnline = false;
   let annotationCount = 0;
   let styleAnnotationCount = 0;
@@ -24,11 +23,15 @@ var VibeToolbar = (() => {
   let customShortcut = null;
 
   const ICONS = {
-    annotate: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
-    stop: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
-    copy: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-    trash: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
-    settings: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    annotate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>',
+    stop: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+    copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+    trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
+    settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+    list: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>',
+    close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
+    crosshair: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 6V2"/><path d="M12 22v-4"/></svg>',
+    serverRack: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>',
     collapse: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
     // Vibe logo — actual icon (set dynamically in buildToolbar)
     logo: '',
@@ -74,7 +77,6 @@ var VibeToolbar = (() => {
     const root = VibeShadowHost.getRoot();
     if (!root) return;
 
-    isCollapsed = await VibeAPI.getToolbarCollapsed();
     clearOnCopy = await VibeAPI.getClearOnCopy();
     screenshotEnabled = await VibeAPI.getScreenshotEnabled();
     badgeColor = await VibeAPI.getBadgeColor();
@@ -99,38 +101,53 @@ var VibeToolbar = (() => {
     setInterval(refreshWatchers, 5000);
   }
 
+  let viewAllPanel = null;
+
   function buildToolbar(root) {
     const logoUrl = chrome.runtime.getURL('assets/icons/icon-hq.png');
-    ICONS.logo = `<img src="${logoUrl}" style="pointer-events:none;">`;
 
     toolbarEl = document.createElement('div');
-    toolbarEl.className = 'vibe-toolbar' + (isCollapsed ? ' collapsed' : '');
+    toolbarEl.className = 'vibe-toolbar';
 
     toolbarEl.innerHTML = `
-      <button class="vibe-toolbar-btn vibe-tb-collapse" title="${isCollapsed ? 'Expand' : 'Collapse'}">
-        ${isCollapsed ? ICONS.logo : ICONS.collapse}
-        <span class="vibe-toolbar-tip">${isCollapsed ? 'Expand' : 'Collapse'}</span>
-      </button>
-      <div class="vibe-toolbar-inner">
-        <div class="vibe-toolbar-divider"></div>
-        <button class="vibe-toolbar-btn vibe-tb-annotate" title="Annotate (${shortcutHint})">
-          ${ICONS.annotate}
-          <span class="vibe-toolbar-tip">Annotate</span>
-        </button>
-        <button class="vibe-toolbar-btn vibe-tb-copy" title="Copy all annotations" disabled>
-          ${ICONS.copy}
-          <span class="vibe-toolbar-tip">Copy all</span>
-        </button>
-        <button class="vibe-toolbar-btn vibe-tb-delete" title="Delete all annotations" disabled>
-          ${ICONS.trash}
-          <span class="vibe-toolbar-tip">Delete all</span>
-        </button>
-        <div class="vibe-toolbar-drag-handle" title="Drag to move"></div>
-        <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
-          ${ICONS.settings}
-          <span class="vibe-toolbar-tip">Settings</span>
-        </button>
+      <img class="vibe-toolbar-logo" src="${logoUrl}" />
+      <div class="vibe-toolbar-separator"></div>
+      <div class="vibe-toolbar-middle">
+        <div class="vibe-toolbar-default">
+          <button class="vibe-toolbar-btn vibe-tb-annotate" title="Annotate (${shortcutHint})">
+            ${ICONS.annotate}
+            <span>Annotate</span>
+          </button>
+          <button class="vibe-toolbar-btn vibe-tb-viewall" title="View all annotations">
+            ${ICONS.list}
+            <span>View all</span>
+            <span class="vibe-toolbar-pill" style="display:none">0</span>
+          </button>
+          <div class="vibe-toolbar-spacer"></div>
+          <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
+            ${ICONS.settings}
+            <span>Settings</span>
+          </button>
+          <button class="vibe-toolbar-status vibe-tb-status" title="Offline">
+            ${ICONS.serverRack}
+          </button>
+        </div>
+        <div class="vibe-toolbar-annotating">
+          <span class="vibe-toolbar-instruction">Click to capture</span>
+          <span class="vibe-toolbar-dot"></span>
+          <kbd class="vibe-toolbar-kbd">↑</kbd>
+          <kbd class="vibe-toolbar-kbd">↓</kbd>
+          <kbd class="vibe-toolbar-kbd">⏎</kbd>
+          <span class="vibe-toolbar-instruction">to fine-tune target</span>
+          <span class="vibe-toolbar-dot"></span>
+          <kbd class="vibe-toolbar-kbd">Esc</kbd>
+          <span class="vibe-toolbar-instruction">to stop</span>
+        </div>
       </div>
+      <div class="vibe-toolbar-separator"></div>
+      <button class="vibe-toolbar-close vibe-tb-close" title="Close Vibe Annotations">
+        ${ICONS.close}
+      </button>
     `;
 
     root.appendChild(toolbarEl);
@@ -140,9 +157,6 @@ var VibeToolbar = (() => {
   }
 
   function wireButtons() {
-    // Collapse/expand
-    toolbarEl.querySelector('.vibe-tb-collapse').addEventListener('click', toggleCollapse);
-
     // Annotate toggle
     toolbarEl.querySelector('.vibe-tb-annotate').addEventListener('click', () => {
       if (isAnnotating) {
@@ -152,57 +166,10 @@ var VibeToolbar = (() => {
       }
     });
 
-    // Copy all — or stop watch mode when active
-    toolbarEl.querySelector('.vibe-tb-copy').addEventListener('click', async () => {
-      if (watcherActive) {
-        await VibeAPI.stopWatchers();
-        watcherActive = false;
-        updateUI();
-        VibeEvents.emit('watch:changed', { active: false });
-        return;
-      }
-      const annotations = await VibeAPI.loadAnnotations();
-      if (!annotations.length) return;
-      const text = formatAnnotationsForClipboard(annotations);
-      try {
-        await navigator.clipboard.writeText(text);
-        showCopyFeedback();
-      } catch {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-        showCopyFeedback();
-      }
-
-      // Clear on copy if setting is enabled
-      if (clearOnCopy) {
-        // Reset count immediately so UI stays consistent
-        annotationCount = 0;
-        styleAnnotationCount = 0;
-        VibeEvents.emit('annotations:cleared', { count: annotations.length });
-        await VibeAPI.deleteAnnotationsByUrl();
-      }
-    });
-
-    // Delete all
-    toolbarEl.querySelector('.vibe-tb-delete').addEventListener('click', async () => {
-      const root = VibeShadowHost.getRoot();
-      if (!root) return;
-
-      const skip = await VibeAPI.getSkipDeleteConfirm();
-      if (!skip) {
-        const confirmed = await showDeleteConfirm(root);
-        if (!confirmed) return;
-      }
-
-      const annotations = await VibeAPI.loadAnnotations();
-      annotationCount = 0;
-      styleAnnotationCount = 0;
-      VibeEvents.emit('annotations:cleared', { count: annotations.length });
-      await VibeAPI.deleteAnnotationsByUrl();
+    // View all
+    toolbarEl.querySelector('.vibe-tb-viewall').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleViewAll();
     });
 
     // Settings
@@ -210,6 +177,255 @@ var VibeToolbar = (() => {
       e.stopPropagation();
       toggleSettings();
     });
+
+    // Close
+    toolbarEl.querySelector('.vibe-tb-close').addEventListener('click', () => {
+      VibeEvents.emit('overlay:closed');
+      VibeShadowHost.hide();
+    });
+
+    // Status — watching: stop watchers; offline/online: toggle settings > MCP
+    toolbarEl.querySelector('.vibe-tb-status').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (watcherActive) {
+        await VibeAPI.stopWatchers();
+        watcherActive = false;
+        updateUI();
+        VibeEvents.emit('watch:changed', { active: false });
+        return;
+      }
+      if (settingsDropdown) {
+        closeSettings();
+        return;
+      }
+      closeViewAll();
+      openSettings();
+      requestAnimationFrame(() => {
+        if (settingsDropdown) {
+          const mcpBtn = settingsDropdown.querySelector('.vibe-mcp-server-btn');
+          if (mcpBtn) mcpBtn.click();
+        }
+      });
+    });
+  }
+
+  // --- View All panel (stub — full impl in Phase 6) ---
+
+  function toggleViewAll() {
+    if (viewAllPanel) {
+      closeViewAll();
+    } else {
+      closeSettings();
+      openViewAll();
+    }
+  }
+
+  async function openViewAll() {
+    closeViewAll();
+
+    const btn = toolbarEl.querySelector('.vibe-tb-viewall');
+    if (btn) btn.classList.add('active');
+
+    const annotations = await VibeAPI.loadAnnotations();
+    const hostname = window.location.host || window.location.hostname;
+
+    // Group by route (path)
+    const routeGroups = {};
+    for (const a of annotations) {
+      try {
+        const path = new URL(a.url).pathname;
+        if (!routeGroups[path]) routeGroups[path] = [];
+        routeGroups[path].push(a);
+      } catch {
+        const fallback = '/';
+        if (!routeGroups[fallback]) routeGroups[fallback] = [];
+        routeGroups[fallback].push(a);
+      }
+    }
+
+    viewAllPanel = document.createElement('div');
+    const rect = toolbarEl.getBoundingClientRect();
+    const inLowerHalf = rect.top > window.innerHeight / 2;
+    viewAllPanel.className = 'vibe-viewall-panel' + (inLowerHalf ? ' above' : '');
+
+    const trashIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    const copyIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+    const exportIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    const smallTrash = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    const sparkleIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>';
+
+    // Build routes HTML
+    let routesHTML = '';
+    const sortedPaths = Object.keys(routeGroups).sort();
+    for (const path of sortedPaths) {
+      const items = routeGroups[path];
+      const cardsHTML = items.map(a => {
+        const selector = a.selector || a.element_context?.tag || '?';
+        const hasPendingChanges = a.pending_changes && Object.keys(a.pending_changes).length > 0;
+        const changeCount = hasPendingChanges ? Object.keys(a.pending_changes).length : 0;
+        const comment = a.comment || '';
+
+        let bodyHTML;
+        if (hasPendingChanges && !comment) {
+          bodyHTML = `<div class="vibe-viewall-design">${sparkleIcon}<span>${changeCount} design change${changeCount !== 1 ? 's' : ''}</span></div>`;
+        } else if (comment) {
+          bodyHTML = `<div class="vibe-viewall-comment">${escapeHTML(comment)}</div>`;
+          if (hasPendingChanges) {
+            bodyHTML += `<div class="vibe-viewall-design" style="margin-top:2px;">${sparkleIcon}<span>${changeCount} design change${changeCount !== 1 ? 's' : ''}</span></div>`;
+          }
+        } else {
+          bodyHTML = `<div class="vibe-viewall-comment empty">No comment</div>`;
+        }
+
+        return `
+          <div class="vibe-viewall-card" data-id="${a.id}">
+            <div class="vibe-viewall-card-content">
+              <div class="vibe-viewall-selector">${escapeHTML(selector)}</div>
+              ${bodyHTML}
+            </div>
+            <button class="vibe-viewall-card-delete" data-id="${a.id}" title="Delete">${trashIcon}</button>
+          </div>
+        `;
+      }).join('');
+
+      routesHTML += `
+        <div class="vibe-viewall-route" data-path="${escapeHTML(path)}">
+          <div class="vibe-viewall-route-header">
+            <div class="vibe-viewall-route-left">
+              <span class="vibe-viewall-route-path">${escapeHTML(path)}</span>
+              <span class="vibe-viewall-route-count">${items.length}</span>
+            </div>
+            <button class="vibe-viewall-route-clear" data-path="${escapeHTML(path)}" title="Clear route">${smallTrash}<span>Clear</span></button>
+          </div>
+          ${cardsHTML}
+        </div>
+      `;
+    }
+
+    if (annotations.length === 0) {
+      routesHTML = '<div style="padding:24px 16px;text-align:center;color:var(--v-instruction-text);font-size:13px;">No annotations yet</div>';
+    }
+
+    viewAllPanel.innerHTML = `
+      <div class="vibe-viewall-header">
+        <span class="vibe-viewall-url">${escapeHTML(hostname)}</span>
+        <div class="vibe-viewall-actions">
+          <button class="vibe-viewall-copy" title="Copy all">${copyIcon}</button>
+          <button class="vibe-viewall-export" title="Export">${exportIcon}</button>
+          <button class="vibe-viewall-deleteall" title="Delete all">${trashIcon}</button>
+        </div>
+      </div>
+      <div class="vibe-viewall-routes">${routesHTML}</div>
+    `;
+
+    toolbarEl.appendChild(viewAllPanel);
+
+    // --- Wire View All actions ---
+
+    // Copy all
+    viewAllPanel.querySelector('.vibe-viewall-copy').addEventListener('click', async () => {
+      const all = await VibeAPI.loadAnnotations();
+      if (!all.length) return;
+      const text = formatAnnotationsForClipboard(all);
+      try { await navigator.clipboard.writeText(text); } catch {
+        const ta = document.createElement('textarea'); ta.value = text;
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      if (clearOnCopy) {
+        annotationCount = 0; styleAnnotationCount = 0;
+        VibeEvents.emit('annotations:cleared', { count: all.length });
+        await VibeAPI.deleteAnnotationsByUrl();
+        openViewAll(); // refresh
+      }
+    });
+
+    // Export
+    viewAllPanel.querySelector('.vibe-viewall-export').addEventListener('click', () => {
+      showExportModal();
+    });
+
+    // Delete all
+    viewAllPanel.querySelector('.vibe-viewall-deleteall').addEventListener('click', async () => {
+      const root = VibeShadowHost.getRoot();
+      if (!root) return;
+      const skip = await VibeAPI.getSkipDeleteConfirm();
+      if (!skip) {
+        const confirmed = await showDeleteConfirm(root);
+        if (!confirmed) return;
+      }
+      annotationCount = 0; styleAnnotationCount = 0;
+      VibeEvents.emit('annotations:cleared', { count: annotations.length });
+      await VibeAPI.deleteAnnotationsByUrl();
+      openViewAll(); // refresh
+    });
+
+    // Per-route clear
+    viewAllPanel.querySelectorAll('.vibe-viewall-route-clear').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const path = btn.dataset.path;
+        const routeAnnotations = routeGroups[path] || [];
+        for (const a of routeAnnotations) {
+          await VibeAPI.deleteAnnotation(a.id);
+        }
+        annotationCount = Math.max(0, annotationCount - routeAnnotations.length);
+        VibeEvents.emit('annotations:cleared', { count: routeAnnotations.length });
+        openViewAll(); // refresh
+      });
+    });
+
+    // Per-card delete
+    viewAllPanel.querySelectorAll('.vibe-viewall-card-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        await VibeAPI.deleteAnnotation(id);
+        annotationCount = Math.max(0, annotationCount - 1);
+        updateUI();
+        openViewAll(); // refresh
+      });
+    });
+
+    // Click card to scroll to element
+    viewAllPanel.querySelectorAll('.vibe-viewall-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.vibe-viewall-card-delete')) return;
+        const id = card.dataset.id;
+        const a = annotations.find(x => x.id === id);
+        if (a && a.selector) {
+          try {
+            const el = document.querySelector(a.selector);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              VibeEvents.emit('badge:target', { id });
+            }
+          } catch {}
+        }
+      });
+    });
+
+    // Listen for annotation changes to refresh (debounced to avoid loops)
+    let refreshPending = false;
+    const refreshHandler = () => {
+      if (!viewAllPanel || refreshPending) return;
+      refreshPending = true;
+      setTimeout(() => { refreshPending = false; if (viewAllPanel) openViewAll(); }, 300);
+    };
+    VibeEvents.on('badges:rendered', refreshHandler);
+
+    // Store cleanup reference
+    viewAllPanel._cleanupEvents = () => {
+      VibeEvents.off('badges:rendered', refreshHandler);
+    };
+  }
+
+  function closeViewAll() {
+    if (viewAllPanel) {
+      if (viewAllPanel._cleanupEvents) viewAllPanel._cleanupEvents();
+      viewAllPanel.remove();
+      viewAllPanel = null;
+    }
+    const btn = toolbarEl.querySelector('.vibe-tb-viewall');
+    if (btn) btn.classList.remove('active');
   }
 
   // --- Settings dropdown ---
@@ -218,6 +434,7 @@ var VibeToolbar = (() => {
     if (settingsDropdown) {
       closeSettings();
     } else {
+      closeViewAll();
       openSettings();
     }
   }
@@ -225,26 +442,26 @@ var VibeToolbar = (() => {
   function openSettings() {
     closeSettings();
 
+    const btn = toolbarEl.querySelector('.vibe-tb-settings');
+    if (btn) btn.classList.add('active');
+
     const version = chrome.runtime.getManifest().version;
-    const currentTheme = VibeThemeManager.getPreference();
-    const themeIcon = THEME_ICONS[currentTheme] || THEME_ICONS.system;
-    const route = vibeLocationPath(window.location);
 
     settingsDropdown = document.createElement('div');
     const rect = toolbarEl.getBoundingClientRect();
     const inLowerHalf = rect.top > window.innerHeight / 2;
     settingsDropdown.className = 'vibe-settings-dropdown' + (inLowerHalf ? ' above' : '');
 
+    const statusColor = serverOnline ? 'var(--v-status-online)' : 'var(--v-status-offline)';
+    const statusLabel = serverOnline ? 'Online' : 'Offline';
+
+    const route = vibeLocationPath(window.location);
+
     settingsDropdown.innerHTML = `
       <div class="vibe-settings-header">
         <div>
           <span class="vibe-settings-title">${escapeHTML(route)}</span>
           <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${escapeHTML(version)}" target="_blank" rel="noopener" class="vibe-settings-version">v${escapeHTML(version)}</a>
-        </div>
-        <div class="vibe-settings-header-right">
-          <button class="vibe-theme-btn" title="${capitalize(currentTheme)} theme">
-            ${themeIcon}
-          </button>
         </div>
       </div>
       <div class="vibe-settings-body">
@@ -298,36 +515,14 @@ var VibeToolbar = (() => {
           <button class="vibe-shortcut-btn" type="button">${escapeHTML(shortcutHint)}</button>
         </div>
         <div class="vibe-settings-separator"></div>
-        <button class="vibe-settings-link vibe-export-btn" type="button">
-          ${ICONS.upload}
-          <span>Export annotations</span>
-        </button>
         <button class="vibe-settings-link vibe-import-btn" type="button">
           ${ICONS.download}
           <span>Import annotations</span>
-        </button>
-        <div class="vibe-settings-separator"></div>
-        <button class="vibe-settings-link vibe-close-overlay" type="button">
-          ${ICONS.power}
-          <span>Close Vibe Annotations</span>
         </button>
       </div>
     `;
 
     toolbarEl.appendChild(settingsDropdown);
-
-    // Theme toggle
-    settingsDropdown.querySelector('.vibe-theme-btn').addEventListener('click', () => {
-      const current = VibeThemeManager.getPreference();
-      const idx = THEME_CYCLE.indexOf(current);
-      const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
-      VibeThemeManager.setPreference(next);
-
-      // Update icon
-      const btn = settingsDropdown.querySelector('.vibe-theme-btn');
-      btn.innerHTML = THEME_ICONS[next];
-      btn.title = `${capitalize(next)} theme`;
-    });
 
     // Clear on copy toggle
     settingsDropdown.querySelector('.vibe-clear-on-copy-toggle').addEventListener('click', async (e) => {
@@ -407,23 +602,10 @@ var VibeToolbar = (() => {
       showDocumentation();
     });
 
-    // Export
-    settingsDropdown.querySelector('.vibe-export-btn').addEventListener('click', () => {
-      closeSettings();
-      showExportModal();
-    });
-
     // Import
     settingsDropdown.querySelector('.vibe-import-btn').addEventListener('click', () => {
       closeSettings();
       triggerImport();
-    });
-
-    // Close overlay — strip all visual changes from page
-    settingsDropdown.querySelector('.vibe-close-overlay').addEventListener('click', () => {
-      closeSettings();
-      VibeEvents.emit('overlay:closed');
-      VibeShadowHost.hide();
     });
 
     // Prevent clicks inside dropdown from triggering outside-click close
@@ -854,6 +1036,8 @@ var VibeToolbar = (() => {
       settingsDropdown.remove();
       settingsDropdown = null;
     }
+    const btn = toolbarEl?.querySelector('.vibe-tb-settings');
+    if (btn) btn.classList.remove('active');
     document.removeEventListener('click', onOutsideClick);
   }
 
@@ -863,65 +1047,127 @@ var VibeToolbar = (() => {
     }
   }
 
-  function toggleCollapse() {
-    isCollapsed = !isCollapsed;
-    toolbarEl.classList.toggle('collapsed', isCollapsed);
-    closeSettings();
-
-    const btn = toolbarEl.querySelector('.vibe-tb-collapse');
-    btn.innerHTML = (isCollapsed ? ICONS.logo : ICONS.collapse) +
-      `<span class="vibe-toolbar-tip">${isCollapsed ? 'Expand' : 'Collapse'}</span>`;
-    btn.title = isCollapsed ? 'Expand' : 'Collapse';
-
-    VibeAPI.saveToolbarCollapsed(isCollapsed);
-  }
-
   function updateUI() {
     if (!toolbarEl) return;
 
-    // Annotate button active state
-    const annotateBtn = toolbarEl.querySelector('.vibe-tb-annotate');
-    if (annotateBtn) {
-      annotateBtn.classList.toggle('active', isAnnotating);
-      annotateBtn.innerHTML = (isAnnotating ? ICONS.stop : ICONS.annotate) +
-        `<span class="vibe-toolbar-tip">${isAnnotating ? 'Stop' : 'Annotate'} (${shortcutHint})</span>`;
+    // --- Annotating mode morph (crossfade + width transition) ---
+    const wasAnnotating = toolbarEl.classList.contains('annotating');
+    const middleEl = toolbarEl.querySelector('.vibe-toolbar-middle');
+    const defaultEl = toolbarEl.querySelector('.vibe-toolbar-default');
+    const annotatingEl = toolbarEl.querySelector('.vibe-toolbar-annotating');
+
+    if (isAnnotating && !wasAnnotating && middleEl && defaultEl && annotatingEl) {
+      // Measure current width, then target width
+      const startWidth = middleEl.offsetWidth;
+      annotatingEl.style.position = 'relative';
+      annotatingEl.style.opacity = '0';
+      annotatingEl.style.visibility = 'hidden';
+      const endWidth = annotatingEl.scrollWidth;
+      annotatingEl.style.position = '';
+      annotatingEl.style.opacity = '';
+      annotatingEl.style.visibility = '';
+
+      // Phase 1: fade out old content
+      middleEl.style.overflow = 'hidden';
+      middleEl.style.width = startWidth + 'px';
+      middleEl.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      defaultEl.style.transition = 'opacity 0.2s ease';
+      defaultEl.style.opacity = '0';
+
+      // Phase 2: swap layout + animate width
+      setTimeout(() => {
+        toolbarEl.classList.add('annotating');
+        middleEl.style.width = endWidth + 'px';
+      }, 200);
+
+      // Phase 3: fade in new content (delayed so it appears after width settles)
+      setTimeout(() => {
+        annotatingEl.style.transition = 'opacity 0.25s ease';
+      }, 250);
+
+      // Cleanup
+      setTimeout(() => {
+        middleEl.style.width = ''; middleEl.style.transition = ''; middleEl.style.overflow = '';
+        defaultEl.style.transition = '';
+        annotatingEl.style.transition = '';
+      }, 500);
+
+    } else if (!isAnnotating && wasAnnotating && middleEl && defaultEl && annotatingEl) {
+      const startWidth = middleEl.offsetWidth;
+
+      // Phase 1: fade out annotating content
+      annotatingEl.style.transition = 'opacity 0.2s ease';
+      annotatingEl.style.opacity = '0';
+
+      // Measure target
+      defaultEl.style.position = 'relative';
+      defaultEl.style.opacity = '0';
+      defaultEl.style.visibility = 'hidden';
+      defaultEl.style.height = '';
+      defaultEl.style.overflow = '';
+      const endWidth = defaultEl.scrollWidth;
+      defaultEl.style.position = '';
+      defaultEl.style.visibility = '';
+
+      middleEl.style.overflow = 'hidden';
+      middleEl.style.width = startWidth + 'px';
+      middleEl.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+
+      // Phase 2: swap layout + animate width
+      setTimeout(() => {
+        toolbarEl.classList.remove('annotating');
+        annotatingEl.style.opacity = '';
+        annotatingEl.style.transition = '';
+        defaultEl.style.transition = 'opacity 0.25s ease';
+        defaultEl.style.opacity = '0';
+        middleEl.style.width = endWidth + 'px';
+        // Phase 3: fade in default content
+        requestAnimationFrame(() => { defaultEl.style.opacity = ''; });
+      }, 200);
+
+      // Cleanup
+      setTimeout(() => {
+        middleEl.style.width = ''; middleEl.style.transition = ''; middleEl.style.overflow = '';
+        defaultEl.style.transition = '';
+      }, 500);
     }
 
-    // Copy button — swaps to eye indicator when watch mode is active
+    // --- Count pill on View all ---
     const totalCount = annotationCount + styleAnnotationCount;
-    const copyBtn = toolbarEl.querySelector('.vibe-tb-copy');
-    const deleteBtn = toolbarEl.querySelector('.vibe-tb-delete');
-    if (copyBtn) {
-      if (watcherActive) {
-        copyBtn.disabled = false;
-        copyBtn.classList.add('active');
-        copyBtn.innerHTML = ICONS.eye + '<span class="vibe-toolbar-tip">Stop watching</span>';
-        copyBtn.title = 'Click to stop watch mode';
+    const pill = toolbarEl.querySelector('.vibe-toolbar-pill');
+    if (pill) {
+      if (totalCount > 0) {
+        pill.textContent = totalCount;
+        pill.style.display = '';
       } else {
-        copyBtn.classList.remove('active');
-        copyBtn.disabled = totalCount === 0;
-        copyBtn.innerHTML = ICONS.copy +
-          (annotationCount > 0 ? `<span class="vibe-toolbar-count">${annotationCount}</span>` : '') +
-          (styleAnnotationCount > 0 ? `<span class="vibe-toolbar-style-count">${styleAnnotationCount}</span>` : '') +
-          '<span class="vibe-toolbar-tip">Copy all</span>';
-        copyBtn.title = 'Copy all annotations';
+        pill.style.display = 'none';
       }
     }
-    if (deleteBtn) deleteBtn.disabled = totalCount === 0;
+
+    // --- Status indicator (icon-only, label in tooltip) ---
+    const statusEl = toolbarEl.querySelector('.vibe-tb-status');
+    if (statusEl) {
+      if (watcherActive) {
+        statusEl.innerHTML = ICONS.eye;
+        statusEl.style.color = 'var(--v-status-watching)';
+        statusEl.title = 'Watching — click to stop';
+      } else if (serverOnline) {
+        statusEl.innerHTML = ICONS.serverRack;
+        statusEl.style.color = 'var(--v-status-online)';
+        statusEl.title = 'MCP Server online';
+      } else {
+        statusEl.innerHTML = ICONS.serverRack;
+        statusEl.style.color = 'var(--v-status-offline)';
+        statusEl.title = 'MCP Server offline';
+      }
+    }
   }
 
   async function refreshServerStatus() {
     const status = await VibeAPI.checkServerStatus();
     const changed = serverOnline !== status.connected;
     serverOnline = status.connected;
-    if (changed) {
-      updateUI();
-      // Update settings dropdown if open
-      if (settingsDropdown) {
-        const dot = settingsDropdown.querySelector('.vibe-status-dot');
-        if (dot) dot.className = `vibe-status-dot ${serverOnline ? 'online' : 'offline'}`;
-      }
-    }
+    if (changed) updateUI();
   }
 
   async function refreshWatchers() {
@@ -948,10 +1194,7 @@ var VibeToolbar = (() => {
   }
 
   function showCopyFeedback() {
-    const btn = toolbarEl.querySelector('.vibe-tb-copy');
-    if (!btn) return;
-    btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
-    setTimeout(() => { updateUI(); }, 1200);
+    // Will be used by View All panel copy button
   }
 
   // --- Drag ---
@@ -963,7 +1206,7 @@ var VibeToolbar = (() => {
     const DRAG_THRESHOLD = 4;
 
     toolbarEl.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.vibe-toolbar-btn') && !e.target.closest('.vibe-tb-collapse')) return;
+      if (e.target.closest('.vibe-toolbar-btn') || e.target.closest('.vibe-toolbar-close') || e.target.closest('.vibe-toolbar-status') || e.target.closest('.vibe-toolbar-kbd')) return;
 
       isDragging = true;
       didDrag = false;
@@ -1009,8 +1252,8 @@ var VibeToolbar = (() => {
       }
     });
 
-    // Suppress click on collapse button if it was actually a drag
-    toolbarEl.querySelector('.vibe-tb-collapse').addEventListener('click', (e) => {
+    // Suppress clicks after drag on any toolbar button
+    toolbarEl.addEventListener('click', (e) => {
       if (didDrag) {
         e.stopImmediatePropagation();
         didDrag = false;
@@ -1021,8 +1264,13 @@ var VibeToolbar = (() => {
   async function restorePosition() {
     const pos = await VibeAPI.getToolbarPosition();
     if (pos && toolbarEl) {
-      toolbarEl.style.right = pos.right;
-      toolbarEl.style.top = pos.top;
+      // Clamp to viewport to handle saved positions from old narrower toolbar
+      const rightPx = parseInt(pos.right, 10);
+      const topPx = parseInt(pos.top, 10);
+      const maxRight = window.innerWidth - toolbarEl.offsetWidth - 8;
+      const maxTop = window.innerHeight - toolbarEl.offsetHeight - 8;
+      toolbarEl.style.right = Math.max(8, Math.min(rightPx, maxRight)) + 'px';
+      toolbarEl.style.top = Math.max(8, Math.min(topPx, maxTop)) + 'px';
     }
   }
 
