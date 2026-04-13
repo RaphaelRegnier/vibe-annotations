@@ -340,13 +340,11 @@ class VibeAnnotationsBackground {
           annotations.push(annotation);
         }
 
-        // Save to local storage FIRST (before API call that might hang)
+        // Save to local storage FIRST — return immediately to unblock UI
         await chrome.storage.local.set({ annotations });
 
-        // Then try API server — mark as synced on success
-        try {
-          await this.saveAnnotationToAPI(annotation);
-          // Re-read and update _synced flag
+        // API sync + badge update happen in the background (non-blocking)
+        this.saveAnnotationToAPI(annotation).then(async () => {
           const fresh = await chrome.storage.local.get(['annotations']);
           const arr = fresh.annotations || [];
           const target = arr.find(a => a.id === annotation.id);
@@ -354,12 +352,8 @@ class VibeAnnotationsBackground {
             target._synced = true;
             await chrome.storage.local.set({ annotations: arr });
           }
-        } catch (apiErr) {
-          console.warn('Failed to save to API, will sync later:', apiErr.message);
-        }
-
-        // Force badge update for all tabs with this URL
-        await this.updateBadgeForUrl(annotation.url);
+        }).catch(() => {});
+        this.updateBadgeForUrl(annotation.url).catch(() => {});
 
       } catch (error) {
         console.error('Error saving annotation:', error);
@@ -370,13 +364,17 @@ class VibeAnnotationsBackground {
 
   async saveAnnotationToAPI(annotation) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
       const response = await fetch(`${this.apiServerUrl}/api/annotations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(annotation)
+        body: JSON.stringify(annotation),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       
       if (!response.ok) {
         throw new Error(`API server error: ${response.status}`);
@@ -509,7 +507,8 @@ class VibeAnnotationsBackground {
 
         await chrome.storage.local.set({ annotations });
 
-        await this.updateBadgeForUrl(annotations[annotationIndex].url);
+        // Non-blocking badge update
+        this.updateBadgeForUrl(annotations[annotationIndex].url).catch(() => {});
 
       } catch (error) {
         console.error('Error updating annotation:', error);

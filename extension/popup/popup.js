@@ -229,15 +229,6 @@ class AnnotationsPopup {
       });
     }
 
-    // Theme selector
-    const themeSelect = document.getElementById('theme-select');
-    themeSelect.addEventListener('change', (e) => {
-      this.changeTheme(e.target.value);
-    });
-
-    // Initialize theme selector with current theme
-    this.updateThemeSelector();
-
     // Screenshot toggle
     const screenshotToggle = document.getElementById('screenshot-toggle');
     screenshotToggle.addEventListener('change', (e) => {
@@ -763,30 +754,18 @@ class AnnotationsPopup {
       btn.style.cursor = '';
     });
     
-    // Disable/enable delete buttons and inline editing based on server status
+    // Delete buttons and inline editing always enabled (annotations work offline)
     document.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.disabled = !this.serverOnline;
-      if (!this.serverOnline) {
-        btn.title = 'MCP server is offline';
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
-      } else {
-        btn.title = 'Delete';
-        btn.style.opacity = '';
-        btn.style.cursor = '';
-      }
+      btn.disabled = false;
+      btn.title = 'Delete';
+      btn.style.opacity = '';
+      btn.style.cursor = '';
     });
-    
-    // Enable/disable inline editing based on server status
+
     document.querySelectorAll('.annotation-item').forEach(annotationItem => {
-      if (!this.serverOnline) {
-        annotationItem.style.cursor = 'not-allowed';
-        annotationItem.title = 'MCP server is offline - cannot edit';
-        annotationItem.classList.add('disabled');
-      } else {
-        annotationItem.style.cursor = 'pointer';
-        annotationItem.title = 'Click to edit';
-        annotationItem.classList.remove('disabled');
+      annotationItem.style.cursor = 'pointer';
+      annotationItem.title = 'Click to edit';
+      annotationItem.classList.remove('disabled');
       }
     });
   }
@@ -927,7 +906,6 @@ class AnnotationsPopup {
   async updateScreenshotSetting(enabled) {
     try {
       await chrome.storage.local.set({ screenshotEnabled: enabled });
-      console.log(`Screenshot capture ${enabled ? 'enabled' : 'disabled'}`);
     } catch (error) {
       console.error('Error saving screenshot setting:', error);
     }
@@ -985,16 +963,11 @@ class AnnotationsPopup {
     if (this.annotations.length > 0) {
       // Show annotations list when there are annotations
       annotationsList.style.display = 'flex';
-    } else if (this.serverOnline) {
-      // Show setup complete screen briefly, then ready screen
-      if (this.currentScreen === 'setup-complete') {
-        setupCompleteScreen.style.display = 'flex';
-      } else {
-        readyScreen.style.display = 'flex';
-      }
+    } else if (this.currentScreen === 'setup-complete') {
+      setupCompleteScreen.style.display = 'flex';
     } else {
-      // Show welcome screen when server is offline
-      welcomeScreen.style.display = 'flex';
+      // Show ready screen — annotations work offline, server is optional for MCP
+      readyScreen.style.display = 'flex';
     }
   }
 

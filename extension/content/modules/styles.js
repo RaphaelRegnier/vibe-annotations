@@ -87,6 +87,21 @@ var VIBE_STYLES = `
 }
 
 /* ===== Animations ===== */
+@keyframes vibe-card-exit {
+  from { opacity: 1; transform: translateX(0); max-height: 80px; }
+  to   { opacity: 0; transform: translateX(-40px); max-height: 0; padding-top: 0; padding-bottom: 0; }
+}
+
+@keyframes vibe-toolbar-enter {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vibe-toolbar-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-12px); }
+}
+
 @keyframes vibe-fade-in {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
@@ -111,9 +126,9 @@ var VIBE_STYLES = `
 .vibe-highlight {
   position: fixed;
   pointer-events: none;
-  border: 2px solid rgba(99, 102, 241, 0.6);
+  border: 2px solid rgba(59, 130, 246, 0.6);
   border-radius: 2px;
-  background: rgba(99, 102, 241, 0.06);
+  background: rgba(59, 130, 246, 0.06);
   transition: all 0.1s ease;
   z-index: 1;
 }
@@ -793,6 +808,11 @@ var VIBE_STYLES = `
   cursor: default;
   transition: box-shadow 0.2s ease;
   overflow: visible;
+  animation: vibe-toolbar-enter 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.vibe-toolbar.exiting {
+  animation: vibe-toolbar-exit 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .vibe-toolbar:hover {
@@ -809,9 +829,8 @@ var VIBE_STYLES = `
   width: 22px;
   height: 22px;
   border-radius: 5px;
-  cursor: pointer;
   flex-shrink: 0;
-  pointer-events: auto;
+  pointer-events: none;
   margin: 0 4px;
 }
 
@@ -834,8 +853,8 @@ var VIBE_STYLES = `
 .vibe-toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 5px;
+  padding: 6px 8px;
   border-radius: 8px;
   border: none;
   background: transparent;
@@ -1090,6 +1109,10 @@ var VIBE_STYLES = `
   background: var(--v-toolbar-btn-hover);
 }
 
+.vibe-viewall-actions button.vibe-viewall-deleteall:hover {
+  color: var(--v-danger);
+}
+
 .vibe-viewall-actions button svg {
   width: 13px;
   height: 13px;
@@ -1126,16 +1149,17 @@ var VIBE_STYLES = `
 .vibe-viewall-route-clear {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border-radius: 5px;
   border: none;
   background: transparent;
-  color: var(--v-dot-separator);
-  font: 500 10px/1 var(--v-font);
+  color: var(--v-close-icon);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .vibe-viewall-route-header:hover .vibe-viewall-route-clear {
@@ -1143,12 +1167,13 @@ var VIBE_STYLES = `
 }
 
 .vibe-viewall-route-clear:hover {
-  color: var(--v-toolbar-text);
+  color: var(--v-danger);
+  background: var(--v-toolbar-btn-hover);
 }
 
 .vibe-viewall-route-clear svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
 }
 
 /* Annotation card */
@@ -1159,6 +1184,12 @@ var VIBE_STYLES = `
   padding: 8px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   transition: background 0.1s ease;
+  overflow: hidden;
+}
+
+.vibe-viewall-card.deleting {
+  animation: vibe-card-exit 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
 }
 
 .vibe-viewall-card:hover {
@@ -1207,14 +1238,16 @@ var VIBE_STYLES = `
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 5px;
   border: none;
   background: transparent;
-  color: var(--v-dot-separator);
+  color: var(--v-close-icon);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
   margin-top: 1px;
   flex-shrink: 0;
 }
@@ -1225,11 +1258,12 @@ var VIBE_STYLES = `
 
 .vibe-viewall-card-delete:hover {
   color: var(--v-danger);
+  background: var(--v-toolbar-btn-hover);
 }
 
 .vibe-viewall-card-delete svg {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 /* ===== Settings dropdown ===== */

@@ -162,16 +162,24 @@ var VibeAPI = (() => {
 
   // --- Settings ---
 
+  let _screenshotEnabledCache = true; // default, updated on load + save
+
   async function getScreenshotEnabled() {
     try {
       const r = await chrome.storage.local.get(['screenshotEnabled']);
-      return r.screenshotEnabled !== undefined ? r.screenshotEnabled : true;
+      _screenshotEnabledCache = r.screenshotEnabled !== undefined ? r.screenshotEnabled : true;
+      return _screenshotEnabledCache;
     } catch {
       return true;
     }
   }
 
+  function isScreenshotEnabled() {
+    return _screenshotEnabledCache;
+  }
+
   async function saveScreenshotEnabled(enabled) {
+    _screenshotEnabledCache = enabled;
     try {
       await chrome.storage.local.set({ screenshotEnabled: enabled });
     } catch { /* ignore */ }
@@ -237,18 +245,18 @@ var VibeAPI = (() => {
     } catch { /* ignore */ }
   }
 
-  function getOverlayHidden() {
+  async function getOverlayHidden() {
     try {
-      return sessionStorage.getItem('vibeOverlayHidden') === '1';
+      const r = await chrome.storage.local.get(['vibeOverlayHidden']);
+      return !!r.vibeOverlayHidden;
     } catch {
       return false;
     }
   }
 
-  function saveOverlayHidden(hidden) {
+  async function saveOverlayHidden(hidden) {
     try {
-      if (hidden) sessionStorage.setItem('vibeOverlayHidden', '1');
-      else sessionStorage.removeItem('vibeOverlayHidden');
+      await chrome.storage.local.set({ vibeOverlayHidden: !!hidden });
     } catch { /* ignore */ }
   }
 
@@ -312,6 +320,7 @@ var VibeAPI = (() => {
     deleteAnnotationsByUrl,
     onAnnotationsChanged,
     getScreenshotEnabled,
+    isScreenshotEnabled,
     saveScreenshotEnabled,
     getToolbarPosition,
     saveToolbarPosition,

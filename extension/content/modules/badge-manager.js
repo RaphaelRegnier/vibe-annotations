@@ -45,6 +45,7 @@ var VibeBadgeManager = (() => {
   let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
   let provisionalBadge = null;
+  let lastProjectTotal = 0;
   let domObserver = null;
   let rematchDebounceTimer = null;
   let lastTotal = 0; // total annotations (including unanchored)
@@ -125,7 +126,7 @@ var VibeBadgeManager = (() => {
         }
       }
     }
-    if (changed) console.log('[Vibe] Re-matched badges after framework re-render');
+    // Re-matched badges after framework re-render
   }
 
   function onProvisionalPin({ clientX, clientY }) {
@@ -137,7 +138,7 @@ var VibeBadgeManager = (() => {
     badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
     const label = document.createElement('span');
     label.className = 'vibe-badge-label';
-    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = (badges.length + 1).toString(); }
+    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = (lastProjectTotal + 1).toString(); }
     badge.appendChild(label);
     badge.style.top = `${clientY - 11}px`;
     badge.style.left = `${clientX}px`;
@@ -152,16 +153,24 @@ var VibeBadgeManager = (() => {
     }
   }
 
-  function render(annotations) {
+  async function render(annotations) {
     removeProvisional();
     // In watch mode, don't revert pending changes — agent implemented them in source
     clearAll(undefined, { skipRevert: watchMode });
+
+    // Load all project annotations for project-wide numbering and total count
+    const projectAnnotations = await VibeAPI.loadProjectAnnotations();
+    const projectSorted = [...projectAnnotations].sort((a, b) =>
+      new Date(a.created_at) - new Date(b.created_at)
+    );
+    // Build a map: annotation id → project-wide index
+    const projectIndexMap = new Map();
+    projectSorted.forEach((a, i) => projectIndexMap.set(a.id, i + 1));
 
     const sorted = [...annotations].sort((a, b) =>
       new Date(a.created_at) - new Date(b.created_at)
     );
 
-    let badgeIndex = 0;
     sorted.forEach((annotation) => {
       // Stylesheet annotations — inject as <style> tag
       if (annotation.type === 'stylesheet' && annotation.css) {
@@ -183,13 +192,15 @@ var VibeBadgeManager = (() => {
         if (annotation.css) {
           injectStyleAnnotation(annotation);
         }
-        badgeIndex++;
-        addBadge(target, annotation, badgeIndex);
+        // Badge number is project-wide
+        const badgeNum = projectIndexMap.get(annotation.id) || 1;
+        addBadge(target, annotation, badgeNum);
       }
     });
 
     lastTotal = annotations.length;
-    VibeEvents.emit('badges:rendered', { count: badges.length, total: annotations.length, styleCount: styleInjections.filter(s => s.annotation.type === 'stylesheet').length });
+    lastProjectTotal = projectAnnotations.length;
+    VibeEvents.emit('badges:rendered', { count: badges.length, total: projectAnnotations.length, styleCount: styleInjections.filter(s => s.annotation.type === 'stylesheet').length });
   }
 
   function injectStyleAnnotation(annotation) {
@@ -215,10 +226,12 @@ var VibeBadgeManager = (() => {
     badge.appendChild(label);
 
     // Tooltip
-    const tooltip = document.createElement('div');
-    tooltip.className = 'vibe-badge-tooltip';
-    tooltip.textContent = annotation.comment;
-    badge.appendChild(tooltip);
+    if (annotation.comment) {
+      const tooltip = document.createElement('div');
+      tooltip.className = 'vibe-badge-tooltip';
+      tooltip.textContent = annotation.comment;
+      badge.appendChild(tooltip);
+    }
 
     root.appendChild(badge);
 
@@ -250,21 +263,48 @@ var VibeBadgeManager = (() => {
     entry.el.style.left = `${rect.left + (off ? off.x : rect.width / 2)}px`;
   }
 
+  let repositionTimer = null;
+  let scrollListener = null;
+  let resizeObserver = null;
+
+  function repositionAll() {
+    for (const entry of badges) positionBadge(entry);
+  }
+
+  function scheduleReposition() {
+    if (repositionTimer) return;
+    repositionTimer = requestAnimationFrame(() => {
+      repositionTimer = null;
+      repositionAll();
+    });
+  }
+
   function startRAF() {
-    const tick = () => {
-      for (const entry of badges) {
-        positionBadge(entry);
+    // Use scroll + resize listeners instead of permanent RAF loop
+    if (scrollListener) return;
+
+    scrollListener = () => scheduleReposition();
+    window.addEventListener('scroll', scrollListener, { passive: true, capture: true });
+    window.addEventListener('resize', scrollListener, { passive: true });
+
+    // ResizeObserver for layout changes on badge targets
+    resizeObserver = new ResizeObserver(() => scheduleReposition());
+    for (const entry of badges) {
+      if (entry.targetElement.isConnected) {
+        resizeObserver.observe(entry.targetElement);
       }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
+    }
   }
 
   function stopRAF() {
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
+    if (repositionTimer) { cancelAnimationFrame(repositionTimer); repositionTimer = null; }
+    if (scrollListener) {
+      window.removeEventListener('scroll', scrollListener, { capture: true });
+      window.removeEventListener('resize', scrollListener);
+      scrollListener = null;
     }
+    if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   }
 
   function clearAll(annotations, { skipRevert = false } = {}) {
@@ -343,8 +383,17 @@ var VibeBadgeManager = (() => {
   function onUpdated({ id, comment, pending_changes, css }) {
     const entry = badges.find(b => b.annotation.id === id);
     if (entry) {
-      const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
-      if (tooltip) tooltip.textContent = comment;
+      let tooltip = entry.el.querySelector('.vibe-badge-tooltip');
+      if (comment) {
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.className = 'vibe-badge-tooltip';
+          entry.el.appendChild(tooltip);
+        }
+        tooltip.textContent = comment;
+      } else if (tooltip) {
+        tooltip.remove();
+      }
       const oldPC = entry.annotation.pending_changes;
       // Revert old changes before applying new state
       if (oldPC) {

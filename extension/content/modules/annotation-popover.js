@@ -644,45 +644,55 @@ var VibeAnnotationPopover = (() => {
       });
     }
 
-    // Save
-    saveBtn.addEventListener('click', async () => {
-      const comment = textarea.value.trim();
-      const pendingChanges = buildPendingChanges();
-      const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value.trim() : '';
-      const cssField = cssRulesVal || null;
+    // Save (guarded against duplicate clicks)
+    let saving = false;
+    async function doSave() {
+      if (saving) return;
+      saving = true;
+      saveBtn.disabled = true;
 
-      // Clean up collateral inline styles from live-preview handlers
-      // (e.g. applyPadVH writes all 4 paddings even when only vertical changed).
-      // Restore to pre-popover baseline, then apply only tracked changes.
-      // This is synchronous so the browser paints a single frame — no clip.
-      targetElement.style.cssText = activeOriginalCssText || '';
-      if (pendingChanges) {
-        for (const prop of Object.keys(pendingChanges)) {
-          if (prop === 'copyChange') continue;
-          if (pendingChanges[prop]) targetElement.style[prop] = pendingChanges[prop].value;
+      try {
+        const comment = textarea.value.trim();
+        const pendingChanges = buildPendingChanges();
+        const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value.trim() : '';
+        const cssField = cssRulesVal || null;
+
+        // Clean up collateral inline styles from live-preview handlers
+        targetElement.style.cssText = activeOriginalCssText || '';
+        if (pendingChanges) {
+          for (const prop of Object.keys(pendingChanges)) {
+            if (prop === 'copyChange') continue;
+            if (pendingChanges[prop]) targetElement.style[prop] = pendingChanges[prop].value;
+          }
         }
-      }
 
-      if (isEdit) {
-        const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges, css: cssField };
-        await VibeAPI.updateAnnotation(existingAnnotation.id, updates);
-        VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
-      } else {
-        const annotation = buildAnnotation(context, comment, pendingChanges);
-        annotation.selector_preview = getElementOpenTagPreview(targetElement);
-        annotation.element_context.id = targetElement.id || null;
-        annotation.element_context.role = targetElement.getAttribute('role') || null;
-        if (cssField) annotation.css = cssField;
-        if (clickX != null) {
-          const r = targetElement.getBoundingClientRect();
-          annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
+        if (isEdit) {
+          const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges, css: cssField };
+          await VibeAPI.updateAnnotation(existingAnnotation.id, updates);
+          VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
+        } else {
+          const annotation = buildAnnotation(context, comment, pendingChanges);
+          annotation.selector_preview = getElementOpenTagPreview(targetElement);
+          annotation.element_context.id = targetElement.id || null;
+          annotation.element_context.role = targetElement.getAttribute('role') || null;
+          if (cssField) annotation.css = cssField;
+          if (clickX != null) {
+            const r = targetElement.getBoundingClientRect();
+            annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
+          }
+          await VibeAPI.saveAnnotation(annotation);
+          VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
         }
-        await VibeAPI.saveAnnotation(annotation);
-        VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
-      }
 
-      dismiss(true, true);
-    });
+        dismiss(true, true);
+      } catch (err) {
+        saving = false;
+        saveBtn.disabled = false;
+        console.warn('[Vibe] Save failed:', err);
+      }
+    }
+
+    saveBtn.addEventListener('click', doSave);
   }
 
   // --- Content (text edit) toolbar HTML + wiring ---

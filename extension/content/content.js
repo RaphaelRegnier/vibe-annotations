@@ -1,8 +1,6 @@
 // Vibe Annotations V2 — Entry Point
 // Orchestrates all modules loaded via manifest.json content_scripts
 // Modules are loaded in order and share execution context (no build step)
-console.log('[Vibe] content.js loaded');
-
 (async function VibeAnnotationsV2() {
   'use strict';
 
@@ -34,8 +32,13 @@ console.log('[Vibe] content.js loaded');
     // 1. Shadow host + styles
     VibeShadowHost.init();
 
-    // 1b. Overlay hidden state is restored synchronously in VibeShadowHost.init()
-    const overlayClosed = VibeAPI.getOverlayHidden();
+    // 1b. Overlay hidden state — persisted in chrome.storage.local
+    const overlayClosed = await VibeAPI.getOverlayHidden();
+
+    // 1c. Show overlay if not closed (starts hidden to avoid flash)
+    if (!overlayClosed) {
+      VibeShadowHost.show();
+    }
 
     // 2. Theme
     await VibeThemeManager.init();
@@ -92,13 +95,14 @@ console.log('[Vibe] content.js loaded');
           break;
 
         case 'toggleOverlay':
-          VibeShadowHost.toggle();
           if (VibeShadowHost.isVisible()) {
-            VibeEvents.emit('overlay:opened');
+            // Animate out — toolbar handles the actual hide via animateToolbarOut
+            VibeToolbar.animateOut();
+            sendResponse({ success: true, visible: false });
           } else {
-            VibeEvents.emit('overlay:closed');
+            VibeShadowHost.show();
+            sendResponse({ success: true, visible: true });
           }
-          sendResponse({ success: true, visible: VibeShadowHost.isVisible() });
           break;
 
         case 'getOverlayState':
@@ -131,7 +135,7 @@ console.log('[Vibe] content.js loaded');
             if (VibeShadowHost.isVisible()) {
               VibeEvents.emit('annotations:render', annotations);
             }
-          });
+          }).catch(() => {});
           sendResponse({ success: true });
           break;
 
@@ -150,7 +154,6 @@ console.log('[Vibe] content.js loaded');
       const newURL = window.location.href;
       if (newURL === currentURL) return;
       currentURL = newURL;
-      console.log('[Vibe] SPA route change detected:', newURL);
       reloadAnnotationsForCurrentRoute();
     }
 
@@ -160,11 +163,18 @@ console.log('[Vibe] content.js loaded');
     // Hash-based routers
     window.addEventListener('hashchange', onRouteChange);
 
-    // Poll for URL changes caused by pushState/replaceState.
-    // Content scripts run in an isolated world so we can't monkey-patch
-    // the page's history object, and inline script injection gets blocked
-    // by CSP on many sites. Polling is reliable regardless of CSP or framework.
-    setInterval(onRouteChange, 300);
+    // Detect pushState/replaceState navigations via DOM observation.
+    // SPAs update the URL without firing popstate/hashchange, but they
+    // almost always mutate <title> or other head elements on navigation.
+    // A MutationObserver on <head> catches these changes without polling.
+    const headObserver = new MutationObserver(() => onRouteChange());
+    if (document.head) {
+      headObserver.observe(document.head, { childList: true, subtree: true, characterData: true });
+    }
+    // Also observe URL changes via the Navigation API if available (Chrome 102+)
+    if (typeof navigation !== 'undefined') {
+      navigation.addEventListener('navigatesuccess', onRouteChange);
+    }
   }
 
   async function reloadAnnotationsForCurrentRoute() {
@@ -203,7 +213,7 @@ console.log('[Vibe] content.js loaded');
     let customShortcut = null;
 
     // Load custom shortcut from storage
-    VibeAPI.getCustomShortcut().then(s => { customShortcut = s; });
+    VibeAPI.getCustomShortcut().then(s => { customShortcut = s; }).catch(() => {});
 
     // Listen for storage changes to update live
     chrome.storage.onChanged.addListener((changes, ns) => {
@@ -370,7 +380,6 @@ console.log('[Vibe] content.js loaded');
         if (found >= elementCount) {
           lazyObserver.disconnect();
           lazyObserver = null;
-          console.log('[Vibe] All badges resolved via lazy observer');
         }
       }, 300);
     });

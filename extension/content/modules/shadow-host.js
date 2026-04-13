@@ -27,10 +27,9 @@ var VibeShadowHost = (() => {
     styleEl.textContent = VIBE_STYLES;
     shadowRoot.appendChild(styleEl);
 
-    // Restore hidden state before appending to avoid flash
-    if (VibeAPI.getOverlayHidden()) {
-      hostEl.style.display = 'none';
-    }
+    // Hidden state is checked async in content.js after init
+    // Start hidden to avoid flash, content.js will show if not hidden
+    hostEl.style.display = 'none';
 
     document.body.appendChild(hostEl);
 
@@ -67,6 +66,7 @@ var VibeShadowHost = (() => {
   function show() {
     if (hostEl) hostEl.style.display = '';
     VibeAPI.saveOverlayHidden(false);
+    VibeEvents.emit('overlay:shown');
   }
 
   function isVisible() {

@@ -1,6 +1,4 @@
 // Lightweight pub/sub event bus for inter-module communication
-console.log('[Vibe V2] event-bus.js loaded');
-
 var VibeEvents = (() => {
   const listeners = new Map();
 

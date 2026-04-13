@@ -54,6 +54,7 @@
         "https://*.localhost/*",
         "file:///*"
       ],
+      "all_frames": true,
       "js": [
         "content/modules/event-bus.js",
         "content/modules/styles.js",

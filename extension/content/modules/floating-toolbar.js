@@ -91,14 +91,32 @@ var VibeToolbar = (() => {
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = count; styleAnnotationCount = styleCount || 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
-    VibeEvents.on('overlay:closed', resetPosition);
+    VibeEvents.on('overlay:closed', () => { resetPosition(); stopPolling(); });
+    VibeEvents.on('overlay:shown', () => { startPolling(); animateToolbarIn(); });
 
-    // Periodic server status + watcher check
-    setInterval(refreshServerStatus, 10000);
-    refreshWatchers();
-    setInterval(refreshWatchers, 5000);
+    // Start periodic checks
+    startPolling();
+  }
+
+  let serverPollId = null;
+  let watcherPollId = null;
+
+  function startPolling() {
+    if (!serverPollId) {
+      refreshServerStatus();
+      serverPollId = setInterval(refreshServerStatus, 10000);
+    }
+    if (!watcherPollId) {
+      refreshWatchers();
+      watcherPollId = setInterval(refreshWatchers, 5000);
+    }
+  }
+
+  function stopPolling() {
+    if (serverPollId) { clearInterval(serverPollId); serverPollId = null; }
+    if (watcherPollId) { clearInterval(watcherPollId); watcherPollId = null; }
   }
 
   let viewAllPanel = null;
@@ -123,12 +141,11 @@ var VibeToolbar = (() => {
             <span>View all</span>
             <span class="vibe-toolbar-pill" style="display:none">0</span>
           </button>
-          <div class="vibe-toolbar-spacer"></div>
           <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
             ${ICONS.settings}
             <span>Settings</span>
           </button>
-          <button class="vibe-toolbar-status vibe-tb-status" title="Offline">
+          <button class="vibe-toolbar-status vibe-tb-status" title="Offline" style="margin-left:4px;">
             ${ICONS.serverRack}
           </button>
         </div>
@@ -178,13 +195,12 @@ var VibeToolbar = (() => {
       toggleSettings();
     });
 
-    // Close
+    // Close — animate out then hide
     toolbarEl.querySelector('.vibe-tb-close').addEventListener('click', () => {
-      VibeEvents.emit('overlay:closed');
-      VibeShadowHost.hide();
+      animateToolbarOut();
     });
 
-    // Status — watching: stop watchers; offline/online: toggle settings > MCP
+    // Status — watching: stop watchers; offline/online: open MCP setup docs
     toolbarEl.querySelector('.vibe-tb-status').addEventListener('click', async (e) => {
       e.stopPropagation();
       if (watcherActive) {
@@ -194,17 +210,16 @@ var VibeToolbar = (() => {
         VibeEvents.emit('watch:changed', { active: false });
         return;
       }
-      if (settingsDropdown) {
-        closeSettings();
-        return;
-      }
       closeViewAll();
+      closeSettings();
       openSettings();
+      // Navigate into Documentation, then MCP setup
       requestAnimationFrame(() => {
-        if (settingsDropdown) {
-          const mcpBtn = settingsDropdown.querySelector('.vibe-mcp-server-btn');
+        showDocumentation();
+        requestAnimationFrame(() => {
+          const mcpBtn = settingsDropdown?.querySelector('.vibe-mcp-server-btn');
           if (mcpBtn) mcpBtn.click();
-        }
+        });
       });
     });
   }
@@ -226,7 +241,7 @@ var VibeToolbar = (() => {
     const btn = toolbarEl.querySelector('.vibe-tb-viewall');
     if (btn) btn.classList.add('active');
 
-    const annotations = await VibeAPI.loadAnnotations();
+    const annotations = await VibeAPI.loadProjectAnnotations();
     const hostname = window.location.host || window.location.hostname;
 
     // Group by route (path)
@@ -295,7 +310,7 @@ var VibeToolbar = (() => {
               <span class="vibe-viewall-route-path">${escapeHTML(path)}</span>
               <span class="vibe-viewall-route-count">${items.length}</span>
             </div>
-            <button class="vibe-viewall-route-clear" data-path="${escapeHTML(path)}" title="Clear route">${smallTrash}<span>Clear</span></button>
+            <button class="vibe-viewall-route-clear" data-path="${escapeHTML(path)}" title="Clear route">${smallTrash}</button>
           </div>
           ${cardsHTML}
         </div>
@@ -322,9 +337,9 @@ var VibeToolbar = (() => {
 
     // --- Wire View All actions ---
 
-    // Copy all
+    // Copy all (project-wide)
     viewAllPanel.querySelector('.vibe-viewall-copy').addEventListener('click', async () => {
-      const all = await VibeAPI.loadAnnotations();
+      const all = await VibeAPI.loadProjectAnnotations();
       if (!all.length) return;
       const text = formatAnnotationsForClipboard(all);
       try { await navigator.clipboard.writeText(text); } catch {
@@ -332,9 +347,9 @@ var VibeToolbar = (() => {
         document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
       }
       if (clearOnCopy) {
-        annotationCount = 0; styleAnnotationCount = 0;
+        for (const a of all) await VibeAPI.deleteAnnotation(a.id);
+        annotationCount = 0;
         VibeEvents.emit('annotations:cleared', { count: all.length });
-        await VibeAPI.deleteAnnotationsByUrl();
         openViewAll(); // refresh
       }
     });
@@ -344,7 +359,7 @@ var VibeToolbar = (() => {
       showExportModal();
     });
 
-    // Delete all
+    // Delete all (animate all cards out with stagger, then delete)
     viewAllPanel.querySelector('.vibe-viewall-deleteall').addEventListener('click', async () => {
       const root = VibeShadowHost.getRoot();
       if (!root) return;
@@ -353,35 +368,55 @@ var VibeToolbar = (() => {
         const confirmed = await showDeleteConfirm(root);
         if (!confirmed) return;
       }
-      annotationCount = 0; styleAnnotationCount = 0;
+      const allCards = viewAllPanel.querySelectorAll('.vibe-viewall-card');
+      allCards.forEach((card, i) => {
+        setTimeout(() => card.classList.add('deleting'), i * 40);
+      });
+      await new Promise(r => setTimeout(r, allCards.length * 40 + 300));
+      for (const a of annotations) {
+        await VibeAPI.deleteAnnotation(a.id);
+      }
+      annotationCount = 0;
       VibeEvents.emit('annotations:cleared', { count: annotations.length });
-      await VibeAPI.deleteAnnotationsByUrl();
-      openViewAll(); // refresh
+      openViewAll();
     });
 
-    // Per-route clear
+    // Per-route clear (animate each card out with stagger, then delete)
     viewAllPanel.querySelectorAll('.vibe-viewall-route-clear').forEach(btn => {
       btn.addEventListener('click', async () => {
         const path = btn.dataset.path;
         const routeAnnotations = routeGroups[path] || [];
+        const routeEl = btn.closest('.vibe-viewall-route');
+        if (routeEl) {
+          const cards = routeEl.querySelectorAll('.vibe-viewall-card');
+          cards.forEach((card, i) => {
+            setTimeout(() => card.classList.add('deleting'), i * 50);
+          });
+          await new Promise(r => setTimeout(r, cards.length * 50 + 300));
+        }
         for (const a of routeAnnotations) {
           await VibeAPI.deleteAnnotation(a.id);
         }
         annotationCount = Math.max(0, annotationCount - routeAnnotations.length);
         VibeEvents.emit('annotations:cleared', { count: routeAnnotations.length });
-        openViewAll(); // refresh
+        openViewAll();
       });
     });
 
-    // Per-card delete
+    // Per-card delete (animate out then delete)
     viewAllPanel.querySelectorAll('.vibe-viewall-card-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
+        const card = btn.closest('.vibe-viewall-card');
+        if (card) {
+          card.classList.add('deleting');
+          await new Promise(r => setTimeout(r, 300));
+        }
         await VibeAPI.deleteAnnotation(id);
         annotationCount = Math.max(0, annotationCount - 1);
         updateUI();
-        openViewAll(); // refresh
+        openViewAll();
       });
     });
 
@@ -469,16 +504,6 @@ var VibeToolbar = (() => {
           ${ICONS.book}
           <span>Documentation</span>
           <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-        </button>
-        <div class="vibe-settings-separator"></div>
-        <button class="vibe-settings-link vibe-mcp-server-btn" type="button">
-          ${ICONS.server}
-          <span>MCP Server</span>
-          <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-            <span class="vibe-status-dot ${serverOnline ? 'online' : 'offline'}"></span>
-            <span style="font-size:12px;color:var(--v-text-secondary);">${serverOnline ? 'Connected' : 'Offline'}</span>
-            <span style="color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
-          </span>
         </button>
         <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
@@ -592,11 +617,6 @@ var VibeToolbar = (() => {
       });
     });
 
-    // MCP Server setup
-    settingsDropdown.querySelector('.vibe-mcp-server-btn').addEventListener('click', () => {
-      showWorkflow('mcp-setup');
-    });
-
     // Documentation
     settingsDropdown.querySelector('.vibe-get-started-btn').addEventListener('click', () => {
       showDocumentation();
@@ -640,6 +660,11 @@ var VibeToolbar = (() => {
       <button class="vibe-settings-link vibe-get-started-guide-btn" type="button">
         ${ICONS.rocket}
         <span>Get started</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-mcp-server-btn" type="button">
+        ${ICONS.server}
+        <span>MCP Server</span>
         <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
       </button>
       <div class="vibe-settings-separator"></div>
@@ -687,6 +712,9 @@ var VibeToolbar = (() => {
 
     // Get started guide
     body.querySelector('.vibe-get-started-guide-btn').addEventListener('click', () => showGetStartedGuide());
+
+    // MCP Server setup
+    body.querySelector('.vibe-mcp-server-btn').addEventListener('click', () => showWorkflow('mcp-setup'));
 
     // Workflow navigation buttons
     body.querySelectorAll('.vibe-workflow-btn').forEach(btn => {
@@ -1195,6 +1223,27 @@ var VibeToolbar = (() => {
 
   function showCopyFeedback() {
     // Will be used by View All panel copy button
+  }
+
+  function animateToolbarOut() {
+    if (!toolbarEl) return;
+    closeSettings();
+    closeViewAll();
+    toolbarEl.classList.add('exiting');
+    toolbarEl.addEventListener('animationend', () => {
+      toolbarEl.classList.remove('exiting');
+      VibeEvents.emit('overlay:closed');
+      VibeShadowHost.hide();
+    }, { once: true });
+  }
+
+  function animateToolbarIn() {
+    if (!toolbarEl) return;
+    // Reset animation by removing and re-adding
+    toolbarEl.style.animation = 'none';
+    requestAnimationFrame(() => {
+      toolbarEl.style.animation = '';
+    });
   }
 
   // --- Drag ---
@@ -1756,5 +1805,5 @@ var VibeToolbar = (() => {
     return clean.substring(0, max) + '\u2026';
   }
 
-  return { init };
+  return { init, animateOut: animateToolbarOut };
 })();
