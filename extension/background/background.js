@@ -972,7 +972,9 @@ class VibeAnnotationsBackground {
           'content/modules/element-context.js',
           'content/modules/badge-manager.js',
           'content/modules/inspection-mode.js',
+          'content/modules/popover-panels.js',
           'content/modules/annotation-popover.js',
+          'content/modules/toolbar-docs.js',
           'content/modules/floating-toolbar.js',
           'content/modules/bridge-handler.js',
           'content/content.js'

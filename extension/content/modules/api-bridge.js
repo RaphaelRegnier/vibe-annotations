@@ -87,67 +87,27 @@ var VibeAPI = (() => {
   }
 
   async function saveAnnotation(annotation) {
-    try {
-      const r = await chrome.runtime.sendMessage({ action: 'saveAnnotation', annotation });
-      if (!r || !r.success) throw new Error(r?.error || 'save failed');
-      return true;
-    } catch (e) {
-      // Fallback: direct storage
-      console.warn('saveAnnotation bg failed, using storage fallback', e);
-      const result = await chrome.storage.local.get(['annotations']);
-      const all = result.annotations || [];
-      all.push(annotation);
-      await chrome.storage.local.set({ annotations: all });
-      return true;
-    }
+    const r = await chrome.runtime.sendMessage({ action: 'saveAnnotation', annotation });
+    if (!r || !r.success) throw new Error(r?.error || 'save failed');
+    return true;
   }
 
   async function updateAnnotation(id, updates) {
-    try {
-      const r = await chrome.runtime.sendMessage({ action: 'updateAnnotation', id, updates });
-      if (!r || !r.success) throw new Error(r?.error || 'update failed');
-      return true;
-    } catch (e) {
-      console.warn('updateAnnotation bg failed, using storage fallback', e);
-      const result = await chrome.storage.local.get(['annotations']);
-      const all = result.annotations || [];
-      const idx = all.findIndex(a => a.id === id);
-      if (idx !== -1) {
-        all[idx] = { ...all[idx], ...updates };
-        await chrome.storage.local.set({ annotations: all });
-      }
-      return true;
-    }
+    const r = await chrome.runtime.sendMessage({ action: 'updateAnnotation', id, updates });
+    if (!r || !r.success) throw new Error(r?.error || 'update failed');
+    return true;
   }
 
   async function deleteAnnotation(id) {
-    try {
-      const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotation', id });
-      if (!r || !r.success) throw new Error(r?.error || 'delete failed');
-      return true;
-    } catch (e) {
-      console.warn('deleteAnnotation bg failed, using storage fallback', e);
-      const result = await chrome.storage.local.get(['annotations']);
-      const all = result.annotations || [];
-      const filtered = all.filter(a => a.id !== id);
-      await chrome.storage.local.set({ annotations: filtered });
-      return true;
-    }
+    const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotation', id });
+    if (!r || !r.success) throw new Error(r?.error || 'delete failed');
+    return true;
   }
 
   async function deleteAnnotationsByUrl() {
-    try {
-      const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotationsByUrl', url: window.location.href });
-      if (!r || !r.success) throw new Error(r?.error || 'bulk delete failed');
-      return r.count || 0;
-    } catch (e) {
-      console.warn('deleteAnnotationsByUrl bg failed, using storage fallback', e);
-      const result = await chrome.storage.local.get(['annotations']);
-      const all = result.annotations || [];
-      const remaining = all.filter(a => a.url !== window.location.href);
-      await chrome.storage.local.set({ annotations: remaining });
-      return all.length - remaining.length;
-    }
+    const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotationsByUrl', url: window.location.href });
+    if (!r || !r.success) throw new Error(r?.error || 'bulk delete failed');
+    return r.count || 0;
   }
 
   // --- Storage listeners ---
