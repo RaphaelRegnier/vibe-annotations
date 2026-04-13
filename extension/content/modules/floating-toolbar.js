@@ -373,11 +373,10 @@ var VibeToolbar = (() => {
         setTimeout(() => card.classList.add('deleting'), i * 40);
       });
       await new Promise(r => setTimeout(r, allCards.length * 40 + 300));
+      if (viewAllPanel) viewAllPanel._suppressRefresh = true;
       for (const a of annotations) {
         await VibeAPI.deleteAnnotation(a.id);
       }
-      annotationCount = 0;
-      VibeEvents.emit('annotations:cleared', { count: annotations.length });
       openViewAll();
     });
 
@@ -394,11 +393,10 @@ var VibeToolbar = (() => {
           });
           await new Promise(r => setTimeout(r, cards.length * 50 + 300));
         }
+        if (viewAllPanel) viewAllPanel._suppressRefresh = true;
         for (const a of routeAnnotations) {
           await VibeAPI.deleteAnnotation(a.id);
         }
-        annotationCount = Math.max(0, annotationCount - routeAnnotations.length);
-        VibeEvents.emit('annotations:cleared', { count: routeAnnotations.length });
         openViewAll();
       });
     });
@@ -413,9 +411,8 @@ var VibeToolbar = (() => {
           card.classList.add('deleting');
           await new Promise(r => setTimeout(r, 300));
         }
+        if (viewAllPanel) viewAllPanel._suppressRefresh = true;
         await VibeAPI.deleteAnnotation(id);
-        annotationCount = Math.max(0, annotationCount - 1);
-        updateUI();
         openViewAll();
       });
     });
@@ -438,12 +435,13 @@ var VibeToolbar = (() => {
       });
     });
 
-    // Listen for annotation changes to refresh (debounced to avoid loops)
+    // Listen for external annotation changes (e.g. MCP deletion, other tab sync)
+    // Skip refresh if the panel itself triggered the change (via delete actions)
     let refreshPending = false;
     const refreshHandler = () => {
-      if (!viewAllPanel || refreshPending) return;
+      if (!viewAllPanel || refreshPending || viewAllPanel._suppressRefresh) return;
       refreshPending = true;
-      setTimeout(() => { refreshPending = false; if (viewAllPanel) openViewAll(); }, 300);
+      setTimeout(() => { refreshPending = false; if (viewAllPanel && !viewAllPanel._suppressRefresh) openViewAll(); }, 600);
     };
     VibeEvents.on('badges:rendered', refreshHandler);
 

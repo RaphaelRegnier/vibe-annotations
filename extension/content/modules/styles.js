@@ -1133,7 +1133,7 @@ var VIBE_STYLES = `
 }
 
 .vibe-viewall-route-path {
-  color: var(--v-close-icon);
+  color: var(--v-text-secondary);
   font: 500 11px/1 var(--v-font-mono);
   letter-spacing: 0.02em;
 }
@@ -1205,8 +1205,8 @@ var VIBE_STYLES = `
 }
 
 .vibe-viewall-selector {
-  color: var(--v-dot-separator);
-  font: 400 10px/1.3 var(--v-font-mono);
+  color: var(--v-text-secondary);
+  font: 400 10.5px/1.3 var(--v-font-mono);
 }
 
 .vibe-viewall-comment {
