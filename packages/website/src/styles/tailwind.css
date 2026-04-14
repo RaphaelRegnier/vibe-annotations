@@ -1,0 +1,23 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@theme {
+  --font-family-sans: "General Sans", var(--font-general-sans), system-ui, sans-serif;
+  
+  --color-accent: #FF6B35;
+  --color-accent-dark: #E55A2B;
+  --color-accent-light: #FF8055;
+}
+
+@layer base {
+  :root {
+    --font-general-sans: "General Sans", system-ui, sans-serif;
+  }
+  
+  body {
+    font-family: var(--font-general-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

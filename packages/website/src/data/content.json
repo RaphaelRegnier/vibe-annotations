@@ -1,0 +1,118 @@
+{
+  "hero": {
+    "badges": [
+      "100% Free",
+      "No Account & Subscription", 
+      "Open Source"
+    ],
+    "title": [
+      "Get all your AI feedbacks",
+      "implemented at once"
+    ],
+    "description": "Drop visual annotations on your site and watch AI coding agents handle every fix instantly. Never leave your browser, everything runs locally and stays secure.",
+    "cta": "Get The Free Extension"
+  },
+  "howItWorks": {
+    "subtitle": "How it works",
+    "title": "Visual feedback meets AI automation",
+    "description": {
+      "problem": "Here's the problem: Your AI is smart, but your feedback workflow isn't keeping up.",
+      "details": "You're spending hours explaining UI issues one element at a time, taking screenshots to show what needs fixing, copy-pasting HTML selectors, and describing vague locations like \"the button in the top right\" which only leads to more confusion.",
+      "solution": "Vibe Annotations is a better way to streamline this process and make your feedback workflow as intelligent as your AI."
+    },
+    "demoButton": "Play The Demo (1min)",
+    "steps": [
+      {
+        "title": "1. Click & Comment",
+        "description": "Drop annotations directly on any element. No selectors. No screenshots. Just click and type."
+      },
+      {
+        "title": "2. Batch Everything", 
+        "description": "Annotate across multiple pages, multiple elements. Build your complete feedback queue in seconds."
+      },
+      {
+        "title": "3. AI Implements All",
+        "description": "Send everything to Claude Code, Cursor, GitHub Copilot, or Windsurf. Watch as every annotation becomes working code."
+      }
+    ]
+  },
+  "features": {
+    "subtitle": "Features",
+    "title": "Everything you need, nothing you don't",
+    "cta": "Get The Free Extension",
+    "items": [
+      {
+        "title": "Precision Inspector",
+        "description": "Click any element to annotate. Your AI gets exact context via the API: DOM structure, styles, zoned-screenshot (optional) and your instructions.",
+        "icon": "heroicons:cursor-arrow-rays-20-solid"
+      },
+      {
+        "title": "Multi-Page Annotations",
+        "description": "Drop feedback across your entire app. Process all pages and routes in a single AI session. You can go up to 200 annotations at once!",
+        "icon": "heroicons:globe-alt"
+      },
+      {
+        "title": "Universal AI Support",
+        "description": "Works with Claude Code, Cursor, Windsurf, and any MCP-compatible coding agent. Just copy-paste the given lines on installation.",
+        "icon": "heroicons:sparkles"
+      },
+      {
+        "title": "Local-First Architecture",
+        "description": "Vibe Annotations works on localhost and local files. Your data never leaves your machine. No cloud. No tracking. Complete privacy.",
+        "icon": "heroicons:lock-closed-20-solid"
+      },
+      {
+        "title": "Zero Configuration",
+        "description": "Install extension. Start server. Add MCP. Annotate. That's it. No API keys, no accounts, 1min and you're set.",
+        "icon": "heroicons:cog-6-tooth"
+      },
+      {
+        "title": "Developer-Friendly",
+        "description": "Light/dark themes. Keyboard shortcuts. Designed by developers, for developers.",
+        "icon": "heroicons:command-line"
+      }
+    ]
+  },
+  "faq": {
+    "subtitle": "Some extra info",
+    "title": "Frequently Asked Questions",
+    "items": [
+      {
+        "question": "What browsers are compatible?",
+        "answer": "Vibe Annotations works with all Chromium-based browsers including Google Chrome, Microsoft Edge, Brave, Opera, Vivaldi, and Arc. Since it's built as a Chromium extension, it's compatible with any browser that supports the Chrome Web Store extensions."
+      },
+      {
+        "question": "What are the installation steps?",
+        "answer": "1. Install the Vibe Annotations browser extension from the Chrome Web Store. 2. Download and run the MCP server locally. 3. Add the MCP configuration to your AI coding agent (Claude Code, Cursor, etc.). 4. Start annotating! The whole process takes less than 2 minutes."
+      },
+      {
+        "question": "How much does it cost?",
+        "answer": "Vibe Annotations is completely free and open source. There are no hidden costs, no subscription fees, and no premium features behind a paywall. We believe powerful developer tools should be accessible to everyone."
+      },
+      {
+        "question": "What are the upcoming features?",
+        "answer": "We're focusing on designer handoff to dev, visual edits, and general improvements. These features will make collaboration between designers and developers even smoother. Join our GitHub community to vote on features and stay updated!"
+      },
+      {
+        "question": "It's Open Source, can I contribute?",
+        "answer": "Absolutely! Vibe Annotations is open source and we welcome contributions. You can contribute code, documentation, bug reports, or feature requests. Check out our GitHub repository to get started. We have good first issues labeled for new contributors."
+      },
+      {
+        "question": "I can't make it work, can I get some assistance?",
+        "answer": "Yes! We offer several support channels: GitHub Issues for bug reports, comprehensive documentation, and video tutorials. Most setup issues are resolved within minutes with our troubleshooting guide."
+      }
+    ]
+  },
+  "footer": {
+    "logo": "Vibe Annotations",
+    "links": [
+      "Get the extension",
+      "Demo", 
+      "How it works",
+      "Features",
+      "FAQ",
+      "Terms and services"
+    ],
+    "copyright": "©2025 Spellbind Creative Studio"
+  }
+}
