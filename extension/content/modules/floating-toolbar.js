@@ -12,10 +12,10 @@ var VibeToolbar = (() => {
   let styleAnnotationCount = 0;
   let clearOnCopy = false;
   let screenshotEnabled = true;
-  let badgeColor = '#4b5563';
+  let badgeColor = '#D03D68';
   let watcherActive = false;
 
-  const BADGE_COLORS = ['#4b5563', '#d97757', '#3b82f6', '#22c55e', '#a855f7'];
+  const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const defaultShortcutHint = isMac ? '\u2318\u21E7,' : 'Ctrl+Shift+,';
@@ -332,7 +332,8 @@ var VibeToolbar = (() => {
     // --- Wire View All actions ---
 
     // Copy all (project-wide)
-    viewAllPanel.querySelector('.vibe-viewall-copy').addEventListener('click', async () => {
+    const copyBtn = viewAllPanel.querySelector('.vibe-viewall-copy');
+    copyBtn.addEventListener('click', async () => {
       const all = await VibeAPI.loadProjectAnnotations();
       if (!all.length) return;
       const text = formatAnnotationsForClipboard(all);
@@ -340,6 +341,12 @@ var VibeToolbar = (() => {
         const ta = document.createElement('textarea'); ta.value = text;
         document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
       }
+      // Flash checkmark feedback
+      const origHTML = copyBtn.innerHTML;
+      copyBtn.innerHTML = ICONS.check;
+      copyBtn.style.color = 'var(--v-status-online)';
+      setTimeout(() => { copyBtn.innerHTML = origHTML; copyBtn.style.color = ''; }, 1500);
+
       if (clearOnCopy) {
         for (const a of all) await VibeAPI.deleteAnnotation(a.id);
         annotationCount = 0;
@@ -1216,96 +1223,109 @@ var VibeToolbar = (() => {
 
 
   function formatAnnotationsForClipboard(annotations) {
-    const loc = window.location;
-    const route = vibeLocationPath(loc);
-    const host = loc.host;
-    const vp = annotations[0]?.viewport;
-    const vpStr = vp ? `${vp.width}\u00D7${vp.height}` : '';
+    const host = window.location.host;
     const count = annotations.length;
 
-    let header = `# Vibe Annotations \u2014 ${route}`;
-    header += `\n${host}`;
-    if (vpStr) header += ` \u00B7 ${vpStr}`;
+    let header = `# Vibe Annotations \u2014 ${host}`;
     header += ` \u00B7 ${count} annotation${count !== 1 ? 's' : ''}`;
 
-    const blocks = annotations.map((a, i) => {
-      const ec = a.element_context || {};
-      const tag = ec.tag ? `<${ec.tag}>` : '';
-      const text = ec.text ? truncate(ec.text, 40) : '';
-      const identity = [tag, text ? `"${text}"` : ''].filter(Boolean).join(' ');
+    // Group by route
+    const routeGroups = {};
+    for (const a of annotations) {
+      const route = a.url_path || (() => { try { return new URL(a.url).pathname; } catch { return '/'; } })();
+      if (!routeGroups[route]) routeGroups[route] = [];
+      routeGroups[route].push(a);
+    }
 
-      const lines = [];
-      lines.push(`${i + 1}. ${identity}`);
-      lines.push(`   Comment: ${a.comment}`);
-      lines.push(`   Selector: ${formatAnnotationSelector(a)}`);
-      const pathStr = formatAnnotationPath(a);
-      if (pathStr) lines.push(`   Path: ${pathStr}`);
+    const sections = [];
+    let globalIdx = 0;
+    for (const route of Object.keys(routeGroups).sort()) {
+      const items = routeGroups[route];
+      const routeHeader = `## ${route} (${items.length})`;
 
-      // Source file
-      if (a.source_file_path) {
-        let src = a.source_file_path;
-        if (a.source_line_range) src += ` (lines ${a.source_line_range})`;
-        lines.push(`   Source: ${src}`);
-      }
+      const blocks = items.map(a => {
+        globalIdx++;
+        const isStylesheet = a.type === 'stylesheet';
 
-      // Context hints
-      // Design changes
-      const pc = a.pending_changes;
-      if (pc) {
-        const changes = [];
-        // Text props
-        if (pc.fontSize) changes.push(`font-size: ${pc.fontSize.original} \u2192 ${pc.fontSize.value}`);
-        if (pc.fontWeight) changes.push(`font-weight: ${pc.fontWeight.original} \u2192 ${pc.fontWeight.value}`);
-        if (pc.lineHeight) changes.push(`line-height: ${pc.lineHeight.original} \u2192 ${pc.lineHeight.value}`);
-        if (pc.textAlign) changes.push(`text-align: ${pc.textAlign.original} \u2192 ${pc.textAlign.value}`);
-        // Container props
-        ['paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft'].filter(p => pc[p]).forEach(p => {
-          changes.push(`${camelToKebab(p)}: ${pc[p].original} \u2192 ${pc[p].value}`);
-        });
-        if (pc.display) changes.push(`display: ${pc.display.original} \u2192 ${pc.display.value}`);
-        if (pc.flexDirection) changes.push(`flex-direction: ${pc.flexDirection.original} \u2192 ${pc.flexDirection.value}`);
-        if (pc.flexWrap) changes.push(`flex-wrap: ${pc.flexWrap.original} \u2192 ${pc.flexWrap.value}`);
-        if (pc.justifyContent) changes.push(`justify-content: ${pc.justifyContent.original} \u2192 ${pc.justifyContent.value}`);
-        if (pc.alignItems) changes.push(`align-items: ${pc.alignItems.original} \u2192 ${pc.alignItems.value}`);
-        if (pc.gridTemplateColumns) changes.push(`grid-template-columns: ${pc.gridTemplateColumns.original} \u2192 ${pc.gridTemplateColumns.value}`);
-        if (pc.gridTemplateRows) changes.push(`grid-template-rows: ${pc.gridTemplateRows.original} \u2192 ${pc.gridTemplateRows.value}`);
-        if (pc.gap) changes.push(`gap: ${pc.gap.original} \u2192 ${pc.gap.value}`);
-        if (pc.columnGap) changes.push(`column-gap: ${pc.columnGap.original} \u2192 ${pc.columnGap.value}`);
-        if (pc.rowGap) changes.push(`row-gap: ${pc.rowGap.original} \u2192 ${pc.rowGap.value}`);
-        if (pc.borderWidth) changes.push(`border-width: ${pc.borderWidth.original} \u2192 ${pc.borderWidth.value}`);
-        if (pc.borderRadius) changes.push(`border-radius: ${pc.borderRadius.original} \u2192 ${pc.borderRadius.value}`);
-        // Colors — include variable name if present
-        if (pc.color) changes.push(`color: ${pc.color.original} \u2192 ${pc.color.variable ? `var(${pc.color.variable})` : pc.color.value}`);
-        if (pc.backgroundColor) changes.push(`background-color: ${pc.backgroundColor.original} \u2192 ${pc.backgroundColor.variable ? `var(${pc.backgroundColor.variable})` : pc.backgroundColor.value}`);
-        if (pc.borderColor) changes.push(`border-color: ${pc.borderColor.original} \u2192 ${pc.borderColor.variable ? `var(${pc.borderColor.variable})` : pc.borderColor.value}`);
-        // Sizing
-        if (pc.width) changes.push(`width: ${pc.width.original} \u2192 ${pc.width.value}`);
-        if (pc.minWidth) changes.push(`min-width: ${pc.minWidth.original} \u2192 ${pc.minWidth.value}`);
-        if (pc.maxWidth) changes.push(`max-width: ${pc.maxWidth.original} \u2192 ${pc.maxWidth.value}`);
-        if (pc.height) changes.push(`height: ${pc.height.original} \u2192 ${pc.height.value}`);
-        if (pc.minHeight) changes.push(`min-height: ${pc.minHeight.original} \u2192 ${pc.minHeight.value}`);
-        if (pc.maxHeight) changes.push(`max-height: ${pc.maxHeight.original} \u2192 ${pc.maxHeight.value}`);
-        // Catch extra raw CSS changes not covered above
-        const standardProps = new Set(['fontSize','fontWeight','lineHeight','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','display','flexDirection','flexWrap','justifyContent','alignItems','gridTemplateColumns','gridTemplateRows','gap','columnGap','rowGap','borderWidth','borderRadius','borderStyle','color','backgroundColor','borderColor','width','minWidth','maxWidth','height','minHeight','maxHeight']);
-        for (const [prop, change] of Object.entries(pc)) {
-          if (!standardProps.has(prop) && change.original && change.value) {
-            changes.push(`${camelToKebab(prop)}: ${change.original} \u2192 ${change.value}`);
+        if (isStylesheet) {
+          const lines = [];
+          lines.push(`${globalIdx}. [Stylesheet change]`);
+          if (a.comment) lines.push(`   Comment: ${a.comment}`);
+          if (a.css) lines.push(`   CSS rules:\n${a.css.split('\n').map(l => '      ' + l).join('\n')}`);
+          return lines.join('\n');
+        }
+
+        const ec = a.element_context || {};
+        const tag = ec.tag ? `<${ec.tag}>` : '';
+        const text = ec.text ? truncate(ec.text, 40) : '';
+        const identity = [tag, text ? `"${text}"` : ''].filter(Boolean).join(' ');
+
+        const lines = [];
+        lines.push(`${globalIdx}. ${identity}`);
+        if (a.comment) lines.push(`   Comment: ${a.comment}`);
+        lines.push(`   Selector: ${formatAnnotationSelector(a)}`);
+        const pathStr = formatAnnotationPath(a);
+        if (pathStr) lines.push(`   Path: ${pathStr}`);
+
+        if (a.source_file_path) {
+          let src = a.source_file_path;
+          if (a.source_line_range) src += ` (lines ${a.source_line_range})`;
+          lines.push(`   Source: ${src}`);
+        }
+
+        const pc = a.pending_changes;
+        if (pc) {
+          const changes = [];
+          if (pc.fontSize) changes.push(`font-size: ${pc.fontSize.original} \u2192 ${pc.fontSize.value}`);
+          if (pc.fontWeight) changes.push(`font-weight: ${pc.fontWeight.original} \u2192 ${pc.fontWeight.value}`);
+          if (pc.lineHeight) changes.push(`line-height: ${pc.lineHeight.original} \u2192 ${pc.lineHeight.value}`);
+          if (pc.textAlign) changes.push(`text-align: ${pc.textAlign.original} \u2192 ${pc.textAlign.value}`);
+          ['paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft'].filter(p => pc[p]).forEach(p => {
+            changes.push(`${camelToKebab(p)}: ${pc[p].original} \u2192 ${pc[p].value}`);
+          });
+          if (pc.display) changes.push(`display: ${pc.display.original} \u2192 ${pc.display.value}`);
+          if (pc.flexDirection) changes.push(`flex-direction: ${pc.flexDirection.original} \u2192 ${pc.flexDirection.value}`);
+          if (pc.flexWrap) changes.push(`flex-wrap: ${pc.flexWrap.original} \u2192 ${pc.flexWrap.value}`);
+          if (pc.justifyContent) changes.push(`justify-content: ${pc.justifyContent.original} \u2192 ${pc.justifyContent.value}`);
+          if (pc.alignItems) changes.push(`align-items: ${pc.alignItems.original} \u2192 ${pc.alignItems.value}`);
+          if (pc.gridTemplateColumns) changes.push(`grid-template-columns: ${pc.gridTemplateColumns.original} \u2192 ${pc.gridTemplateColumns.value}`);
+          if (pc.gridTemplateRows) changes.push(`grid-template-rows: ${pc.gridTemplateRows.original} \u2192 ${pc.gridTemplateRows.value}`);
+          if (pc.gap) changes.push(`gap: ${pc.gap.original} \u2192 ${pc.gap.value}`);
+          if (pc.columnGap) changes.push(`column-gap: ${pc.columnGap.original} \u2192 ${pc.columnGap.value}`);
+          if (pc.rowGap) changes.push(`row-gap: ${pc.rowGap.original} \u2192 ${pc.rowGap.value}`);
+          if (pc.borderWidth) changes.push(`border-width: ${pc.borderWidth.original} \u2192 ${pc.borderWidth.value}`);
+          if (pc.borderRadius) changes.push(`border-radius: ${pc.borderRadius.original} \u2192 ${pc.borderRadius.value}`);
+          if (pc.color) changes.push(`color: ${pc.color.original} \u2192 ${pc.color.variable ? `var(${pc.color.variable})` : pc.color.value}`);
+          if (pc.backgroundColor) changes.push(`background-color: ${pc.backgroundColor.original} \u2192 ${pc.backgroundColor.variable ? `var(${pc.backgroundColor.variable})` : pc.backgroundColor.value}`);
+          if (pc.borderColor) changes.push(`border-color: ${pc.borderColor.original} \u2192 ${pc.borderColor.variable ? `var(${pc.borderColor.variable})` : pc.borderColor.value}`);
+          if (pc.width) changes.push(`width: ${pc.width.original} \u2192 ${pc.width.value}`);
+          if (pc.minWidth) changes.push(`min-width: ${pc.minWidth.original} \u2192 ${pc.minWidth.value}`);
+          if (pc.maxWidth) changes.push(`max-width: ${pc.maxWidth.original} \u2192 ${pc.maxWidth.value}`);
+          if (pc.height) changes.push(`height: ${pc.height.original} \u2192 ${pc.height.value}`);
+          if (pc.minHeight) changes.push(`min-height: ${pc.minHeight.original} \u2192 ${pc.minHeight.value}`);
+          if (pc.maxHeight) changes.push(`max-height: ${pc.maxHeight.original} \u2192 ${pc.maxHeight.value}`);
+          const standardProps = new Set(['fontSize','fontWeight','lineHeight','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft','marginTop','marginRight','marginBottom','marginLeft','display','flexDirection','flexWrap','justifyContent','alignItems','gridTemplateColumns','gridTemplateRows','gap','columnGap','rowGap','borderWidth','borderRadius','borderStyle','color','backgroundColor','borderColor','width','minWidth','maxWidth','height','minHeight','maxHeight']);
+          for (const [prop, change] of Object.entries(pc)) {
+            if (!standardProps.has(prop) && change.original && change.value) {
+              changes.push(`${camelToKebab(prop)}: ${change.original} \u2192 ${change.value}`);
+            }
+          }
+          if (changes.length) {
+            lines.push(`   Design changes: ${changes.join(', ')}`);
           }
         }
-        if (changes.length) {
-          lines.push(`   Design changes: ${changes.join(', ')}`);
+
+        if (a.css) {
+          lines.push(`   CSS rules:\n${a.css.split('\n').map(l => '      ' + l).join('\n')}`);
         }
-      }
 
-      // CSS rules (pseudo-elements, :hover, @media, etc.)
-      if (a.css) {
-        lines.push(`   CSS rules:\n${a.css.split('\n').map(l => '      ' + l).join('\n')}`);
-      }
+        return lines.join('\n');
+      });
 
-      return lines.join('\n');
-    });
+      sections.push(routeHeader + '\n\n' + blocks.join('\n\n'));
+    }
 
-    return header + '\n\nFollow my instructions on these elements.\nWhen applying design changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens).\n\n---\n\n' + blocks.join('\n\n');
+    return header + '\n\nFollow my instructions on these elements.\nWhen applying design changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens).\n\n---\n\n' + sections.join('\n\n---\n\n');
   }
 
   function formatAnnotationPath(annotation) {

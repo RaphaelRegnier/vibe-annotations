@@ -81,7 +81,7 @@ class VibeAnnotationsBackground {
       
       // Set badge to notify user
       chrome.action.setBadgeText({ text: 'NEW' });
-      chrome.action.setBadgeBackgroundColor({ color: '#d97757' }); // Vibe orange
+      chrome.action.setBadgeBackgroundColor({ color: '#D03D68' });
       
       // Also update settings
       const result = await chrome.storage.local.get(['settings']);
@@ -571,8 +571,15 @@ class VibeAnnotationsBackground {
 
   async updateBadge(tabId, url) {
     try {
-      const annotations = await this.getAnnotations(url);
-      const pendingCount = annotations.filter(a => a.status === 'pending').length;
+      // Use local storage project-wide count to match the toolbar pill
+      const result = await chrome.storage.local.get(['annotations']);
+      const annotations = result.annotations || [];
+      let origin;
+      try { origin = new URL(url).origin; } catch { origin = null; }
+      const projectAnnotations = origin
+        ? annotations.filter(a => { try { return new URL(a.url).origin === origin; } catch { return false; } })
+        : annotations.filter(a => a.url === url);
+      const pendingCount = projectAnnotations.filter(a => a.status === 'pending').length;
       
       
       if (pendingCount > 0) {
@@ -582,7 +589,7 @@ class VibeAnnotationsBackground {
         });
         
         // Set badge color based on server status
-        const badgeColor = this.apiConnected ? '#10b981' : '#FF7A00'; // Green if online, orange if offline
+        const badgeColor = '#D03D68';
         await chrome.action.setBadgeBackgroundColor({
           tabId: tabId,
           color: badgeColor
@@ -601,12 +608,17 @@ class VibeAnnotationsBackground {
   }
 
   // Direct badge update from local storage (bypasses API)
+  // Counts all annotations for the same origin (project-wide), matching the toolbar pill
   async updateBadgeFromLocalStorage(tabId, url) {
     try {
       const result = await chrome.storage.local.get(['annotations']);
       const annotations = result.annotations || [];
-      const urlAnnotations = annotations.filter(a => a.url === url);
-      const pendingCount = urlAnnotations.filter(a => a.status === 'pending').length;
+      let origin;
+      try { origin = new URL(url).origin; } catch { origin = null; }
+      const projectAnnotations = origin
+        ? annotations.filter(a => { try { return new URL(a.url).origin === origin; } catch { return false; } })
+        : annotations.filter(a => a.url === url);
+      const pendingCount = projectAnnotations.filter(a => a.status === 'pending').length;
       
       
       if (pendingCount > 0) {
@@ -616,7 +628,7 @@ class VibeAnnotationsBackground {
         });
         
         // Set badge color based on server status
-        const badgeColor = this.apiConnected ? '#10b981' : '#FF7A00'; // Green if online, orange if offline
+        const badgeColor = '#D03D68';
         await chrome.action.setBadgeBackgroundColor({
           tabId: tabId,
           color: badgeColor

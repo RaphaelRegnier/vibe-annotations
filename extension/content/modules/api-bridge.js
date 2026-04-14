@@ -193,9 +193,9 @@ var VibeAPI = (() => {
   async function getBadgeColor() {
     try {
       const r = await chrome.storage.local.get(['vibeBadgeColor']);
-      return r.vibeBadgeColor || '#4b5563';
+      return r.vibeBadgeColor || '#D03D68';
     } catch {
-      return '#4b5563';
+      return '#D03D68';
     }
   }
 

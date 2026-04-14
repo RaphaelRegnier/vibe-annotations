@@ -34,7 +34,7 @@ var VIBE_STYLES = `
   --v-danger: #dc2626;
   --v-danger-hover: #dc26261a;
   --v-highlight: #3b82f6;
-  --v-badge-bg: #6b7280;
+  --v-badge-bg: #D03D68;
   --v-tooltip-bg: #1f2937;
   --v-primary-btn: #4f5d75;
 
@@ -51,7 +51,7 @@ var VIBE_STYLES = `
   --v-separator: rgba(255,255,255,0.08);
   --v-kbd-bg: rgba(255,255,255,0.08);
   --v-kbd-border: rgba(255,255,255,0.1);
-  --v-pill-gradient: linear-gradient(135deg, #e8956a, #d4538a);
+  --v-pill-gradient: linear-gradient(90deg, #E85B5C 0%, #D03D68 100%);
   --v-instruction-text: #71717a;
   --v-dot-separator: #3f3f46;
   --v-close-icon: #52525b;
@@ -309,7 +309,7 @@ var VIBE_STYLES = `
   transition: color .15s, background .15s, border-color .15s;
 }
 .vibe-tab:hover { color: var(--v-text-primary); border-color: var(--v-outline-highlight); }
-.vibe-tab.active { color: var(--v-on-accent); background: var(--v-accent); border-color: var(--v-accent); }
+.vibe-tab.active { color: var(--v-on-accent); background: var(--v-pill-gradient); border-color: transparent; }
 
 /* Tab panels */
 .vibe-tab-panel { padding-top: 4px; }
@@ -925,7 +925,7 @@ var VIBE_STYLES = `
   min-width: 16px;
   height: 16px;
   border-radius: 9px;
-  background: var(--v-pill-gradient);
+  background: var(--v-badge-bg);
   color: #fff;
   font: 600 10px/1 var(--v-font);
   display: flex;
