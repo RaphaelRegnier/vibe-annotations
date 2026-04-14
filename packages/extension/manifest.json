@@ -104,7 +104,8 @@
     }
   },
   "background": {
-    "service_worker": "background/background.js"
+    "service_worker": "background/background.js",
+    "type": "module"
   },
   "web_accessible_resources": [
     {
