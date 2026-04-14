@@ -44,6 +44,7 @@ const RESOURCES: NavItem[] = [
   { href: '/docs/releases', label: 'Release notes' },
   { href: '/docs/troubleshooting', label: 'Troubleshooting' },
   { href: '/docs/terms', label: 'Terms & conditions' },
+  { href: '/docs/contact', label: 'Contact' },
 ]
 
 function NavLink({ href, label }: { href: string; label: string }) {
@@ -91,14 +92,24 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               ))}
             </ul>
           </div>
-          <a
-            href={`https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${getExtensionVersion()}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-8 block px-3 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
-          >
-            v{getExtensionVersion()}
-          </a>
+          <div className="mt-8 space-y-3">
+            <a
+              href={`https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v${getExtensionVersion()}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block px-3 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
+            >
+              v{getExtensionVersion()}
+            </a>
+            <a
+              href="https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof/reviews"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block px-3 py-2 text-xs text-neutral-500 hover:text-neutral-700 bg-neutral-50 hover:bg-neutral-100 rounded-md transition-colors leading-relaxed"
+            >
+              Enjoying Vibe Annotations? <span className="text-[#D03D68] font-medium">Leave a review</span>
+            </a>
+          </div>
         </nav>
         <div className="hidden lg:block" />{/* gap column */}
         <article className="prose prose-neutral prose-headings:font-semibold prose-a:text-[#D03D68] prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-neutral-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-neutral-900 prose-pre:text-neutral-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 max-w-none">
