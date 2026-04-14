@@ -31,3 +31,4 @@
 - GitHub: https://github.com/RaphaelRegnier/vibe-annotations
 - Chrome Web Store: https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof
 - NPM Server: https://www.npmjs.com/package/vibe-annotations-server
+
