@@ -72,10 +72,9 @@ var VibeElementContext = (() => {
       parent_chain: getParentChainContext(element, 4)
     };
 
-    // Screenshot
+    // Screenshot (uses sync cache — loaded at init, no async delay)
     try {
-      const enabled = await VibeAPI.getScreenshotEnabled();
-      if (enabled) context.screenshot = captureElementScreenshot(element);
+      if (VibeAPI.isScreenshotEnabled()) context.screenshot = captureElementScreenshot(element);
     } catch { /* skip */ }
 
     return context;

@@ -767,25 +767,6 @@ class LocalAnnotationsServer {
     }
   }
 
-  /**
-   * Apply an annotations update using serialized read→mutate→save operations
-   * This prevents race conditions during concurrent operations by chaining
-   * all updates onto the existing saveLock Promise.
-   *
-   * @param {Function} mutator - Function that receives current annotations and returns result
-   * @returns {Promise} Promise that resolves with the mutator's return value
-   */
-  async applyAnnotationsUpdate(mutator) {
-    // Chain onto saveLock to serialize read→mutate→save
-    this.saveLock = this.saveLock.then(async () => {
-      const current = await this.loadAnnotations();
-      const result = await mutator(current);
-      await this._saveAnnotationsInternal(current);
-      return result;
-    });
-    return this.saveLock;
-  }
-
   async ensureDataFile() {
     const dataDir = path.dirname(DATA_FILE);
     if (!existsSync(dataDir)) {
@@ -820,15 +801,7 @@ class LocalAnnotationsServer {
     }
 
     if (url) {
-      // Support both exact URL matching and base URL pattern matching
-      if (url.includes('*') || url.endsWith('/')) {
-        // Pattern matching: "http://localhost:3000/*" or "http://localhost:3000/"
-        const baseUrl = url.replace('*', '').replace(/\/$/, '');
-        filtered = filtered.filter(a => a.url.startsWith(baseUrl));
-      } else {
-        // Exact URL matching
-        filtered = filtered.filter(a => a.url === url);
-      }
+      filtered = this.filterByUrlPattern(filtered, url);
     }
 
     // Group annotations by base URL for better context
@@ -945,9 +918,27 @@ class LocalAnnotationsServer {
     return clean;
   }
 
+  /**
+   * Filter annotations by URL — supports exact match, wildcard (*), and trailing slash patterns.
+   * @param {Array} annotations - Array of annotation objects
+   * @param {string} url - URL or pattern (e.g., "http://localhost:3000/*" or "http://localhost:3000/")
+   * @returns {Array} Filtered annotations
+   */
+  filterByUrlPattern(annotations, url) {
+    if (url.includes('*') || url.endsWith('/')) {
+      const baseUrl = url.replace('*', '').replace(/\/$/, '');
+      return annotations.filter(a => a.url.startsWith(baseUrl));
+    }
+    return annotations.filter(a => a.url === url);
+  }
+
   async watchAnnotations(args) {
     const { url, timeout = 300 } = args;
     if (!url) throw new Error('url parameter is required');
+
+    if (this.watchers.size >= 100) {
+      throw new Error('Too many active watchers (limit: 100). Stop existing watchers before creating new ones.');
+    }
 
     // Abort any existing watchers for the same URL (prevents accumulation)
     for (const [id, w] of this.watchers) {
@@ -968,15 +959,6 @@ class LocalAnnotationsServer {
     const pollIntervalMs = 10_000; // 10 seconds
     const startTime = Date.now();
 
-    // URL filter helper (same logic as readAnnotations)
-    const matchesUrl = (annotationUrl) => {
-      if (url.includes('*') || url.endsWith('/')) {
-        const baseUrl = url.replace('*', '').replace(/\/$/, '');
-        return annotationUrl.startsWith(baseUrl);
-      }
-      return annotationUrl === url;
-    };
-
     // Abortable sleep
     const sleep = (ms) => new Promise((resolve, reject) => {
       const timer = setTimeout(resolve, ms);
@@ -988,7 +970,7 @@ class LocalAnnotationsServer {
         if (ac.signal.aborted) break;
 
         const annotations = await this.loadAnnotations();
-        const pending = annotations.filter(a => a.status === 'pending' && matchesUrl(a.url));
+        const pending = this.filterByUrlPattern(annotations.filter(a => a.status === 'pending'), url);
 
         if (pending.length > 0) {
           // Mark not polling, update lastSeenAt — grace period covers agent processing time
@@ -1121,15 +1103,7 @@ class LocalAnnotationsServer {
     const annotations = await this.loadAnnotations();
     
     // Filter annotations matching the URL pattern
-    let matchingAnnotations;
-    if (url_pattern.includes('*') || url_pattern.endsWith('/')) {
-      // Pattern matching: "http://localhost:3000/*" or "http://localhost:3000/"
-      const baseUrl = url_pattern.replace('*', '').replace(/\/$/, '');
-      matchingAnnotations = annotations.filter(a => a.url.startsWith(baseUrl));
-    } else {
-      // Exact URL matching
-      matchingAnnotations = annotations.filter(a => a.url === url_pattern);
-    }
+    const matchingAnnotations = this.filterByUrlPattern(annotations, url_pattern);
     
     if (matchingAnnotations.length === 0) {
       return {

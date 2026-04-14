@@ -9,33 +9,71 @@ var VIBE_STYLES = `
   padding: 0;
 }
 
-/* ===== Theme tokens (light default) ===== */
+/* ===== Theme tokens (dark only) ===== */
 :host {
-  --v-surface: #f8f9fc;
-  --v-surface-1: #fcfcfd;
-  --v-text-primary: #0c111b;
-  --v-text-secondary: #697586;
-  --v-outline: #00000014;
-  --v-outline-highlight: #00000028;
+  /* Core surfaces */
+  --v-surface: #0C0E12;
+  --v-surface-1: #191D24;
+  --v-text-primary: #fcfcfd;
+  --v-text-secondary: #9AA4B2;
+  --v-outline: #ffffff0d;
+  --v-outline-highlight: #ffffff26;
+  --v-surface-hover: #fcfcfd14;
+  --v-secondary-btn-bg: #ffffff0d;
+  --v-textarea-bg: #ffffff0d;
+
+  /* Accent */
   --v-accent: #d97757;
   --v-on-accent: #ffffff;
-  --v-surface-hover: #0d0f1c14;
-  --v-secondary-btn-bg: #0000000d;
-  --v-textarea-bg: #0000000d;
+
+  /* Semantic */
   --v-warning: #f79009;
   --v-on-warning: #ffffff;
-  --v-warning-container: #f7900919;
-  --v-on-warning-container: #93370c;
+  --v-warning-container: #f7900914;
+  --v-on-warning-container: #f79009;
   --v-danger: #dc2626;
-  --v-danger-hover: #dc26260d;
-  --v-highlight: #2563eb;
-  --v-badge-bg: #4b5563;
-  --v-tooltip-bg: #111827;
+  --v-danger-hover: #dc26261a;
+  --v-highlight: #3b82f6;
+  --v-badge-bg: #D03D68;
+  --v-tooltip-bg: #1f2937;
   --v-primary-btn: #4f5d75;
 
+  /* Glass toolbar */
+  --v-toolbar-bg: rgba(15, 17, 21, 0.97);
+  --v-toolbar-border: rgba(255,255,255,0.08);
+  --v-toolbar-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  --v-toolbar-text: #d4d4d8;
+  --v-toolbar-text-active: #fafafa;
+  --v-toolbar-btn-hover: rgba(255,255,255,0.05);
+  --v-toolbar-btn-active: rgba(255,255,255,0.07);
+
+  /* Toolbar elements */
+  --v-separator: rgba(255,255,255,0.08);
+  --v-kbd-bg: rgba(255,255,255,0.08);
+  --v-kbd-border: rgba(255,255,255,0.1);
+  --v-pill-gradient: linear-gradient(90deg, #E85B5C 0%, #D03D68 100%);
+  --v-instruction-text: #71717a;
+  --v-dot-separator: #3f3f46;
+  --v-close-icon: #52525b;
+  --v-capture-accent: #8b5cf6;
+
+  /* Status */
+  --v-status-online: #10b981;
+  --v-status-watching: #3b82f6;
+  --v-status-offline: #52525b;
+
+  /* Panels */
+  --v-panel-bg: rgba(15, 17, 21, 0.97);
+  --v-panel-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  --v-design-change: #818cf8;
+  --v-card-hover: rgba(255,255,255,0.03);
+  --v-muted-text: #27272a;
+
+  /* Typography */
   --v-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --v-font-mono: 'SF Mono', Monaco, Inconsolata, 'Fira Code', monospace;
 
+  /* Radii */
   --v-radius-xs: 4px;
   --v-radius-sm: 8px;
   --v-radius-md: 12px;
@@ -49,6 +87,21 @@ var VIBE_STYLES = `
 }
 
 /* ===== Animations ===== */
+@keyframes vibe-card-exit {
+  from { opacity: 1; transform: translateX(0); max-height: 80px; }
+  to   { opacity: 0; transform: translateX(-40px); max-height: 0; padding-top: 0; padding-bottom: 0; }
+}
+
+@keyframes vibe-toolbar-enter {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vibe-toolbar-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-12px); }
+}
+
 @keyframes vibe-fade-in {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
@@ -64,16 +117,6 @@ var VIBE_STYLES = `
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes vibe-toast-in {
-  from { opacity: 0; transform: translateX(20px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes vibe-toast-out {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(20px); }
-}
-
 @keyframes vibe-pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.15); }
@@ -83,40 +126,11 @@ var VIBE_STYLES = `
 .vibe-highlight {
   position: fixed;
   pointer-events: none;
-  border: 2px solid var(--v-highlight);
+  border: 2px solid rgba(59, 130, 246, 0.6);
   border-radius: 2px;
-  background: rgba(37, 99, 235, 0.06);
+  background: rgba(59, 130, 246, 0.06);
   transition: all 0.1s ease;
   z-index: 1;
-}
-
-/* ===== Inspection toast ===== */
-.vibe-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: var(--v-accent);
-  color: var(--v-on-accent);
-  padding: 12px 18px;
-  border-radius: var(--v-radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  pointer-events: none;
-  animation: vibe-toast-in 0.25s ease forwards;
-  z-index: 10;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-}
-
-.vibe-toast--out {
-  animation: vibe-toast-out 0.25s ease forwards;
-}
-
-.vibe-toast p { margin: 0; }
-
-.vibe-toast .sub {
-  font-size: 11px;
-  opacity: 0.85;
-  margin-top: 2px;
 }
 
 /* ===== Badges (numbered pins) ===== */
@@ -165,7 +179,7 @@ var VIBE_STYLES = `
 
 @keyframes vibe-watch-pulse {
   0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
-  50% { box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 3px rgba(217,119,87,0.3); }
+  50% { box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 3px rgba(59,130,246,0.3); }
 }
 
 /* Badge tooltip */
@@ -223,10 +237,10 @@ var VIBE_STYLES = `
 .vibe-popover {
   pointer-events: auto;
   width: 340px;
-  background: var(--v-surface-1);
-  border: 1px solid var(--v-outline);
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-toolbar-border);
   border-radius: var(--v-radius-md);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: var(--v-panel-shadow);
   animation: vibe-slide-up 0.2s ease forwards;
   overflow: visible;
   cursor: default !important;
@@ -295,7 +309,7 @@ var VIBE_STYLES = `
   transition: color .15s, background .15s, border-color .15s;
 }
 .vibe-tab:hover { color: var(--v-text-primary); border-color: var(--v-outline-highlight); }
-.vibe-tab.active { color: var(--v-on-accent); background: var(--v-accent); border-color: var(--v-accent); }
+.vibe-tab.active { color: var(--v-on-accent); background: var(--v-pill-gradient); border-color: transparent; }
 
 /* Tab panels */
 .vibe-tab-panel { padding-top: 4px; }
@@ -735,7 +749,7 @@ var VIBE_STYLES = `
 }
 
 .vibe-btn-primary {
-  background: linear-gradient(135deg, #dc2626, #d97757);
+  background: var(--v-pill-gradient);
   color: #fff;
 }
 
@@ -775,7 +789,7 @@ var VIBE_STYLES = `
   background: var(--v-danger-hover);
 }
 
-/* ===== Floating toolbar ===== */
+/* ===== Floating toolbar (glass dark) ===== */
 .vibe-toolbar {
   position: fixed;
   top: 24px;
@@ -783,63 +797,89 @@ var VIBE_STYLES = `
   display: flex;
   align-items: center;
   gap: 2px;
-  background: var(--v-surface-1);
-  border: 1px solid var(--v-outline);
-  border-radius: var(--v-radius-full);
+  background: var(--v-toolbar-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 12px;
   padding: 4px;
   pointer-events: auto;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: var(--v-toolbar-shadow);
   z-index: 50;
   user-select: none;
   cursor: default;
   transition: box-shadow 0.2s ease;
+  overflow: visible;
+  animation: vibe-toolbar-enter 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.vibe-toolbar.exiting {
+  animation: vibe-toolbar-exit 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .vibe-toolbar:hover {
-  box-shadow: 0 6px 32px rgba(0,0,0,0.16), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
 }
 
 .vibe-toolbar.dragging {
   cursor: grabbing;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
 }
 
-.vibe-toolbar.dragging .vibe-toolbar-drag-handle {
-  cursor: grabbing;
+/* Toolbar logo */
+.vibe-toolbar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  pointer-events: none;
+  margin: 0 4px;
 }
 
+/* Toolbar separator */
+.vibe-toolbar-separator {
+  width: 1px;
+  height: 18px;
+  background: var(--v-separator);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* Toolbar spacer (between pill and next button) */
+.vibe-toolbar-spacer {
+  width: 8px;
+  flex-shrink: 0;
+}
+
+/* Labeled toolbar buttons */
 .vibe-toolbar-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: none;
   background: transparent;
-  color: var(--v-text-secondary);
+  color: var(--v-toolbar-text);
+  font: 500 13px/1 var(--v-font);
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   position: relative;
 }
 
 .vibe-toolbar-btn:hover {
-  background: var(--v-surface-hover);
-  color: var(--v-text-primary);
+  background: var(--v-toolbar-btn-hover);
+  color: var(--v-toolbar-text-active);
 }
 
 .vibe-toolbar-btn.active {
-  background: var(--v-accent);
-  color: var(--v-on-accent);
-}
-
-.vibe-toolbar-btn.active:hover {
-  opacity: 0.9;
+  background: var(--v-toolbar-btn-active);
+  color: var(--v-toolbar-text-active);
 }
 
 .vibe-toolbar-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .vibe-toolbar-btn:disabled {
@@ -849,44 +889,153 @@ var VIBE_STYLES = `
 
 .vibe-toolbar-btn:disabled:hover {
   background: transparent;
-  color: var(--v-text-secondary);
+  color: var(--v-toolbar-text);
 }
 
-/* Toolbar divider */
-.vibe-toolbar-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--v-outline);
-  margin: 0 2px;
+/* Close button */
+.vibe-toolbar-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--v-close-icon);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
-/* Drag handle (vertical bar) */
-.vibe-toolbar-drag-handle {
+.vibe-toolbar-close:hover {
+  color: var(--v-toolbar-text);
+  background: var(--v-toolbar-btn-hover);
+}
+
+.vibe-toolbar-close svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Count pill (gradient badge on View all) */
+.vibe-toolbar-pill {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 9px;
+  background: var(--v-badge-bg);
+  color: #fff;
+  font: 600 10px/1 var(--v-font);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  cursor: grab;
+  pointer-events: none;
 }
 
-.vibe-toolbar-drag-handle::after {
-  content: '';
-  width: 4px;
-  height: 20px;
-  border-radius: 2px;
-  background: var(--v-outline-highlight);
+/* MCP status in toolbar */
+.vibe-toolbar-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   transition: background 0.15s ease;
 }
 
-.vibe-toolbar-drag-handle:hover::after {
-  background: var(--v-text-secondary);
+.vibe-toolbar-status:hover {
+  background: var(--v-toolbar-btn-hover);
 }
 
-.vibe-toolbar-drag-handle:active {
-  cursor: grabbing;
+.vibe-toolbar-status svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }
 
-/* MCP status dot */
+/* Default vs Annotating mode containers */
+/* Annotating mode morph — the middle section crossfades + width transitions */
+.vibe-toolbar-middle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+.vibe-toolbar-default,
+.vibe-toolbar-annotating {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  /* Opacity transitions are driven by JS for precise sequencing */
+}
+
+.vibe-toolbar-default {
+  position: relative;
+}
+
+.vibe-toolbar-annotating {
+  opacity: 0;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  gap: 6px;
+}
+
+.vibe-toolbar.annotating .vibe-toolbar-default {
+  opacity: 0;
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+  position: absolute;
+  pointer-events: none;
+}
+
+.vibe-toolbar.annotating .vibe-toolbar-annotating {
+  opacity: 1;
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Kbd elements in annotating mode */
+.vibe-toolbar-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  background: var(--v-kbd-bg);
+  border: 1px solid var(--v-kbd-border);
+  border-radius: 5px;
+  font: 500 11px/1 var(--v-font-mono);
+  color: var(--v-toolbar-text);
+}
+
+.vibe-toolbar-instruction {
+  font: 450 12px/1 var(--v-font);
+  color: var(--v-instruction-text);
+}
+
+.vibe-toolbar-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--v-dot-separator);
+  flex-shrink: 0;
+}
+
+/* MCP status dot (settings dropdown) */
 .vibe-status-dot {
   width: 8px;
   height: 8px;
@@ -895,106 +1044,239 @@ var VIBE_STYLES = `
   flex-shrink: 0;
 }
 
-.vibe-status-dot.online  { background: #10b981; }
-.vibe-status-dot.offline { background: #ef4444; }
+.vibe-status-dot.online  { background: var(--v-status-online); }
+.vibe-status-dot.offline { background: var(--v-status-offline); }
 
-.vibe-toolbar-inner {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-/* Collapsed toolbar */
-.vibe-toolbar.collapsed {
-  padding: 4px;
-  border-radius: 50%;
-}
-
-.vibe-toolbar.collapsed .vibe-tb-collapse {
-  width: 34px;
-  height: 34px;
-  overflow: hidden;
-  border-radius: 50%;
-}
-
-.vibe-toolbar.collapsed .vibe-tb-collapse img {
-  width: 26px;
-  height: 26px;
-}
-
-.vibe-toolbar.collapsed .vibe-toolbar-inner {
-  display: none;
-}
-
-/* Toolbar badge count */
-.vibe-toolbar-count {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: var(--v-accent);
-  color: var(--v-on-accent);
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-}
-
-/* Toolbar stylesheet annotation badge */
-.vibe-toolbar-style-count {
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: #ec4899;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-}
-
-/* Toolbar tooltip */
-.vibe-toolbar-tip {
+/* ===== View All panel ===== */
+.vibe-viewall-panel {
   position: absolute;
   top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--v-tooltip-bg);
-  color: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
+  right: 0;
+  width: 100%;
+  min-width: 340px;
+  max-height: min(calc(100vh - 120px), 500px);
+  overflow-y: auto;
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 12px;
+  box-shadow: var(--v-panel-shadow);
+  animation: vibe-slide-up 0.15s ease forwards;
+  pointer-events: auto;
+  z-index: 100;
 }
 
-.vibe-toolbar-btn:hover .vibe-toolbar-tip {
+.vibe-viewall-panel.above {
+  top: auto;
+  bottom: calc(100% + 8px);
+  animation-name: vibe-slide-down;
+}
+
+.vibe-viewall-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.vibe-viewall-url {
+  color: var(--v-toolbar-text-active);
+  font: 500 12px/1 var(--v-font-mono);
+}
+
+.vibe-viewall-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vibe-viewall-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--v-close-icon);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.vibe-viewall-actions button:hover {
+  color: var(--v-toolbar-text);
+  background: var(--v-toolbar-btn-hover);
+}
+
+.vibe-viewall-actions button.vibe-viewall-deleteall:hover {
+  color: var(--v-danger);
+}
+
+.vibe-viewall-actions button svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Route group */
+.vibe-viewall-route-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 6px 16px;
+}
+
+.vibe-viewall-route-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vibe-viewall-route-path {
+  color: var(--v-text-secondary);
+  font: 500 11px/1 var(--v-font-mono);
+  letter-spacing: 0.02em;
+}
+
+.vibe-viewall-route-count {
+  padding: 0 5px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  color: var(--v-dot-separator);
+  font: 500 10px/18px var(--v-font);
+}
+
+.vibe-viewall-route-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--v-close-icon);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.vibe-viewall-route-header:hover .vibe-viewall-route-clear {
   opacity: 1;
-  visibility: visible;
+}
+
+.vibe-viewall-route-clear:hover {
+  color: var(--v-danger);
+  background: var(--v-toolbar-btn-hover);
+}
+
+.vibe-viewall-route-clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Annotation card */
+.vibe-viewall-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.1s ease;
+  overflow: hidden;
+}
+
+.vibe-viewall-card.deleting {
+  animation: vibe-card-exit 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.vibe-viewall-card:hover {
+  background: var(--v-card-hover);
+}
+
+.vibe-viewall-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vibe-viewall-selector {
+  color: var(--v-text-secondary);
+  font: 400 10.5px/1.3 var(--v-font-mono);
+}
+
+.vibe-viewall-comment {
+  color: var(--v-toolbar-text);
+  font: 450 12.5px/1.4 var(--v-font);
+}
+
+.vibe-viewall-comment.empty {
+  color: var(--v-muted-text);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.vibe-viewall-design {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--v-design-change);
+  font: 500 12px/1 var(--v-font);
+}
+
+.vibe-viewall-design svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.vibe-viewall-card-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--v-close-icon);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.vibe-viewall-card:hover .vibe-viewall-card-delete {
+  opacity: 1;
+}
+
+.vibe-viewall-card-delete:hover {
+  color: var(--v-danger);
+  background: var(--v-toolbar-btn-hover);
+}
+
+.vibe-viewall-card-delete svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* ===== Settings dropdown ===== */
 .vibe-settings-dropdown {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 8px);
   right: 0;
-  width: 280px;
-  background: var(--v-surface-1);
-  border: 1px solid var(--v-outline);
-  border-radius: var(--v-radius-md);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  width: 100%;
+  min-width: 280px;
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 12px;
+  box-shadow: var(--v-panel-shadow);
   animation: vibe-slide-up 0.15s ease forwards;
   overflow: hidden;
   pointer-events: auto;
@@ -1238,9 +1520,9 @@ var VIBE_STYLES = `
 /* Toggle switch */
 .vibe-toggle {
   position: relative;
-  width: 36px;
-  height: 20px;
-  background: var(--v-outline-highlight);
+  width: 32px;
+  height: 18px;
+  background: rgba(255,255,255,0.1);
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -1258,16 +1540,16 @@ var VIBE_STYLES = `
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #fff;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  background: #71717a;
+  transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .vibe-toggle.on::after {
-  transform: translateX(16px);
+  transform: translateX(14px);
+  background: #fafafa;
 }
 
 /* ===== Shortcut button ===== */
@@ -1306,7 +1588,7 @@ var VIBE_STYLES = `
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.3);
+  background: rgba(0,0,0,0.5);
   pointer-events: auto;
   z-index: 100;
   display: flex;
@@ -1316,12 +1598,12 @@ var VIBE_STYLES = `
 }
 
 .vibe-confirm {
-  background: var(--v-surface-1);
-  border: 1px solid var(--v-outline);
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-toolbar-border);
   border-radius: var(--v-radius-md);
   padding: 20px;
   width: 320px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: var(--v-panel-shadow);
 }
 
 .vibe-confirm-title {
@@ -1377,12 +1659,4 @@ var VIBE_STYLES = `
   border-color: var(--v-text-secondary);
 }
 
-/* Primary button */
-.vibe-btn-primary {
-  background: var(--v-accent);
-  color: #fff;
-}
-.vibe-btn-primary:hover {
-  opacity: 0.9;
-}
 `;

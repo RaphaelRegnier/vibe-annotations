@@ -5,7 +5,6 @@
 var VibeInspectionMode = (() => {
   let active = false;
   let highlightEl = null;
-  let toastEl = null;
   let hoveredElement = null;
   let navigatedByKeyboard = false;
   let navStack = []; // ancestors visited via ArrowUp, for ArrowDown to retrace
@@ -36,9 +35,6 @@ var VibeInspectionMode = (() => {
     highlightEl.className = 'vibe-highlight';
     highlightEl.style.display = 'none';
     root.appendChild(highlightEl);
-
-    // Show instruction toast
-    showToast(root);
 
     // Set up capture-phase listeners on document
     onMouseOver = handleMouseOver;
@@ -86,9 +82,6 @@ var VibeInspectionMode = (() => {
 
     // Remove highlight
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
-
-    // Remove toast
-    if (toastEl) { toastEl.remove(); toastEl = null; }
 
     hoveredElement = null;
     navigatedByKeyboard = false;
@@ -294,25 +287,6 @@ var VibeInspectionMode = (() => {
     highlightEl.style.left = `${rect.left}px`;
     highlightEl.style.width = `${rect.width}px`;
     highlightEl.style.height = `${rect.height}px`;
-  }
-
-  function showToast(root) {
-    toastEl = document.createElement('div');
-    toastEl.className = 'vibe-toast';
-    toastEl.innerHTML = `
-      <p>Click any element to annotate</p>
-      <p class="sub">↑/↓ to traverse DOM · Enter to select · ESC to exit</p>
-    `;
-    root.appendChild(toastEl);
-
-    // Auto-fade after 3s
-    setTimeout(() => {
-      if (!toastEl) return;
-      toastEl.classList.add('vibe-toast--out');
-      setTimeout(() => {
-        if (toastEl) { toastEl.remove(); toastEl = null; }
-      }, 250);
-    }, 3000);
   }
 
   return { init, start, stop, isActive, tempDisable, reEnable };

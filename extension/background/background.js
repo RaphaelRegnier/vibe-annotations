@@ -81,7 +81,7 @@ class VibeAnnotationsBackground {
       
       // Set badge to notify user
       chrome.action.setBadgeText({ text: 'NEW' });
-      chrome.action.setBadgeBackgroundColor({ color: '#d97757' }); // Vibe orange
+      chrome.action.setBadgeBackgroundColor({ color: '#D03D68' });
       
       // Also update settings
       const result = await chrome.storage.local.get(['settings']);
@@ -340,13 +340,11 @@ class VibeAnnotationsBackground {
           annotations.push(annotation);
         }
 
-        // Save to local storage FIRST (before API call that might hang)
+        // Save to local storage FIRST — return immediately to unblock UI
         await chrome.storage.local.set({ annotations });
 
-        // Then try API server — mark as synced on success
-        try {
-          await this.saveAnnotationToAPI(annotation);
-          // Re-read and update _synced flag
+        // API sync + badge update happen in the background (non-blocking)
+        this.saveAnnotationToAPI(annotation).then(async () => {
           const fresh = await chrome.storage.local.get(['annotations']);
           const arr = fresh.annotations || [];
           const target = arr.find(a => a.id === annotation.id);
@@ -354,12 +352,8 @@ class VibeAnnotationsBackground {
             target._synced = true;
             await chrome.storage.local.set({ annotations: arr });
           }
-        } catch (apiErr) {
-          console.warn('Failed to save to API, will sync later:', apiErr.message);
-        }
-
-        // Force badge update for all tabs with this URL
-        await this.updateBadgeForUrl(annotation.url);
+        }).catch(() => {});
+        this.updateBadgeForUrl(annotation.url).catch(() => {});
 
       } catch (error) {
         console.error('Error saving annotation:', error);
@@ -370,13 +364,17 @@ class VibeAnnotationsBackground {
 
   async saveAnnotationToAPI(annotation) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
       const response = await fetch(`${this.apiServerUrl}/api/annotations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(annotation)
+        body: JSON.stringify(annotation),
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       
       if (!response.ok) {
         throw new Error(`API server error: ${response.status}`);
@@ -509,7 +507,8 @@ class VibeAnnotationsBackground {
 
         await chrome.storage.local.set({ annotations });
 
-        await this.updateBadgeForUrl(annotations[annotationIndex].url);
+        // Non-blocking badge update
+        this.updateBadgeForUrl(annotations[annotationIndex].url).catch(() => {});
 
       } catch (error) {
         console.error('Error updating annotation:', error);
@@ -572,8 +571,15 @@ class VibeAnnotationsBackground {
 
   async updateBadge(tabId, url) {
     try {
-      const annotations = await this.getAnnotations(url);
-      const pendingCount = annotations.filter(a => a.status === 'pending').length;
+      // Use local storage project-wide count to match the toolbar pill
+      const result = await chrome.storage.local.get(['annotations']);
+      const annotations = result.annotations || [];
+      let origin;
+      try { origin = new URL(url).origin; } catch { origin = null; }
+      const projectAnnotations = origin
+        ? annotations.filter(a => { try { return new URL(a.url).origin === origin; } catch { return false; } })
+        : annotations.filter(a => a.url === url);
+      const pendingCount = projectAnnotations.filter(a => a.status === 'pending').length;
       
       
       if (pendingCount > 0) {
@@ -583,7 +589,7 @@ class VibeAnnotationsBackground {
         });
         
         // Set badge color based on server status
-        const badgeColor = this.apiConnected ? '#10b981' : '#FF7A00'; // Green if online, orange if offline
+        const badgeColor = '#D03D68';
         await chrome.action.setBadgeBackgroundColor({
           tabId: tabId,
           color: badgeColor
@@ -602,12 +608,17 @@ class VibeAnnotationsBackground {
   }
 
   // Direct badge update from local storage (bypasses API)
+  // Counts all annotations for the same origin (project-wide), matching the toolbar pill
   async updateBadgeFromLocalStorage(tabId, url) {
     try {
       const result = await chrome.storage.local.get(['annotations']);
       const annotations = result.annotations || [];
-      const urlAnnotations = annotations.filter(a => a.url === url);
-      const pendingCount = urlAnnotations.filter(a => a.status === 'pending').length;
+      let origin;
+      try { origin = new URL(url).origin; } catch { origin = null; }
+      const projectAnnotations = origin
+        ? annotations.filter(a => { try { return new URL(a.url).origin === origin; } catch { return false; } })
+        : annotations.filter(a => a.url === url);
+      const pendingCount = projectAnnotations.filter(a => a.status === 'pending').length;
       
       
       if (pendingCount > 0) {
@@ -617,7 +628,7 @@ class VibeAnnotationsBackground {
         });
         
         // Set badge color based on server status
-        const badgeColor = this.apiConnected ? '#10b981' : '#FF7A00'; // Green if online, orange if offline
+        const badgeColor = '#D03D68';
         await chrome.action.setBadgeBackgroundColor({
           tabId: tabId,
           color: badgeColor
@@ -973,7 +984,9 @@ class VibeAnnotationsBackground {
           'content/modules/element-context.js',
           'content/modules/badge-manager.js',
           'content/modules/inspection-mode.js',
+          'content/modules/popover-panels.js',
           'content/modules/annotation-popover.js',
+          'content/modules/toolbar-docs.js',
           'content/modules/floating-toolbar.js',
           'content/modules/bridge-handler.js',
           'content/content.js'

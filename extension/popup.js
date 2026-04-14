@@ -101,6 +101,7 @@
       mainBtn.addEventListener('click', async () => {
         const r = await chrome.tabs.sendMessage(tab.id, { action: 'toggleOverlay' });
         setToggleState(r?.visible ?? !overlayVisible);
+        window.close();
       });
     } else {
       // Content script not loaded — offer reload
