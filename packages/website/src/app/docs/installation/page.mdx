@@ -1,0 +1,74 @@
+export const metadata = { title: 'Installation' }
+
+# Installation
+
+## 1. Install the Browser Extension
+
+**From Chrome Web Store (recommended):**
+
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof). Works on Chrome, Edge, Brave, Arc, Opera, and Vivaldi.
+
+**For development:**
+
+Go to `chrome://extensions/`, enable Developer mode, click "Load unpacked", and select the `/packages/extension` directory.
+
+## 2. Install the MCP Server (optional)
+
+The MCP server enables AI coding agents to read your annotations automatically. It's optional — you can always copy/paste annotations instead.
+
+```bash
+npm install -g vibe-annotations-server
+```
+
+## 3. Start the Server
+
+```bash
+vibe-annotations-server start
+```
+
+The server runs on port 3846 and provides:
+- HTTP API for the Chrome extension (auto-sync)
+- MCP endpoint for AI coding agents (`/mcp`)
+- Health checks (`/health`)
+
+## 4. Start Annotating
+
+Open any localhost page, click **Annotate** in the toolbar, and click any element to leave feedback. Then:
+
+- **Copy & paste**: Click **Copy** in the toolbar and paste into any AI chat
+- **MCP (automatic)**: Tell your agent to read and implement vibe annotations
+- **Watch mode (hands-free)**: Tell your agent "Start watching Vibe Annotations"
+
+## Local File Support
+
+To annotate local HTML files (`file://` URLs):
+
+1. Go to `chrome://extensions/`
+2. Find "Vibe Annotations" and click "Details"
+3. Enable "Allow access to file URLs"
+4. Refresh your local HTML file
+
+This is only needed for local files. Localhost dev servers work without this step.
+
+## Server Management
+
+```bash
+vibe-annotations-server status    # Check if running
+vibe-annotations-server stop      # Stop the server
+vibe-annotations-server restart   # Restart
+```
+
+## Uninstallation
+
+```bash
+# Remove MCP from your agent (e.g. Claude Code)
+claude mcp remove vibe-annotations
+
+# Uninstall the server
+npm uninstall -g vibe-annotations-server
+
+# Remove data files
+rm -rf ~/.vibe-annotations
+
+# Remove the browser extension from chrome://extensions/
+```
