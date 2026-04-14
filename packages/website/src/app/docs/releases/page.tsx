@@ -32,6 +32,11 @@ function formatBody(body: string): string {
     .replace(/`(.+?)`/g, '<code class="bg-neutral-100 px-1 py-0.5 rounded text-sm">$1</code>')
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-[#D03D68] hover:underline" target="_blank" rel="noopener">$1</a>')
+    // GitHub video URLs (user-attachments/assets/...) → video element
+    .replace(/(?:^|\n)https:\/\/github\.com\/user-attachments\/assets\/[\w-]+/g, (url) => {
+      const trimmed = url.trim()
+      return `<video src="${trimmed}" controls playsinline class="mt-3 mb-2 rounded-lg w-full max-w-xl" />`
+    })
     .replace(/\n\n/g, '<br/>')
 }
 
