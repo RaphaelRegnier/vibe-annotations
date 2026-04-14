@@ -43,6 +43,7 @@ const NAV: NavItem[] = [
 const RESOURCES: NavItem[] = [
   { href: '/docs/releases', label: 'Release notes' },
   { href: '/docs/troubleshooting', label: 'Troubleshooting' },
+  { href: '/docs/terms', label: 'Terms & conditions' },
 ]
 
 function NavLink({ href, label }: { href: string; label: string }) {
@@ -60,8 +61,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen bg-[#FEFEFE]">
       <Navbar />
-      <div className="mx-auto max-w-5xl px-6 pt-20 pb-12 lg:grid lg:grid-cols-[200px_1fr] lg:gap-12">
-        <nav className="mb-8 lg:mb-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+      <div className="mx-auto max-w-3xl px-6 pt-20 pb-12 lg:max-w-none lg:px-0 lg:grid lg:grid-cols-[1fr_200px_minmax(0,640px)_1fr] lg:gap-0">
+        <div className="hidden lg:block" />{/* spacer col 1 */}
+        <nav className="mb-8 lg:mb-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-8">
           <span className="block px-3 mb-1 text-xs font-medium text-neutral-400 uppercase tracking-wider">Overview</span>
           <ul className="space-y-1">
             {NAV.map((item) => (
@@ -98,7 +100,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             v{getExtensionVersion()}
           </a>
         </nav>
-        <article className="prose prose-sm prose-neutral prose-headings:font-semibold prose-a:text-[#D03D68] prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-neutral-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-neutral-900 prose-pre:text-neutral-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 max-w-none">
+        <article className="prose prose-neutral prose-headings:font-semibold prose-a:text-[#D03D68] prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-neutral-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-neutral-900 prose-pre:text-neutral-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0 max-w-none">
           {children}
         </article>
       </div>
