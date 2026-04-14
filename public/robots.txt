@@ -1,0 +1,35 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://vibe-annotations.com/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Disallow any admin or private areas (if they exist in the future)
+Disallow: /admin/
+Disallow: /private/
+Disallow: /api/
+
+# Additional SEO directives
+Allow: /terms
+Allow: /features
+Allow: /how-it-works
+Allow: /faq
+
+# Specific instructions for AI/LLM crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
