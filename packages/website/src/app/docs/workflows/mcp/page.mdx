@@ -1,0 +1,24 @@
+export const metadata = { title: 'Multi-Page via MCP' }
+
+# Editing Multiple Pages
+
+Best for cross-page changes. Requires the [MCP server](/docs/mcp-setup).
+
+[See demo video](https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v1.6.2)
+
+## Setup
+
+```bash
+npm install -g vibe-annotations-server
+vibe-annotations-server start
+```
+
+Then [connect your agent](/docs/mcp-setup).
+
+## Workflow
+
+1. Navigate your app and annotate elements across as many routes as you need
+2. Tell your agent: *"read vibe annotations and implement the changes"*
+3. The agent pulls all pending annotations via MCP, edits your source files, and deletes each annotation when done
+
+The agent sees annotations from all routes at once — no manual copy-paste per page.

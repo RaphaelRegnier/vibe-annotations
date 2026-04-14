@@ -1,0 +1,30 @@
+export const metadata = { title: 'Overview' }
+
+# Documentation
+
+Vibe Annotations is a visual feedback tool for web development. Annotate elements on your localhost pages, make design tweaks, and share structured feedback with AI coding agents or teammates.
+
+## How it works
+
+1. **Install** the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof) and optionally the [MCP server](https://www.npmjs.com/package/vibe-annotations-server).
+2. **Annotate** elements on any localhost page — add comments, tweak CSS, edit text.
+3. **Share** via copy/paste, export, or MCP. AI agents read your annotations and implement the changes.
+
+## Quick start
+
+The extension works standalone with copy/paste. For MCP integration (auto-sync, watch mode), install the server:
+
+```bash
+npm install -g vibe-annotations-server
+vibe-annotations-server start
+```
+
+Then [connect your AI coding agent](/docs/mcp-setup).
+
+## Next steps
+
+- [Installation](/docs/installation) — Browser extension + server setup
+- [MCP Setup](/docs/mcp-setup) — Connect Claude Code, Cursor, Windsurf, and more
+- [Workflows](/docs/workflows) — Single page, multi-page, collaboration, watch mode
+- [Architecture](/docs/architecture) — How the extension and server communicate
+- [Troubleshooting](/docs/troubleshooting) — Common issues and fixes

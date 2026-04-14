@@ -1,0 +1,41 @@
+# Development files - exclude from npm package
+.gitignore
+.npmignore
+*.log
+*.tmp
+*.temp
+
+# Development dependencies
+node_modules/
+.nyc_output/
+coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Lock files (should not be published for npm packages)
+package-lock.json
+yarn.lock
+
+# Development scripts and configs
+.eslintrc*
+.prettierrc*
+tsconfig.json
+jest.config.js
+
+# Git files
+.git/
+.gitattributes
+
+# Documentation that's not needed in package
+CHANGELOG.md
+CONTRIBUTING.md
+docs/
+examples/

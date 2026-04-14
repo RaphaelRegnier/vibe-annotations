@@ -1,0 +1,67 @@
+export const metadata = { title: 'Troubleshooting' }
+
+# Troubleshooting
+
+## Server not detected
+
+Make sure the server is running:
+
+```bash
+vibe-annotations-server status
+```
+
+If it's not running, start it:
+
+```bash
+vibe-annotations-server start
+```
+
+The extension shows setup instructions when the server is offline. All features except MCP sync and watch mode work without the server.
+
+## MCP connection failed
+
+Verify your AI coding agent configuration matches the setup in [MCP Setup](/docs/mcp-setup). Common issues:
+
+- Wrong URL — use `http://127.0.0.1:3846/mcp` (not `localhost`, which can resolve to IPv6)
+- Server not running — run `vibe-annotations-server start`
+- Port conflict — another process on port 3846
+
+## SSE connection drops / timeouts
+
+If you see "TypeError: terminated" or frequent disconnections with the SSE transport, switch to HTTP:
+
+```bash
+# Claude Code
+claude mcp remove vibe-annotations
+claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+```
+
+For other agents, replace `/sse` with `/mcp` in your configuration.
+
+## Extension not showing on a page
+
+The extension auto-activates on localhost URLs (`localhost`, `127.0.0.1`, `0.0.0.0`, `*.local`, `*.test`). For other URLs:
+
+1. Click the extension icon in the toolbar
+2. Click "Enable for this site"
+3. Grant the requested permission
+
+## CORS errors in console (local files)
+
+Expected behavior for `file://` URLs. The extension automatically routes API calls through the background script. Check for the "Local file mode" indicator.
+
+If the extension doesn't load on local files:
+1. Go to `chrome://extensions/`
+2. Find "Vibe Annotations", click "Details"
+3. Enable "Allow access to file URLs"
+4. Refresh the page
+
+## Annotations not syncing
+
+- Check server status: `vibe-annotations-server status`
+- The extension syncs every 10 seconds when the server is online
+- Look for sync errors in the background service worker console (`chrome://extensions/` → Vibe Annotations → "Inspect views: service worker")
+
+## Still stuck?
+
+Check [GitHub Issues](https://github.com/RaphaelRegnier/vibe-annotations/issues) or create a new one.

@@ -1,0 +1,33 @@
+# Vibe Annotations
+
+> Visual feedback tool for web development. Annotate elements, make design tweaks, and share with AI coding agents via MCP.
+
+## Documentation
+
+- [Overview](https://vibe-annotations.com/docs)
+- [Installation](https://vibe-annotations.com/docs/installation)
+- [MCP Setup](https://vibe-annotations.com/docs/mcp-setup)
+- [Workflows](https://vibe-annotations.com/docs/workflows)
+  - [Copy & Paste](https://vibe-annotations.com/docs/workflows/copy-paste)
+  - [Multi-Page via MCP](https://vibe-annotations.com/docs/workflows/mcp)
+  - [Watch Mode](https://vibe-annotations.com/docs/workflows/watch-mode)
+  - [Collaboration](https://vibe-annotations.com/docs/workflows/collaboration)
+  - [Agent Annotation](https://vibe-annotations.com/docs/workflows/agents)
+- [Architecture](https://vibe-annotations.com/docs/architecture)
+- [Troubleshooting](https://vibe-annotations.com/docs/troubleshooting)
+- [Release Notes](https://vibe-annotations.com/docs/releases)
+- [Terms & Conditions](https://vibe-annotations.com/docs/terms)
+- [Contact](https://vibe-annotations.com/docs/contact)
+
+## Quick Start
+
+1. Install browser extension from Chrome Web Store
+2. Install server: npm install -g vibe-annotations-server
+3. Start server: vibe-annotations-server start
+4. Connect agent: claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+
+## Links
+
+- GitHub: https://github.com/RaphaelRegnier/vibe-annotations
+- Chrome Web Store: https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof
+- NPM Server: https://www.npmjs.com/package/vibe-annotations-server

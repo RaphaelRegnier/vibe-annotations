@@ -3,14 +3,19 @@ node_modules/
 npm-debug.log*
 
 # Extension build artifacts
-extension/dist/
-extension/*.zip
+packages/extension/dist/
+packages/extension/*.zip
 
 # MCP Server
 mcp-server/logs/
 
+# Next.js
+.next/
+out/
+
 # Development
 .env
+.env.local
 .DS_Store
 *.log
 
@@ -26,7 +31,6 @@ mcp-server/logs/
 session-combined.md
 session*.md
 SESSION.md
-CLAUDE.md
 
 # Local development files
 UPDATE_NPM_PACKAGE.md

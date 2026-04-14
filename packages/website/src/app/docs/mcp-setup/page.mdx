@@ -1,0 +1,95 @@
+export const metadata = { title: 'MCP Setup' }
+
+# MCP Setup
+
+Connect your AI coding agent to the Vibe Annotations server so it can read, watch, and resolve annotations automatically.
+
+**Prerequisite:** The server must be running. Run `vibe-annotations-server start` first.
+
+## Claude Code
+
+```bash
+claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+```
+
+## Cursor
+
+Open Cursor Settings, go to Tools & Integrations, click "+ Add new global MCP server", and add:
+
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+## Windsurf
+
+Navigate to Settings, then Advanced Settings, scroll to the Cascade section, and add:
+
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "serverUrl": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+## Codex
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.vibe-annotations]
+url = "http://127.0.0.1:3846/mcp"
+```
+
+## OpenClaw
+
+Add to `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+## VS Code
+
+Install an AI extension that supports MCP, then add to your MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "vibe-annotations": {
+      "url": "http://127.0.0.1:3846/mcp"
+    }
+  }
+}
+```
+
+## MCP Tools
+
+The server exposes these tools to connected agents:
+
+| Tool | Description |
+|------|-------------|
+| `read_annotations` | Retrieve pending annotations with URL filtering and pagination |
+| `watch_annotations` | Long-poll for new annotations (watch mode loops) |
+| `delete_annotation` | Remove an annotation after implementing the fix |
+| `delete_project_annotations` | Batch delete all annotations for a project URL |
+| `get_project_context` | Infer framework and tech stack from a localhost URL |
+| `get_annotation_screenshot` | Get screenshot data for visual context |
+
+## SSE Transport (legacy)
+
+If you experience connection issues with the HTTP transport, you can use the SSE endpoint instead. Replace `/mcp` with `/sse` in any of the configurations above.
