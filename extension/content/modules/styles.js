@@ -749,7 +749,7 @@ var VIBE_STYLES = `
 }
 
 .vibe-btn-primary {
-  background: linear-gradient(135deg, #dc2626, #d97757);
+  background: var(--v-pill-gradient);
   color: #fff;
 }
 
@@ -1659,12 +1659,4 @@ var VIBE_STYLES = `
   border-color: var(--v-text-secondary);
 }
 
-/* Primary button */
-.vibe-btn-primary {
-  background: var(--v-accent);
-  color: #fff;
-}
-.vibe-btn-primary:hover {
-  opacity: 0.9;
-}
 `;

@@ -259,10 +259,18 @@ var VibeToolbar = (() => {
     for (const path of sortedPaths) {
       const items = routeGroups[path];
       const cardsHTML = items.map(a => {
-        const selector = a.selector || a.element_context?.tag || '?';
+        const isStylesheet = a.type === 'stylesheet';
+        const selector = isStylesheet ? null : (a.selector || a.element_context?.tag || '?');
         const hasPendingChanges = a.pending_changes && Object.keys(a.pending_changes).length > 0;
         const changeCount = hasPendingChanges ? Object.keys(a.pending_changes).length : 0;
         const comment = a.comment || '';
+
+        let headerHTML;
+        if (isStylesheet) {
+          headerHTML = `<div class="vibe-viewall-design">${sparkleIcon}<span>Stylesheet change</span></div>`;
+        } else {
+          headerHTML = `<div class="vibe-viewall-selector">${escapeHTML(selector)}</div>`;
+        }
 
         let bodyHTML;
         if (hasPendingChanges && !comment) {
@@ -272,14 +280,16 @@ var VibeToolbar = (() => {
           if (hasPendingChanges) {
             bodyHTML += `<div class="vibe-viewall-design" style="margin-top:2px;">${sparkleIcon}<span>${changeCount} design change${changeCount !== 1 ? 's' : ''}</span></div>`;
           }
-        } else {
+        } else if (!isStylesheet) {
           bodyHTML = `<div class="vibe-viewall-comment empty">No comment</div>`;
+        } else {
+          bodyHTML = '';
         }
 
         return `
           <div class="vibe-viewall-card" data-id="${a.id}">
             <div class="vibe-viewall-card-content">
-              <div class="vibe-viewall-selector">${escapeHTML(selector)}</div>
+              ${headerHTML}
               ${bodyHTML}
             </div>
             <button class="vibe-viewall-card-delete" data-id="${a.id}" title="Delete">${trashIcon}</button>
