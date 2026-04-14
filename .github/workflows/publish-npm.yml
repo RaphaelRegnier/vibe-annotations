@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'packages/extension/annotations-server/**'
+      - 'packages/server/**'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -36,12 +36,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd packages/extension/annotations-server
+        cd packages/server
         npm install
 
     - name: Get NPM version and publish
       run: |
-        cd packages/extension/annotations-server
+        cd packages/server
 
         # Get latest published version from NPM
         LATEST_NPM_VERSION=$(npm view vibe-annotations-server version 2>/dev/null || echo "0.1.0")

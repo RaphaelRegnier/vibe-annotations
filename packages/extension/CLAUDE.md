@@ -13,7 +13,7 @@ Chrome Extension → HTTP API → vibe-annotations-server (port 3846) → MCP �
 - `content/modules/` — IIFE modules loaded via manifest.json in order. Use `var` for cross-file globals.
 - `content/content.js` — Orchestrator, initializes all modules.
 - `background/background.js` — Service worker: storage CRUD, API sync, badge management.
-- `annotations-server/` — NPM package for the MCP server (separate install, `npm i -g vibe-annotations-server`).
+- `../server/` — NPM package for the MCP server (separate install, `npm i -g vibe-annotations-server`). Lives at `packages/server/` in the monorepo root.
 
 ### Content script module load order (matters!)
 

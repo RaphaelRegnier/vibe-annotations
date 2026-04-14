@@ -7,6 +7,7 @@ Visual annotations for localhost dev projects. Send feedback to AI coding agents
 ```
 packages/
   extension/     Chrome extension — vanilla JS, no build step
+  server/        MCP server — npm package (vibe-annotations-server)
   website/       Marketing site & docs — Next.js, deployed on Vercel
 ```
 
