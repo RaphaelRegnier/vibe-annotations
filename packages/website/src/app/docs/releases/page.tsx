@@ -82,7 +82,7 @@ export default async function ReleasesPage() {
               <div className="text-sm text-neutral-600 leading-relaxed">
                 <div dangerouslySetInnerHTML={{ __html: formatBody(release.body) }} />
                 {(release.body.match(/https:\/\/github\.com\/user-attachments\/assets\/[\w-]+/g) || []).map((url, i) => (
-                  <LazyVideo key={i} src={url} />
+                  <LazyVideo key={i} src={url} releaseUrl={release.html_url} />
                 ))}
               </div>
             )}
