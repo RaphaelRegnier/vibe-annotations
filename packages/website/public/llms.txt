@@ -1,0 +1,30 @@
+# Vibe Annotations
+
+> Visual feedback tool for web development. Annotate elements, make design tweaks, and share with AI coding agents via MCP.
+
+## Documentation
+
+- [Overview](https://vibe-annotations.com/docs)
+- [Installation](https://vibe-annotations.com/docs/installation)
+- [MCP Setup](https://vibe-annotations.com/docs/mcp-setup)
+- [Workflows](https://vibe-annotations.com/docs/workflows)
+- [Architecture](https://vibe-annotations.com/docs/architecture)
+- [Troubleshooting](https://vibe-annotations.com/docs/troubleshooting)
+
+## Quick Start
+
+1. Install browser extension from Chrome Web Store
+2. Open a localhost page, click Annotate, click any element
+3. Copy & paste into AI chat, or install MCP server:
+
+```
+npm install -g vibe-annotations-server
+vibe-annotations-server start
+claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+```
+
+## Links
+
+- GitHub: https://github.com/RaphaelRegnier/vibe-annotations
+- Chrome Web Store: https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof
+- NPM Server: https://www.npmjs.com/package/vibe-annotations-server

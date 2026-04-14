@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- packages/website/ || exit 1",
   "headers": [
     {
       "source": "/(.*)",
