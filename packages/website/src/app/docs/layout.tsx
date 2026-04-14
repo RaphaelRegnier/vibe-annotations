@@ -61,7 +61,8 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-[#FEFEFE]">
       <Navbar />
       <div className="mx-auto max-w-5xl px-6 pt-20 pb-12 lg:grid lg:grid-cols-[200px_1fr] lg:gap-12">
-        <nav className="mb-8 lg:mb-0 lg:sticky lg:top-24 lg:self-start">
+        <nav className="mb-8 lg:mb-0 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+          <span className="block px-3 mb-1 text-xs font-medium text-neutral-400 uppercase tracking-wider">Overview</span>
           <ul className="space-y-1">
             {NAV.map((item) => (
               <li key={item.href}>
