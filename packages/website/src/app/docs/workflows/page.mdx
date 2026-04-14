@@ -2,62 +2,10 @@ export const metadata = { title: 'Workflows' }
 
 # Workflows
 
-## Single Page — Copy & Paste
+Choose the workflow that fits your use case:
 
-Best for quick edits on one page. No server needed.
-
-1. Annotate elements on the page (comments, CSS tweaks, text changes)
-2. Click **Copy** in the toolbar
-3. Paste into any AI chat (Claude, ChatGPT, Cursor) and ask the agent to implement the changes
-
-Enable **Clear on copy** in settings to auto-delete annotations after copying.
-
-## Multi-Page — MCP Server
-
-Best for cross-page changes. Requires the [MCP server](/docs/mcp-setup).
-
-1. Navigate your app and annotate elements across as many routes as you need
-2. Tell your agent: *"read vibe annotations and implement the changes"*
-3. The agent pulls all pending annotations via MCP, edits your source files, and deletes each annotation when done
-
-## Watch Mode — Hands-Free
-
-Your coding agent automatically picks up annotations as you drop them. Requires the MCP server.
-
-Tell your agent:
-
-```
-Start watching Vibe Annotations
-```
-
-The agent calls `watch_annotations` in a loop, implements each change, and deletes the annotation when done. An eye icon appears in the toolbar while watching. Click it to stop.
-
-Auto-stops after 5 minutes of inactivity.
-
-## Collaboration — Export & Import
-
-Share annotations with teammates who don't have the same dev setup.
-
-1. A reviewer annotates the live site (staging, production, or localhost)
-2. They click **Export** and share the `.json` file
-3. A developer clicks **Import** on their localhost — annotations, badges, and style previews appear instantly
-4. The developer copies or uses MCP to send the annotations to their coding agent
-
-When importing from a public URL into localhost, the extension offers to **remap URLs** automatically.
-
-## Agent-Assisted Annotation
-
-Let browser-capable AI agents annotate for you.
-
-**Compatible agents:**
-- **Claude Chrome extension** — has direct page access via its JavaScript tool
-- **OpenClaw** — uses CDP evaluate to run JS on the page
-- **Claude Code, Cursor, Windsurf** — access the page via a DevTools MCP server or Playwright
-
-**Prompt to get started:**
-
-```
-Read window.__vibeAnnotations.help() and use this extension for my comments on this project.
-```
-
-The agent discovers the bridge API, then uses `createStyleAnnotation` for broad CSS changes and `createAnnotation` for single-element edits.
+- [**Copy & paste**](/docs/workflows/copy-paste) — Quick edits on a single page. No server needed.
+- [**Multi-page (MCP)**](/docs/workflows/mcp) — Annotate across routes, let your agent read them all via MCP.
+- [**Watch mode**](/docs/workflows/watch-mode) — Hands-free loop: drop annotations, agent implements them live.
+- [**Collaboration**](/docs/workflows/collaboration) — Export annotations and share with teammates via JSON files.
+- [**Agent annotation**](/docs/workflows/agents) — Let browser-capable AI agents annotate for you.

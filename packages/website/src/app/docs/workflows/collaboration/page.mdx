@@ -1,0 +1,18 @@
+export const metadata = { title: 'Collaboration' }
+
+# Collaborating with Annotations
+
+Share annotations with teammates who don't have the same dev setup.
+
+## Workflow
+
+1. A reviewer annotates the live site (staging, production, or localhost)
+2. They click **Export** and share the `.json` file (Slack, email, etc.)
+3. A developer clicks **Import** on their localhost — annotations, badges, and style previews appear instantly
+4. The developer copies or uses MCP to send the annotations to their coding agent
+
+## Cross-Origin Remap
+
+When importing annotations from a public URL into localhost, the extension offers to **remap URLs** automatically so annotations anchor to your local dev server.
+
+**Important:** Annotations might not perfectly anchor if the DOM structure differs between environments. For best results, import into an environment with the same markup.

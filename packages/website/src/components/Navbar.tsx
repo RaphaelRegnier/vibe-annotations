@@ -24,9 +24,10 @@ export default function Navbar() {
 
           {/* Navigation Links - Hidden on smaller screens */}
           <div className="hidden lg:flex items-center gap-12 px-2 py-2 text-[15px] font-medium text-black">
-            <a href="#how-it-works" className="hover:text-gray-600 transition-colors whitespace-nowrap">How it works</a>
-            <a href="#features" className="hover:text-gray-600 transition-colors whitespace-nowrap">Features</a>
-            <a href="#faq" className="hover:text-gray-600 transition-colors whitespace-nowrap">FAQ</a>
+            <Link href="/#how-it-works" className="hover:text-gray-600 transition-colors whitespace-nowrap">How it works</Link>
+            <Link href="/#features" className="hover:text-gray-600 transition-colors whitespace-nowrap">Features</Link>
+            <Link href="/#faq" className="hover:text-gray-600 transition-colors whitespace-nowrap">FAQ</Link>
+            <Link href="/docs" className="hover:text-gray-600 transition-colors whitespace-nowrap">Documentation</Link>
           </div>
 
           {/* GitHub Icon and CTA Button - Always visible */}

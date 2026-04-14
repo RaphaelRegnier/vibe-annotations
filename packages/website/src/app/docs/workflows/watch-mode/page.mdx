@@ -1,0 +1,26 @@
+export const metadata = { title: 'Watch Mode' }
+
+# Watch Mode
+
+Hands-free annotation processing. Your coding agent automatically picks up and implements annotations as you drop them. No copy-paste, no manual triggering. Requires the MCP server.
+
+## Start Watching
+
+Tell your agent:
+
+```
+Start watching Vibe Annotations
+```
+
+The agent calls `watch_annotations` in a loop, implements each change, and deletes the annotation when done.
+
+## Visual Feedback
+
+While watching:
+- An **eye icon** appears in the toolbar status area
+- Badges show eyes instead of numbers
+- Click the eye to stop watching
+
+## Auto-Stop
+
+Watching automatically stops after **5 minutes of inactivity** — no annotations appearing in that window.
