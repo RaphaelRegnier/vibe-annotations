@@ -31,7 +31,6 @@ out/
 session-combined.md
 session*.md
 SESSION.md
-CLAUDE.md
 
 # Local development files
 UPDATE_NPM_PACKAGE.md
