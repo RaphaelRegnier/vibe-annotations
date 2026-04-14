@@ -1,6 +1,8 @@
 # Vibe Annotations
 
-![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-6K+_users-green?logo=googlechrome&logoColor=white)![Server Package](https://img.shields.io/badge/Server-NPM-blue)![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)Visual feedback tool for web development. Annotate elements on your pages, make design tweaks, and share with AI coding agents or teammates.
+![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-6K+_users-green?logo=googlechrome&logoColor=white)![Server Package](https://img.shields.io/badge/Server-NPM-blue)![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)
+
+Visual feedback tool for web development. Annotate elements on your pages, make design tweaks, and share with AI coding agents or teammates.
 
 ## Get started
 
