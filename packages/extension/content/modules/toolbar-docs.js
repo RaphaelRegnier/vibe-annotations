@@ -151,8 +151,8 @@ var VibeToolbarDocs = (() => {
             <button class="vibe-guide-tab" data-tab="openclaw">OpenClaw</button>
           </div>
           <div class="vibe-guide-panel active" data-panel="claude">
-            <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
-              <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+            <div class="vibe-guide-cmd" data-cmd="claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+              <code>claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
               <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
             </div>
           </div>
@@ -224,8 +224,8 @@ var VibeToolbarDocs = (() => {
               <button class="vibe-guide-tab" data-tab="openclaw">OpenClaw</button>
             </div>
             <div class="vibe-guide-panel active" data-panel="claude">
-              <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
-                <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+              <div class="vibe-guide-cmd" data-cmd="claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+                <code>claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
                 <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
               </div>
             </div>
@@ -307,8 +307,8 @@ var VibeToolbarDocs = (() => {
               <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
             </div>
             <p class="vibe-guide-text" style="margin-top:8px;">Then connect your agent (e.g. Claude Code):</p>
-            <div class="vibe-guide-cmd" data-cmd="claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp">
-              <code>claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
+            <div class="vibe-guide-cmd" data-cmd="claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp">
+              <code>claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp</code>
               <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
             </div>
           </div>

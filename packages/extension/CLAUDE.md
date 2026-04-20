@@ -63,7 +63,7 @@ Dark-only. Tokens defined as CSS custom properties in `styles.js` (`:host` rules
 ```bash
 npm install -g vibe-annotations-server
 vibe-annotations-server start
-claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
 ```
 
 Tools: `read_annotations`, `delete_annotation`, `watch_annotations`, `get_project_context`.

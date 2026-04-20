@@ -8,8 +8,10 @@ Connect your AI coding agent to the Vibe Annotations server so it can read, watc
 
 ## Claude Code
 
+Run once from any directory — `--scope user` configures it globally across all projects.
+
 ```bash
-claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
 ```
 
 ## Cursor

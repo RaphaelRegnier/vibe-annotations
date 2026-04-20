@@ -50,14 +50,14 @@ After starting the server, connect it to your AI coding agent. The server suppor
 
 ### Claude Code
 
-In your project directory, run:
+Run once (from any directory — `--scope user` makes it available across all projects):
 
 ```bash
 # Recommended (HTTP transport - more stable)
-claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
 
 # Alternative (SSE transport - for compatibility)
-claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
+claude mcp add --scope user --transport sse vibe-annotations http://127.0.0.1:3846/sse
 ```
 
 ### Cursor
