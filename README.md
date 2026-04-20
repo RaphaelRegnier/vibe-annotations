@@ -8,19 +8,15 @@ Visual feedback tool for web development. Annotate elements on your pages, make 
 
 **1.** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
 
-**2.** Install the global server
+**2.** Run the setup wizard
 
 ```bash
-npm install -g vibe-annotations-server
+npx vibe-annotations-server init
 ```
 
-**3.** Start the server
+One interactive command installs the global server, starts it in the background, and configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code). Prefer manual? See [Installation](https://vibe-annotations.com/docs/installation).
 
-```bash
-vibe-annotations-server start
-```
-
-**4.** Open a localhost page, click **Annotate**. You can annotate multiple pages on your web app. Then:
+**3.** Open a localhost page, click **Annotate**. You can annotate multiple pages on your web app. Then:
 
 A (recommended) - [Use the MCP](https://vibe-annotations.com/docs/mcp-setup) to implement your Annotations
 

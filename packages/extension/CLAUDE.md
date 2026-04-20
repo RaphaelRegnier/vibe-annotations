@@ -61,6 +61,10 @@ Dark-only. Tokens defined as CSS custom properties in `styles.js` (`:host` rules
 ## MCP Server
 
 ```bash
+# Recommended — one interactive command:
+npx vibe-annotations-server init
+
+# Or manually:
 npm install -g vibe-annotations-server
 vibe-annotations-server start
 claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp

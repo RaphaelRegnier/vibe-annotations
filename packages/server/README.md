@@ -2,7 +2,15 @@
 
 Global MCP server for Vibe Annotations browser extension.
 
-## Installation
+## Quick start
+
+```bash
+npx vibe-annotations-server init
+```
+
+Interactive wizard — installs the global package, starts the server on port 3846, configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code), and links the Chrome extension. Supports these flags: `--agent <name>` (repeatable), `--non-interactive`, `--project` (use project scope instead of user), `--skip-server`, `--skip-extension`, `--reset`.
+
+## Manual installation
 
 ```bash
 npm install -g vibe-annotations-server

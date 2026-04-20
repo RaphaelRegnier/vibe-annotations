@@ -133,7 +133,13 @@ var VibeToolbarDocs = (() => {
 
         <div class="vibe-guide-section">
           <div class="vibe-guide-label">3. Install MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
-          <p class="vibe-guide-text">Let your coding agent fetch and resolve annotations automatically.</p>
+          <p class="vibe-guide-text">Let your coding agent fetch and resolve annotations automatically. One command does it all:</p>
+          <div class="vibe-guide-cmd" data-cmd="npx vibe-annotations-server init">
+            <code>npx vibe-annotations-server init</code>
+            <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+          </div>
+          <p class="vibe-guide-text" style="margin-top:6px;">Installs the server, starts it, and configures your AI agent interactively.</p>
+          <p class="vibe-guide-text" style="margin-top:12px;">Or set it up manually:</p>
           <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
             <code>npm install -g vibe-annotations-server</code>
             <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
@@ -205,6 +211,12 @@ var VibeToolbarDocs = (() => {
         content: `
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">1. Install and start the server</div>
+            <p class="vibe-guide-text">One command installs, starts, and configures your agent:</p>
+            <div class="vibe-guide-cmd" data-cmd="npx vibe-annotations-server init">
+              <code>npx vibe-annotations-server init</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:10px;">Or manually:</p>
             <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
               <code>npm install -g vibe-annotations-server</code>
               <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
@@ -215,7 +227,7 @@ var VibeToolbarDocs = (() => {
             </div>
           </div>
           <div class="vibe-guide-section">
-            <div class="vibe-guide-label">2. Connect your agent</div>
+            <div class="vibe-guide-label">2. Connect your agent <span style="font-weight:400;color:var(--v-text-secondary);">(skip if you used init)</span></div>
             <div class="vibe-guide-tabs">
               <button class="vibe-guide-tab active" data-tab="claude">Claude Code</button>
               <button class="vibe-guide-tab" data-tab="cursor">Cursor</button>
@@ -298,6 +310,12 @@ var VibeToolbarDocs = (() => {
           </div>
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Setup</div>
+            <p class="vibe-guide-text">One command installs, starts, and configures your agent:</p>
+            <div class="vibe-guide-cmd" data-cmd="npx vibe-annotations-server init">
+              <code>npx vibe-annotations-server init</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:10px;">Or manually:</p>
             <div class="vibe-guide-cmd" data-cmd="npm install -g vibe-annotations-server">
               <code>npm install -g vibe-annotations-server</code>
               <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>

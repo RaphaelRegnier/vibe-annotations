@@ -22,9 +22,12 @@
 ## Quick Start
 
 1. Install browser extension from Chrome Web Store
-2. Install server: npm install -g vibe-annotations-server
-3. Start server: vibe-annotations-server start
-4. Connect agent: claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
+2. Run: npx vibe-annotations-server init (interactive wizard — installs server, starts it, configures your AI agent across Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code)
+
+Manual install (alternative):
+- npm install -g vibe-annotations-server
+- vibe-annotations-server start
+- claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
 
 ## Links
 
