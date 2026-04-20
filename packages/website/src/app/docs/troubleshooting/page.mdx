@@ -33,7 +33,7 @@ If you see "TypeError: terminated" or frequent disconnections with the SSE trans
 ```bash
 # Claude Code
 claude mcp remove vibe-annotations
-claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
+claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
 ```
 
 For other agents, replace `/sse` with `/mcp` in your configuration.

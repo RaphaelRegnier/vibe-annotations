@@ -64,6 +64,31 @@ program
   .version(packageJson.version);
 
 program
+  .command('init')
+  .description('Interactive setup wizard: install server, configure MCP, link the extension')
+  .option('--agent <name>', 'Configure specific agent (repeatable). One of: claude-code, cursor, windsurf, codex, openclaw, vscode', collectAgent, [])
+  .option('--non-interactive', 'No prompts; use defaults. Auto-applied on CI or no TTY.')
+  .option('--skip-extension', 'Skip the Chrome extension prompt')
+  .option('--skip-server', 'Skip installing/starting the server')
+  .option('--project', 'Configure MCP at project scope instead of user scope')
+  .option('--reset', 'Remove existing vibe-annotations entries from known agent configs before configuring')
+  .action(async (options) => {
+    const { runInit } = await import('../lib/init/index.js');
+    await runInit({
+      agent: options.agent.length ? options.agent : null,
+      nonInteractive: !!options.nonInteractive,
+      skipExtension: !!options.skipExtension,
+      skipServer: !!options.skipServer,
+      project: !!options.project,
+      reset: !!options.reset,
+    });
+  });
+
+function collectAgent(value, previous) {
+  return previous.concat(value);
+}
+
+program
   .command('start')
   .description('Start the Vibe Annotations server')
   .option('-d, --daemon', 'Run as daemon (background process)')
