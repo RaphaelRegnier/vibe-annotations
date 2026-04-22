@@ -19,7 +19,7 @@ export default {
       path: USER_PATH,
       format: 'json',
       keyPath: ['mcpServers', MCP_NAME],
-      value: { transport: 'http', url: MCP_URL },
+      value: { type: 'http', url: MCP_URL },
     };
   },
 
@@ -28,7 +28,7 @@ export default {
       path: PROJECT_PATH(cwd),
       format: 'json',
       keyPath: ['mcpServers', MCP_NAME],
-      value: { transport: 'http', url: MCP_URL },
+      value: { type: 'http', url: MCP_URL },
     };
   },
 
