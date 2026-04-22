@@ -1,15 +1,16 @@
 // Dark-only theme manager — tokens are defined in styles.js (:host rules).
 // This module just emits the theme event; no inline style overrides needed.
 
-var VibeThemeManager = (() => {
-  function init() {
-    VibeEvents.emit('theme:changed', 'dark');
-  }
+import VibeEvents from './event-bus.js';
 
-  function apply() { init(); }
-  function getEffective() { return 'dark'; }
-  function getPreference() { return 'dark'; }
-  function setPreference() {}
+function init() {
+  VibeEvents.emit('theme:changed', 'dark');
+}
 
-  return { init, apply, getEffective, getPreference, setPreference };
-})();
+function apply() { init(); }
+function getEffective() { return 'dark'; }
+function getPreference() { return 'dark'; }
+function setPreference() {}
+
+const VibeThemeManager = { init, apply, getEffective, getPreference, setPreference };
+export default VibeThemeManager;

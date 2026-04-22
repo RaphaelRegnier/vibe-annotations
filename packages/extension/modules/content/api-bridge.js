@@ -1,11 +1,10 @@
 // Wraps all chrome.runtime.sendMessage and chrome.storage calls
 // Single interface for data operations used by all modules
 
-var VibeAPI = (() => {
-  const SERVER_URL = 'http://127.0.0.1:3846';
-  let statusCache = null;
-  let statusCacheTime = 0;
-  const CACHE_TTL = 2000;
+const SERVER_URL = 'http://127.0.0.1:3846';
+let statusCache = null;
+let statusCacheTime = 0;
+const CACHE_TTL = 2000;
 
   function isFileProtocol() {
     return window.location.protocol === 'file:';
@@ -268,35 +267,35 @@ var VibeAPI = (() => {
     }
   }
 
-  return {
-    checkServerStatus,
-    clearStatusCache,
-    isFileProtocol,
-    loadAnnotations,
-    loadProjectAnnotations,
-    saveAnnotation,
-    updateAnnotation,
-    deleteAnnotation,
-    deleteAnnotationsByUrl,
-    onAnnotationsChanged,
-    getScreenshotEnabled,
-    isScreenshotEnabled,
-    saveScreenshotEnabled,
-    getToolbarPosition,
-    saveToolbarPosition,
-    getToolbarCollapsed,
-    saveToolbarCollapsed,
-    getClearOnCopy,
-    saveClearOnCopy,
-    getBadgeColor,
-    saveBadgeColor,
-    getOverlayHidden,
-    saveOverlayHidden,
-    getSkipDeleteConfirm,
-    saveSkipDeleteConfirm,
-    getCustomShortcut,
-    saveCustomShortcut,
-    getWatchers,
-    stopWatchers
-  };
-})();
+const VibeAPI = {
+  checkServerStatus,
+  clearStatusCache,
+  isFileProtocol,
+  loadAnnotations,
+  loadProjectAnnotations,
+  saveAnnotation,
+  updateAnnotation,
+  deleteAnnotation,
+  deleteAnnotationsByUrl,
+  onAnnotationsChanged,
+  getScreenshotEnabled,
+  isScreenshotEnabled,
+  saveScreenshotEnabled,
+  getToolbarPosition,
+  saveToolbarPosition,
+  getToolbarCollapsed,
+  saveToolbarCollapsed,
+  getClearOnCopy,
+  saveClearOnCopy,
+  getBadgeColor,
+  saveBadgeColor,
+  getOverlayHidden,
+  saveOverlayHidden,
+  getSkipDeleteConfirm,
+  saveSkipDeleteConfirm,
+  getCustomShortcut,
+  saveCustomShortcut,
+  getWatchers,
+  stopWatchers,
+};
+export default VibeAPI;

@@ -1,32 +1,34 @@
-// Lightweight pub/sub event bus for inter-module communication
-var VibeEvents = (() => {
-  const listeners = new Map();
+// Lightweight pub/sub event bus for inter-module communication.
 
-  return {
-    on(event, fn) {
-      if (!listeners.has(event)) listeners.set(event, new Set());
-      listeners.get(event).add(fn);
-    },
+const listeners = new Map();
 
-    off(event, fn) {
-      const fns = listeners.get(event);
-      if (fns) fns.delete(fn);
-    },
+const VibeEvents = {
+  on(event, fn) {
+    if (!listeners.has(event)) listeners.set(event, new Set());
+    listeners.get(event).add(fn);
+  },
 
-    emit(event, data) {
-      const fns = listeners.get(event);
-      if (fns) fns.forEach(fn => fn(data));
-    },
+  off(event, fn) {
+    const fns = listeners.get(event);
+    if (fns) fns.delete(fn);
+  },
 
-    once(event, fn) {
-      const wrapper = (data) => {
-        fn(data);
-        this.off(event, wrapper);
-      };
-      this.on(event, wrapper);
-    }
-  };
-})();
+  emit(event, data) {
+    const fns = listeners.get(event);
+    if (fns) fns.forEach((fn) => fn(data));
+  },
+
+  once(event, fn) {
+    const wrapper = (data) => {
+      fn(data);
+      VibeEvents.off(event, wrapper);
+    };
+    VibeEvents.on(event, wrapper);
+  },
+};
+
+export default VibeEvents;
 
 /** Full display path: pathname + search + hash (supports hash routers & query params). */
-var vibeLocationPath = (loc) => (loc.pathname || '/') + (loc.search || '') + (loc.hash || '') || '/';
+export const vibeLocationPath = (loc) =>
+  (loc.pathname || '/') + (loc.search || '') + (loc.hash || '') || '/';

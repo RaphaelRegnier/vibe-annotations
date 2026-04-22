@@ -2,7 +2,6 @@
 // Works with open shadow roots only (closed roots return null for .shadowRoot).
 // Performance: avoids full-tree walks where possible; caches nothing (DOM is mutable).
 
-var VibeShadowDOMUtils = (() => {
 
   // --- Predicates ---
 
@@ -183,20 +182,20 @@ var VibeShadowDOMUtils = (() => {
     return current;
   }
 
-  return {
-    isShadowRoot,
-    isInShadowDOM,
-    getParentElement,
-    querySelectorDeep,
-    querySelectorAllDeep,
-    querySelectorCountDeep,
-    getShadowPath,
-    buildShadowSelector,
-    findByShadowSelector,
-    isShadowSelector,
-    elementFromPointDeep,
-    getNavigableParent,
-    getFirstDrillChild,
-    SHADOW_SEPARATOR
-  };
-})();
+const VibeShadowDOMUtils = {
+  isShadowRoot,
+  isInShadowDOM,
+  getParentElement,
+  querySelectorDeep,
+  querySelectorAllDeep,
+  querySelectorCountDeep,
+  getShadowPath,
+  buildShadowSelector,
+  findByShadowSelector,
+  isShadowSelector,
+  elementFromPointDeep,
+  getNavigableParent,
+  getFirstDrillChild,
+  SHADOW_SEPARATOR,
+};
+export default VibeShadowDOMUtils;

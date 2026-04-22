@@ -1,7 +1,7 @@
 // All Vibe Annotations V2 CSS as a JS constant
 // Loaded synchronously into the shadow root — no async fetch needed
 
-var VIBE_STYLES = `
+export const VIBE_STYLES = `
 /* ===== Reset inside shadow ===== */
 *, *::before, *::after {
   box-sizing: border-box;

@@ -1,81 +1,84 @@
-// Creates and manages the shadow DOM host for all Vibe UI
+// Creates and manages the shadow DOM host for all Vibe UI.
 
-var VibeShadowHost = (() => {
-  let hostEl = null;
-  let shadowRoot = null;
+import { VIBE_STYLES } from './styles.js';
+import VibeAPI from './api-bridge.js';
+import VibeEvents from './event-bus.js';
 
-  function init() {
-    if (hostEl) return shadowRoot;
+let hostEl = null;
+let shadowRoot = null;
 
-    hostEl = document.createElement('div');
-    hostEl.id = 'vibe-annotations-root';
-    hostEl.style.cssText = `
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      pointer-events: none !important;
-      z-index: 2147483647 !important;
-      overflow: visible !important;
-    `;
+function init() {
+  if (hostEl) return shadowRoot;
 
-    shadowRoot = hostEl.attachShadow({ mode: 'open' });
+  hostEl = document.createElement('div');
+  hostEl.id = 'vibe-annotations-root';
+  hostEl.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    pointer-events: none !important;
+    z-index: 2147483647 !important;
+    overflow: visible !important;
+  `;
 
-    // Inject styles synchronously
-    const styleEl = document.createElement('style');
-    styleEl.textContent = VIBE_STYLES;
-    shadowRoot.appendChild(styleEl);
+  shadowRoot = hostEl.attachShadow({ mode: 'open' });
 
-    // Hidden state is checked async in content.js after init
-    // Start hidden to avoid flash, content.js will show if not hidden
-    hostEl.style.display = 'none';
+  // Inject styles synchronously
+  const styleEl = document.createElement('style');
+  styleEl.textContent = VIBE_STYLES;
+  shadowRoot.appendChild(styleEl);
 
-    document.body.appendChild(hostEl);
+  // Hidden state is checked async in content.js after init
+  // Start hidden to avoid flash, content.js will show if not hidden
+  hostEl.style.display = 'none';
 
-    // Contain composed events at shadow boundary — prevents frameworks
-    // from interpreting shadow DOM interactions as "outside clicks"
-    for (const type of ['pointerdown', 'mousedown', 'click', 'focusin', 'focusout']) {
-      hostEl.addEventListener(type, (e) => e.stopPropagation());
-    }
+  document.body.appendChild(hostEl);
 
-    return shadowRoot;
+  // Contain composed events at shadow boundary — prevents frameworks
+  // from interpreting shadow DOM interactions as "outside clicks"
+  for (const type of ['pointerdown', 'mousedown', 'click', 'focusin', 'focusout']) {
+    hostEl.addEventListener(type, (e) => e.stopPropagation());
   }
 
-  function getRoot() {
-    return shadowRoot;
-  }
+  return shadowRoot;
+}
 
-  function getHost() {
-    return hostEl;
-  }
+function getRoot() {
+  return shadowRoot;
+}
 
-  function destroy() {
-    if (hostEl && hostEl.parentNode) {
-      hostEl.parentNode.removeChild(hostEl);
-    }
-    hostEl = null;
-    shadowRoot = null;
-  }
+function getHost() {
+  return hostEl;
+}
 
-  function hide() {
-    if (hostEl) hostEl.style.display = 'none';
-    VibeAPI.saveOverlayHidden(true);
+function destroy() {
+  if (hostEl && hostEl.parentNode) {
+    hostEl.parentNode.removeChild(hostEl);
   }
+  hostEl = null;
+  shadowRoot = null;
+}
 
-  function show() {
-    if (hostEl) hostEl.style.display = '';
-    VibeAPI.saveOverlayHidden(false);
-    VibeEvents.emit('overlay:shown');
-  }
+function hide() {
+  if (hostEl) hostEl.style.display = 'none';
+  VibeAPI.saveOverlayHidden(true);
+}
 
-  function isVisible() {
-    return hostEl && hostEl.style.display !== 'none';
-  }
+function show() {
+  if (hostEl) hostEl.style.display = '';
+  VibeAPI.saveOverlayHidden(false);
+  VibeEvents.emit('overlay:shown');
+}
 
-  function toggle() {
-    if (isVisible()) { hide(); } else { show(); }
-  }
+function isVisible() {
+  return hostEl && hostEl.style.display !== 'none';
+}
 
-  return { init, getRoot, getHost, destroy, hide, show, isVisible, toggle };
-})();
+function toggle() {
+  if (isVisible()) { hide(); } else { show(); }
+}
+
+const VibeShadowHost = { init, getRoot, getHost, destroy, hide, show, isVisible, toggle };
+export default VibeShadowHost;
