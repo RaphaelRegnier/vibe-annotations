@@ -1,10 +1,11 @@
-// Vibe Annotations Background Service Worker (ES module)
+// Vibe Annotations Background Service Worker — WXT entrypoint.
+// Body is unchanged from the pre-WXT build; paths updated + wrapped in defineBackground().
 
-import { isSupportedUrl } from './url-filter.js';
-import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from './badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from './api-sync.js';
-import { formatExport } from './export.js';
-import { migrateSyncFlags } from './utils.js';
+import { isSupportedUrl } from '../modules/background/url-filter.js';
+import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../modules/background/badge.js';
+import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from '../modules/background/api-sync.js';
+import { formatExport } from '../modules/background/export.js';
+import { migrateSyncFlags } from '../modules/background/utils.js';
 
 class VibeAnnotationsBackground {
   constructor() {
@@ -319,25 +320,22 @@ class VibeAnnotationsBackground {
   }
 
   async enableSite(originPattern, tabId) {
+    // WXT bundles each entrypoint into a single file under content-scripts/.
+    // Entrypoint `content/index.js` → `content-scripts/content.js`.
+    // Entrypoint `bridge.content.js` → `content-scripts/bridge.js`.
     const scriptId = 'vibe-' + originPattern.replace(/[^a-zA-Z0-9]/g, '_');
     try {
       await chrome.scripting.unregisterContentScripts({ ids: [scriptId] }).catch(() => {});
       await chrome.scripting.registerContentScripts([{
         id: scriptId, matches: [originPattern],
-        js: [
-          'content/modules/event-bus.js', 'content/modules/styles.js', 'content/modules/shadow-host.js',
-          'content/modules/theme-manager.js', 'content/modules/api-bridge.js', 'content/modules/shadow-dom-utils.js',
-          'content/modules/element-context.js', 'content/modules/badge-manager.js', 'content/modules/inspection-mode.js',
-          'content/modules/popover-panels.js', 'content/modules/annotation-popover.js', 'content/modules/toolbar-docs.js',
-          'content/modules/floating-toolbar.js', 'content/modules/bridge-handler.js', 'content/content.js'
-        ],
+        js: ['content-scripts/content.js'],
         runAt: 'document_idle', persistAcrossSessions: true
       }]);
       const bridgeScriptId = scriptId + '_bridge';
       await chrome.scripting.unregisterContentScripts({ ids: [bridgeScriptId] }).catch(() => {});
       await chrome.scripting.registerContentScripts([{
         id: bridgeScriptId, matches: [originPattern],
-        js: ['content/bridge-api.js'], world: 'MAIN', runAt: 'document_start', persistAcrossSessions: true
+        js: ['content-scripts/bridge.js'], world: 'MAIN', runAt: 'document_start', persistAcrossSessions: true
       }]);
     } catch (err) {
       console.error('Failed to register content scripts:', err);
@@ -346,13 +344,18 @@ class VibeAnnotationsBackground {
   }
 }
 
-// Initialize
-const bg = new VibeAnnotationsBackground();
+export default defineBackground(() => {
+  // Instantiate the existing class — no behavior change, just wrapped for WXT.
+  const bg = new VibeAnnotationsBackground();
 
-// Keyboard shortcut commands
-chrome.commands.onCommand.addListener(async (command, tab) => {
-  if (command === 'toggle-annotate' && tab?.id && await isSupportedUrl(tab.url)) {
-    try { await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' }); }
-    catch { /* Content script not loaded */ }
-  }
+  // Keyboard shortcut commands.
+  chrome.commands.onCommand.addListener(async (command, tab) => {
+    if (command === 'toggle-annotate' && tab?.id && (await isSupportedUrl(tab.url))) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' });
+      } catch {
+        /* Content script not loaded */
+      }
+    }
+  });
 });
