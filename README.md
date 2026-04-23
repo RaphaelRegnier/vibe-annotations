@@ -1,285 +1,61 @@
 # Vibe Annotations
 
-[![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)](https://polyformproject.org/licenses/shield/1.0.0)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green)](https://chrome.google.com/webstore)
-[![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-6K+_users-green?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof) [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server) [![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)](https://polyformproject.org/licenses/shield/1.0.0)
 
-🌐 Website: https://www.vibe-annotations.com/
+Visual feedback tool for web development. Annotate elements on your pages, make design tweaks, and share with AI coding agents or teammates.
 
-AI-powered development annotations for local development projects. Drop comments on your local development apps and let your AI coding agent implement the fixes automatically.
+## Get started
 
-https://github.com/user-attachments/assets/4c134852-090b-4974-85e5-be77a95636f9
+**1.** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
 
-## How it Works
-
-![Start Annotating](docs/images/start-annotating.jpg)
-*1. Open your localhost app and click "Annotate" in the floating toolbar*
-
-![New Annotation](docs/images/new-annotation.jpg)
-*2. Click any element — a popover appears to leave your feedback*
-
-![Copy to Clipboard](docs/images/copy-clipboard.jpg)
-*3. Your AI agent fetches annotations automatically via MCP, or you can copy them to clipboard with full element context*
-
-![Settings](docs/images/settings-opened.jpg)
-*4. Settings: MCP server status, clear-after-copy, screenshots, theme toggle*
-
-![Done](docs/images/done.jpg)
-*5. AI agent implements fixes and deletes annotations via MCP — all from your browser*
-
-## Features
-
-- 🏠 **Local development focused**: Works on localhost, .local, .test, .localhost domains
-- 📑 **Multi-page annotations**: Create feedback across multiple routes in your app, then bulk-process all annotations at once for efficient fixes
-- 🤖 **AI-powered**: Integrates with AI coding agents via MCP
-- ⚡ **Instant feedback**: Click, comment, bulk-fix
-- 👨‍💻 **Developer-friendly**: Built for modern web development
-
-## Architecture
-
-Vibe Annotations uses a two-piece architecture:
-
-1. **Browser Extension** (`/extension`): UI, setup guidance, annotation management
-2. **NPM Package** (`vibe-annotations-server`): MCP server, local HTTP API, data storage
-
-## Quick Start
-
-### 1. Install the Browser Extension
-
-**From Chrome Web Store:**
-Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
-
-**For Development:**
-Go to your chromium browser extension page, and click "Load unpacked" then select /extension directory.
-
-### 2. Install the Global Server
-```bash
-npm install -g vibe-annotations-server
-```
-
-### 3. Start the Server
-```bash
-vibe-annotations-server start
-```
-
-### 4. Connect Your AI Coding Agent
-Choose your AI coding agent and follow the setup:
-
-#### Claude Code
-In your project directory:
-```bash
-# Recommended (HTTP transport - more stable)
-claude mcp add --transport http vibe-annotations http://127.0.0.1:3846/mcp
-
-# Alternative (SSE transport - for compatibility)
-claude mcp add --transport sse vibe-annotations http://127.0.0.1:3846/sse
-```
-
-#### Cursor
-1. Open Cursor → Settings → Cursor Settings
-2. Go to the Tools & Integrations tab
-3. Click + Add new global MCP server
-4. Add this configuration:
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-**Alternative (SSE transport):**
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/sse"
-    }
-  }
-}
-```
-
-#### Windsurf
-1. Navigate to Windsurf → Settings → Advanced Settings
-2. Scroll down to the Cascade section
-3. Add this configuration:
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-**Alternative (SSE transport):**
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/sse"
-    }
-  }
-}
-```
-
-#### Codex
-Add to `~/.codex/config.toml`:
-```toml
-[mcp_servers.vibe-annotations]
-url = "http://127.0.0.1:3846/mcp"
-```
-
-#### OpenClaw
-Add to `~/.openclaw/openclaw.json`:
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-#### VS Code
-Install an AI extension that supports MCP, then add this configuration to your MCP settings:
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-### 5. Start Using Annotations
-- Open the extension popup for detailed setup instructions
-- Start annotating your local development projects!
-- Use your AI coding agent to automatically implement fixes
-
-### 6. (Optional) Enable Local File Support
-
-To annotate local HTML files (file:// URLs) instead of localhost:
-
-1. Go to `chrome://extensions/`
-2. Find "Vibe Annotations" and click "Details"
-3. Enable "Allow access to file URLs"
-4. Refresh your local HTML file
-
-**Note:** This is only needed for local files. Localhost development servers work without this step.
-
-## User Experience Flow
-
-1. **Extension Installation**: Install from Chrome Web Store
-2. **Setup Instructions**: Extension popup guides through terminal setup
-3. **Server Detection**: Extension automatically detects running server
-4. **Daily Usage**: Create annotations → Use your AI coding agent → Fixes implemented
-
-## Server Management
+**2.** Run the setup wizard
 
 ```bash
-# Check server status
-vibe-annotations-server status
-
-# Stop server
-vibe-annotations-server stop
-
-# Restart server
-vibe-annotations-server restart
+npx vibe-annotations-server init
 ```
 
-## Uninstallation
+One interactive command installs the global server, starts it in the background, and configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code). Prefer manual? See [Installation](https://vibe-annotations.com/docs/installation).
 
-To completely remove Vibe Annotations from your system:
+**3.** Open a localhost page, click **Annotate**. You can annotate multiple pages on your web app. Then:
 
-### 1. Remove MCP Server from Your AI Coding Agent
+A (recommended) - [Use the MCP](https://vibe-annotations.com/docs/mcp-setup) to implement your Annotations
 
-#### Claude Code
-```bash
-claude mcp remove vibe-annotations
-```
+B - Copy to your clipboard: **View all** > **Copy** and send to your AI coding agent.
 
-#### Cursor
-Go to Cursor → Settings → Cursor Settings → Tools & Integrations tab and remove the vibe-annotations server configuration.
+## Demos
 
-#### Windsurf
-Go to Windsurf → Settings → Advanced Settings → Cascade section and remove the vibe-annotations server from your MCP configuration.
+**Annotate, copy/paste to your AI coding agent:**
 
-#### Other Editors
-Remove the vibe-annotations server from your editor's MCP configuration settings.
+https://github.com/user-attachments/assets/ebcf5a17-423c-459c-b5d5-2876b671c5a7
 
-### 2. Uninstall the Global Server
-```bash
-npm uninstall -g vibe-annotations-server
-```
+**Make persisting direct design tweaks:**
 
-### 3. Remove Data Files
-```bash
-rm -rf ~/.vibe-annotations
-```
+https://github.com/user-attachments/assets/66bc31ed-86d6-4fc0-ab69-7e4ed8c7c27a
 
-### 4. Remove Browser Extension
-Go to Chrome Extensions (`chrome://extensions/`) and remove the Vibe Annotations extension.
+**Use the MCP server to share your annotations, any websites, multiple pages:**
 
-## Development
+https://github.com/user-attachments/assets/2dc8e03c-a760-4e31-afac-537200387788
 
-### Local Server Development (Advanced)
+**Annotate with a browser-capable AI coding agent:**
 
-If you're developing Vibe Annotations or prefer to run the server locally instead of the global installation:
+https://github.com/user-attachments/assets/5839d3df-f3e6-4b05-b58a-fdd619487aa4
 
-```bash
-# Clone the repository
-git clone https://github.com/RaphaelRegnier/vibe-annotations.git
-cd vibe-annotations/annotations-server
+**Collaborate with teammates using export / import features:**
 
-# Install dependencies
-npm install
+https://github.com/user-attachments/assets/58de5fad-d7fa-490d-849f-d25771758067
 
-# Run the server locally
-npm run start
-# or for development with auto-restart:
-npm run dev
-```
+**Use watch mode, never leave your website:**
 
-**Note**: Running locally ties the server to this specific directory. Most users should use the global installation method shown above.
-
-### Extension Development
-
-See `/extension` directory for browser extension development. Load the extension in Chrome as unpacked extension.
+https://github.com/user-attachments/assets/c74d3a43-61c4-4542-ab43-c559cd6e44bf
 
 ## Documentation
 
-- **[Update System](docs/UPDATE_SYSTEM.md)** - Comprehensive guide to extension and server update notifications
-- **[Development Guide](docs/DEVELOPMENT.md)** - Development setup and guidelines
-
-## Troubleshooting
-
-Having issues? Check our [GitHub Issues](https://github.com/RaphaelRegnier/vibe-annotations/issues) or create a new one.
-
-### Common Issues
-
-- **Server not detected**: Make sure the server is running with `vibe-annotations-server status`
-- **Extension not working**: Check that you're on a local development URL (localhost, 127.0.0.1, 0.0.0.0, *.local, *.test, *.localhost)
-- **MCP connection failed**: Verify your AI coding agent configuration matches the examples above
-- **SSE connection drops/timeouts**: If experiencing "TypeError: terminated" or frequent disconnections, switch to HTTP transport (replace `/sse` with `/mcp` in your configuration)
+Full docs at [**vibe-annotations.com/docs**](https://vibe-annotations.com/docs) — including [installation](https://vibe-annotations.com/docs/installation), [MCP setup](https://vibe-annotations.com/docs/mcp-setup), [workflows](https://vibe-annotations.com/docs/workflows), [architecture](https://vibe-annotations.com/docs/architecture), and [troubleshooting](https://vibe-annotations.com/docs/troubleshooting).
 
 ## Contributing
 
-We love contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Contributors
-
-Thanks to everyone who has contributed to making Vibe Annotations better!
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
+See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome.
 
 ## License
 
-[PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0) — see [LICENSE](LICENSE) and [NOTICE](NOTICE) for details. Versions prior to v1.5.0 were released under MIT.
+[PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0) — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

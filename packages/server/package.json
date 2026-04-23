@@ -1,0 +1,58 @@
+{
+  "name": "vibe-annotations-server",
+  "version": "0.4.0",
+  "description": "Global MCP server for Vibe Annotations browser extension",
+  "main": "lib/server.js",
+  "type": "module",
+  "bin": {
+    "vibe-annotations": "./bin/cli.js",
+    "vibe-annotations-server": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node lib/server.js",
+    "dev": "node --watch lib/server.js",
+    "prepublishOnly": "npm test",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "mcp",
+    "vibe",
+    "annotations",
+    "sse",
+    "http",
+    "claude-code",
+    "localhost",
+    "development"
+  ],
+  "author": "Raphaël Régnier",
+  "license": "LicenseRef-PolyForm-Shield-1.0.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "open": "^11.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RaphaelRegnier/vibe-annotations.git",
+    "directory": "annotations-server"
+  },
+  "homepage": "https://github.com/RaphaelRegnier/vibe-annotations#readme",
+  "bugs": {
+    "url": "https://github.com/RaphaelRegnier/vibe-annotations/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

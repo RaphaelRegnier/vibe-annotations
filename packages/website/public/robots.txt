@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vibe-annotations.com/sitemap.xml
+
+Crawl-delay: 1
+
+Disallow: /admin/
+Disallow: /private/
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-Web
+Allow: /

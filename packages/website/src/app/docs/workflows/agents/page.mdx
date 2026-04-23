@@ -1,0 +1,29 @@
+export const metadata = { title: 'Agent Annotation' }
+
+# Annotating with Agents
+
+Let browser-capable AI agents annotate for you — collaboratively or fully autonomously.
+
+[See demo video](https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v1.6.2)
+
+## Compatible Agents
+
+- **Claude Chrome extension** — has direct page access and can call the API from its JavaScript tool
+- **OpenClaw** — uses CDP evaluate to run JS on the page
+- **Claude Code, Cursor, Windsurf** — can access the page via a DevTools MCP server or Playwright
+
+## Getting Started
+
+Copy this prompt and paste it into your agent's chat:
+
+```
+Read window.__vibeAnnotations.help() and use this extension for my comments on this project.
+```
+
+The agent discovers the bridge API, then uses `createStyleAnnotation` for broad CSS changes and `createAnnotation` for single-element edits. Changes preview live in the browser and get recorded as annotations.
+
+## Requirements
+
+The extension must be active on the page for the bridge API to be available. This works best when the agent uses **your browser** (Claude Chrome, DevTools MCP), since the extension is already installed.
+
+Agents that launch their own browser (Playwright, Puppeteer) won't have the extension loaded by default. This can be configured by passing the extension path at launch, but requires some local setup.

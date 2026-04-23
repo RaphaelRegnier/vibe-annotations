@@ -1,0 +1,56 @@
+export const metadata = { title: 'Architecture' }
+
+# Architecture
+
+Vibe Annotations is split into two independent pieces that communicate over HTTP.
+
+```
+Browser Extension  ← HTTP sync/CRUD →  MCP Server  ← MCP tools →  AI Agents
+   (Chrome)                             (port 3846)               (Claude Code,
+                                                                   Cursor, etc.)
+```
+
+## Browser Extension
+
+A Chrome MV3 extension built with vanilla JavaScript. No build step — load the directory as an unpacked extension.
+
+- **Content scripts** inject a floating toolbar overlay on localhost pages via a Shadow DOM root
+- **Inspection mode** lets users hover and click elements to annotate them
+- **Annotation popover** provides comment input, design property editors (font, spacing, layout, colors), and raw CSS editing
+- **Badge manager** renders numbered pins on annotated elements and rehydrates pending design changes
+- **Background service worker** handles storage CRUD with a serialization lock, bidirectional sync with the server, and browser action badge updates
+
+The extension works standalone — copy/paste and export/import work without the server.
+
+## MCP Server
+
+A global npm package (`vibe-annotations-server`) that runs as a background process on port 3846.
+
+- **HTTP API** (`/api/annotations`) — CRUD endpoints for the extension to sync annotations
+- **MCP endpoint** (`/mcp`) — Streamable HTTP transport for AI coding agents
+- **SSE endpoint** (`/sse`) — Legacy Server-Sent Events transport
+- **Watcher system** — Long-poll mechanism for watch mode, with grace periods and auto-cleanup
+- **Storage** — JSON file at `~/.vibe-annotations/annotations.json`, atomic writes with corruption recovery
+
+## Data Flow
+
+1. User creates an annotation in the extension (stored in Chrome Storage)
+2. Background worker syncs it to the server via HTTP POST
+3. AI agent calls `read_annotations` via MCP to fetch pending annotations
+4. Agent implements the changes in source code
+5. Agent calls `delete_annotation` to mark it as resolved
+6. Server deletion syncs back to the extension, removing the badge
+
+## Annotation Types
+
+**Element annotations** target a specific DOM element:
+- CSS selector for re-targeting
+- Element context (tag, classes, text, computed styles, position)
+- Optional `pending_changes` (design property diffs like `fontSize: "16px" → "18px"`)
+- Optional `css` field (rules like `:hover`, `::before`, `@media`)
+- Source mapping hints (file path, line range, framework detection)
+
+**Stylesheet annotations** (`type: 'stylesheet'`) apply broad CSS changes:
+- No selector or element context
+- Only a `css` field with raw CSS rules
+- Created by agents via the bridge API (`window.__vibeAnnotations.createStyleAnnotation()`)

@@ -1,0 +1,116 @@
+{
+  "manifest_version": 3,
+  "name": "Vibe Annotations - Visual Feedback for AI Coding Agents",
+  "version": "1.6.3",
+  "description": "Visual annotations for localhost dev projects. Send feedback to AI coding agents like Claude & Cursor via MCP.",
+  "author": "Raphael Regnier - Spellbind Creative Studio",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://localhost/*",
+    "http://127.0.0.1/*",
+    "https://127.0.0.1/*",
+    "http://0.0.0.0/*",
+    "https://0.0.0.0/*",
+    "http://*.local/*",
+    "https://*.local/*",
+    "http://*.test/*",
+    "https://*.test/*",
+    "http://*.localhost/*",
+    "https://*.localhost/*",
+    "file:///*"
+  ],
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Vibe Annotations",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*",
+        "https://127.0.0.1/*", 
+        "http://0.0.0.0/*",
+        "https://0.0.0.0/*",
+        "http://*.local/*",
+        "https://*.local/*",
+        "http://*.test/*",
+        "https://*.test/*",
+        "http://*.localhost/*",
+        "https://*.localhost/*",
+        "file:///*"
+      ],
+      "all_frames": true,
+      "js": [
+        "content/modules/event-bus.js",
+        "content/modules/styles.js",
+        "content/modules/shadow-host.js",
+        "content/modules/theme-manager.js",
+        "content/modules/api-bridge.js",
+        "content/modules/shadow-dom-utils.js",
+        "content/modules/element-context.js",
+        "content/modules/badge-manager.js",
+        "content/modules/inspection-mode.js",
+        "content/modules/popover-panels.js",
+        "content/modules/annotation-popover.js",
+        "content/modules/toolbar-docs.js",
+        "content/modules/floating-toolbar.js",
+        "content/modules/bridge-handler.js",
+        "content/content.js"
+      ]
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://127.0.0.1/*",
+        "https://127.0.0.1/*",
+        "http://0.0.0.0/*",
+        "https://0.0.0.0/*",
+        "http://*.local/*",
+        "https://*.local/*",
+        "http://*.test/*",
+        "https://*.test/*",
+        "http://*.localhost/*",
+        "https://*.localhost/*",
+        "file:///*"
+      ],
+      "js": ["content/bridge-api.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "toggle-annotate": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Comma",
+        "mac": "Command+Shift+Comma"
+      },
+      "description": "Toggle annotation mode"
+    }
+  },
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/fonts/InterVariable.woff2", "assets/icons/icon-hq.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
