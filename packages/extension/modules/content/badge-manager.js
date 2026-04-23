@@ -2,7 +2,11 @@
 // Position-tracked via RAF loop (only runs when badges exist)
 // Zero host DOM modification for display
 
-var VibeBadgeManager = (() => {
+import VibeAPI from './api-bridge.js';
+import VibeElementContext from './element-context.js';
+import VibeEvents from './event-bus.js';
+import VibeShadowHost from './shadow-host.js';
+
   const DESIGN_PROPS = [
     'fontSize','fontWeight','lineHeight','textAlign',
     'paddingTop','paddingRight','paddingBottom','paddingLeft',
@@ -445,5 +449,5 @@ var VibeBadgeManager = (() => {
     return badges.length;
   }
 
-  return { init, render, clearAll, targetBadge, highlightElement, getCount };
-})();
+const VibeBadgeManager = { init, render, clearAll, targetBadge, highlightElement, getCount };
+export default VibeBadgeManager;

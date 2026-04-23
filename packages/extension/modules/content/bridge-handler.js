@@ -2,7 +2,10 @@
 // Listens for CustomEvents from the page-world bridge-api.js
 // Uses existing internal modules to create/read/delete annotations
 
-var VibeBridgeHandler = (() => {
+import VibeAPI from './api-bridge.js';
+import VibeElementContext from './element-context.js';
+import VibeEvents, { vibeLocationPath } from './event-bus.js';
+
   let getAnnotations = null; // Getter function for content.js annotations array
 
   function init(annotationsGetter) {
@@ -247,5 +250,5 @@ var VibeBridgeHandler = (() => {
     return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
   }
 
-  return { init };
-})();
+const VibeBridgeHandler = { init };
+export default VibeBridgeHandler;

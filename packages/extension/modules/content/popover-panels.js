@@ -1,7 +1,8 @@
 // Design panel builders, wirers, and shared controls for the annotation popover.
 // Extracted from annotation-popover.js to keep each module focused.
 
-var VibePopoverPanels = (() => {
+import VibeElementContext from './element-context.js';
+
 
   // --- Constants ---
 
@@ -1454,24 +1455,24 @@ var VibePopoverPanels = (() => {
 
   // --- Public API ---
 
-  return {
-    ALL_DESIGN_PROPS,
-    ICONS,
-    kbdHint,
-    classifyElement,
-    getTabsForType,
-    buildRawCssContent,
-    buildContentToolbarHTML,
-    autoResizeContentInput,
-    wireContentToolbar,
-    buildTextToolbarHTML,
-    wireTextToolbar,
-    buildContainerToolbarHTML,
-    wireContainerToolbar,
-    buildSizingToolbarHTML,
-    wireSizingToolbar,
-    escapeHTML,
-    kebabToCamel,
-    getDeviceIcon
-  };
-})();
+const VibePopoverPanels = {
+  ALL_DESIGN_PROPS,
+  ICONS,
+  kbdHint,
+  classifyElement,
+  getTabsForType,
+  buildRawCssContent,
+  buildContentToolbarHTML,
+  autoResizeContentInput,
+  wireContentToolbar,
+  buildTextToolbarHTML,
+  wireTextToolbar,
+  buildContainerToolbarHTML,
+  wireContainerToolbar,
+  buildSizingToolbarHTML,
+  wireSizingToolbar,
+  escapeHTML,
+  kebabToCamel,
+  getDeviceIcon,
+};
+export default VibePopoverPanels;

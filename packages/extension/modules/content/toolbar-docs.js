@@ -1,7 +1,6 @@
 // Documentation panels and workflow guides for the toolbar settings dropdown.
 // Extracted from floating-toolbar.js to keep each module focused.
 
-var VibeToolbarDocs = (() => {
 
   function escapeHTML(str) {
     const div = document.createElement('div');
@@ -432,5 +431,5 @@ var VibeToolbarDocs = (() => {
     wireCopyButtons(body, ICONS);
   }
 
-  return { showDocumentation, showGetStartedGuide, showWorkflow };
-})();
+const VibeToolbarDocs = { showDocumentation, showGetStartedGuide, showWorkflow };
+export default VibeToolbarDocs;

@@ -2,7 +2,10 @@
 // screenshot capture, source mapping, parent chain.
 // Operates on host page DOM. No UI.
 
-var VibeElementContext = (() => {
+import VibeAPI from './api-bridge.js';
+import VibeShadowDOMUtils from './shadow-dom-utils.js';
+import { vibeLocationPath } from './event-bus.js';
+
 
   // --- Main entry point ---
 
@@ -928,11 +931,11 @@ var VibeElementContext = (() => {
     }
   }
 
-  return {
-    generate,
-    generateSelector,
-    findElementBySelector,
-    scanPageColorVariables,
-    getDisplayClasses
-  };
-})();
+const VibeElementContext = {
+  generate,
+  generateSelector,
+  findElementBySelector,
+  scanPageColorVariables,
+  getDisplayClasses,
+};
+export default VibeElementContext;

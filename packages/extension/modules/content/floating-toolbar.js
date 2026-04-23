@@ -2,7 +2,12 @@
 // Draggable, collapsible, position persisted to storage
 // Settings dropdown with theme toggle, MCP status, clear-on-copy
 
-var VibeToolbar = (() => {
+import VibeAPI from './api-bridge.js';
+import VibeElementContext from './element-context.js';
+import VibeEvents, { vibeLocationPath } from './event-bus.js';
+import VibeShadowHost from './shadow-host.js';
+import VibeToolbarDocs from './toolbar-docs.js';
+
   let toolbarEl = null;
   let settingsDropdown = null;
   let activeRecordingCleanup = null;
@@ -1401,5 +1406,5 @@ var VibeToolbar = (() => {
     return clean.substring(0, max) + '\u2026';
   }
 
-  return { init, animateOut: animateToolbarOut };
-})();
+const VibeToolbar = { init, animateOut: animateToolbarOut };
+export default VibeToolbar;

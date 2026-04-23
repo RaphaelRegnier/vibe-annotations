@@ -1,7 +1,13 @@
 // Small popover card anchored to target element
 // Core show/dismiss/positioning logic — panel builders live in popover-panels.js
 
-var VibeAnnotationPopover = (() => {
+import VibeAPI from './api-bridge.js';
+import VibeElementContext from './element-context.js';
+import VibeEvents, { vibeLocationPath } from './event-bus.js';
+import VibeInspectionMode from './inspection-mode.js';
+import VibePopoverPanels from './popover-panels.js';
+import VibeShadowHost from './shadow-host.js';
+
   let currentPopover = null;
   let currentTargetHighlight = null;
   let highlightRafId = null;
@@ -680,5 +686,5 @@ var VibeAnnotationPopover = (() => {
     return `<${tag}${attrs.length ? ' ' + attrs.join(' ') : ''}>`;
   }
 
-  return { init, dismiss };
-})();
+const VibeAnnotationPopover = { init, dismiss };
+export default VibeAnnotationPopover;

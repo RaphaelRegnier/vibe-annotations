@@ -2,7 +2,10 @@
 // All visual feedback happens inside shadow DOM (highlight overlay div)
 // No host DOM mutation during inspection
 
-var VibeInspectionMode = (() => {
+import VibeEvents from './event-bus.js';
+import VibeShadowDOMUtils from './shadow-dom-utils.js';
+import VibeShadowHost from './shadow-host.js';
+
   let active = false;
   let highlightEl = null;
   let hoveredElement = null;
@@ -289,5 +292,5 @@ var VibeInspectionMode = (() => {
     highlightEl.style.height = `${rect.height}px`;
   }
 
-  return { init, start, stop, isActive, tempDisable, reEnable };
-})();
+const VibeInspectionMode = { init, start, stop, isActive, tempDisable, reEnable };
+export default VibeInspectionMode;
