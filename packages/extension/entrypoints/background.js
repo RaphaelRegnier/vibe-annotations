@@ -1,11 +1,11 @@
 // Vibe Annotations Background Service Worker — WXT entrypoint.
 // Body is unchanged from the pre-WXT build; paths updated + wrapped in defineBackground().
 
-import { isSupportedUrl } from '../modules/background/url-filter.js';
-import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../modules/background/badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from '../modules/background/api-sync.js';
-import { formatExport } from '../modules/background/export.js';
-import { migrateSyncFlags } from '../modules/background/utils.js';
+import { isSupportedUrl } from '../lib/background/url-filter.js';
+import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
+import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from '../lib/background/api-sync.js';
+import { formatExport } from '../lib/background/export.js';
+import { migrateSyncFlags } from '../lib/background/utils.js';
 
 class VibeAnnotationsBackground {
   constructor() {

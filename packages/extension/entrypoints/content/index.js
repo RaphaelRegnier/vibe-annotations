@@ -1,15 +1,15 @@
 // Vibe Annotations content-script entrypoint.
 // Orchestrates all modules that used to be IIFEs sharing globals.
 
-import VibeAPI from '../../modules/content/api-bridge.js';
-import VibeEvents from '../../modules/content/event-bus.js';
-import VibeShadowHost from '../../modules/content/shadow-host.js';
-import VibeThemeManager from '../../modules/content/theme-manager.js';
-import VibeBadgeManager from '../../modules/content/badge-manager.js';
-import VibeInspectionMode from '../../modules/content/inspection-mode.js';
-import VibeAnnotationPopover from '../../modules/content/annotation-popover.js';
-import VibeBridgeHandler from '../../modules/content/bridge-handler.js';
-import VibeToolbar from '../../modules/content/floating-toolbar.js';
+import VibeAPI from '../../lib/content/api-bridge.js';
+import VibeEvents from '../../lib/content/event-bus.js';
+import VibeShadowHost from '../../lib/content/shadow-host.js';
+import VibeThemeManager from '../../lib/content/theme-manager.js';
+import VibeBadgeManager from '../../lib/content/badge-manager.js';
+import VibeInspectionMode from '../../lib/content/inspection-mode.js';
+import VibeAnnotationPopover from '../../lib/content/annotation-popover.js';
+import VibeBridgeHandler from '../../lib/content/bridge-handler.js';
+import VibeToolbar from '../../lib/content/floating-toolbar.js';
 
 // --- State ---
 let annotations = [];

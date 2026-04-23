@@ -5,10 +5,6 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: '.',
   outDir: '.output',
-  // Our `modules/` dir holds content-script / background ES modules, not WXT
-  // plugins. Point WXT's plugin watcher elsewhere so edits don't trigger a
-  // full dev-server + browser restart. See detect-dev-changes.mjs line 40.
-  modulesDir: '.wxt-modules',
   webExt: {
     startUrls: ['http://localhost:3001'],
     keepProfileChanges: true,

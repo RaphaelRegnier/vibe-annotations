@@ -1,7 +1,7 @@
 // Page-world bridge API for coding-agent integration.
 // Runs in the MAIN world so window.__vibeAnnotations is accessible to the page and to
 // browser-automation tools. Communicates with the content-script (ISOLATED) world via
-// CustomEvents handled in modules/content/bridge-handler.js.
+// CustomEvents handled in lib/content/bridge-handler.js.
 
 export default defineContentScript({
   matches: [
