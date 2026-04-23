@@ -633,7 +633,9 @@ var VibeAnnotationPopover = (() => {
       viewport: context.viewport,
       element_context: {
         tag: context.tag,
+        id: context.id || null,
         classes: context.classes,
+        component_name: context.component_name || null,
         text: context.text,
         path: context.path || null,
         styles: context.styles,

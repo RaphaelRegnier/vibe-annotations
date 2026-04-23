@@ -10,12 +10,15 @@ var VibeElementContext = (() => {
     const selector = generateSelector(element);
     const computedStyle = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
+    const reactComponentName = getReactComponentName(element);
     const classes = getDisplayClasses(element);
 
     const context = {
       selector,
       tag: element.tagName.toLowerCase(),
+      id: element.id || null,
       classes,
+      component_name: reactComponentName,
       text: element.textContent.substring(0, 100).trim(),
       path: getElementLocationPath(element),
       styles: {
@@ -437,6 +440,53 @@ var VibeElementContext = (() => {
       depth++;
     }
     return null;
+  }
+
+  function getReactComponentName(element) {
+    let current = element;
+    let depth = 0;
+    while (current && depth < 10) {
+      const fiberKey = Object.keys(current).find(k =>
+        k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance') || k.startsWith('_reactInternalFiber')
+      );
+      if (fiberKey) {
+        let fiber = current[fiberKey];
+        let fiberDepth = 0;
+        while (fiber && fiberDepth < 20) {
+          const name = getFiberDisplayName(fiber);
+          if (name) return name;
+          fiber = fiber.return || fiber._debugOwner;
+          fiberDepth++;
+        }
+      }
+      current = VibeShadowDOMUtils.getParentElement(current);
+      depth++;
+    }
+    return null;
+  }
+
+  function getFiberDisplayName(fiber) {
+    const candidates = [
+      fiber?.type?.displayName,
+      fiber?.type?.name,
+      fiber?.elementType?.displayName,
+      fiber?.elementType?.name
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizeComponentName(candidate);
+      if (normalized) return normalized;
+    }
+    return null;
+  }
+
+  function normalizeComponentName(name) {
+    if (!name || typeof name !== 'string') return null;
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    if (!/^[A-Z]/.test(trimmed)) return null;
+    if (trimmed === 'Anonymous' || trimmed === 'Unknown') return null;
+    return trimmed;
   }
 
   function getDataAttributeInfo(element) {
@@ -928,11 +978,24 @@ var VibeElementContext = (() => {
     }
   }
 
+  function getHoverLabelData(element) {
+    return {
+      component_name: getReactComponentName(element),
+      tag: element.tagName.toLowerCase(),
+      id: element.id || null,
+      classes: Array.from(element.classList)
+        .filter(c => !c.startsWith('vibe-'))
+        .filter(isStableClass)
+        .slice(0, 2)
+    };
+  }
+
   return {
     generate,
     generateSelector,
     findElementBySelector,
     scanPageColorVariables,
+    getHoverLabelData,
     getDisplayClasses
   };
 })();
