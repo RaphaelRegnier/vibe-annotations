@@ -1405,7 +1405,11 @@ class LocalAnnotationsServer {
     // Check for updates (non-blocking)
     this.checkForUpdates().catch(() => {});
     
-    this.server = this.app.listen(PORT, () => {
+    // Bind explicitly to 0.0.0.0 (IPv4 wildcard). Without a host argument
+    // Node defaults to the IPv6 wildcard, which WSL2 NAT-mode localhost
+    // forwarding doesn't relay back to Windows — Chrome extensions then
+    // see "Failed to fetch" against 127.0.0.1:3846.
+    this.server = this.app.listen(PORT, '0.0.0.0', () => {
       console.log(`Vibe Annotations server running on http://127.0.0.1:${PORT}`);
       console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
       console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);
