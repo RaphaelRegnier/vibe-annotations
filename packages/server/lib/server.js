@@ -108,6 +108,27 @@ class LocalAnnotationsServer {
     }));
     this.app.use(express.json({ limit: '5mb' }));
 
+    // MCP clients (e.g. Claude Code) eagerly attempt OAuth 2.1 Dynamic Client
+    // Registration against /register before knowing whether the server even
+    // supports auth. This server is unauthenticated, so we return a
+    // spec-shaped JSON error instead of Express's default HTML 404 — that
+    // lets the client parse the response, conclude DCR isn't supported, and
+    // fall through to no-auth instead of erroring out on "JSON Parse error".
+    this.app.all('/register', (req, res) => {
+      res.status(404).json({
+        error: 'registration_not_supported',
+        error_description: 'This MCP server does not require authentication; dynamic client registration is not available.'
+      });
+    });
+    // Same shape for the well-known discovery endpoints — return a JSON 404
+    // so any future eager-auth probe fails cleanly rather than HTML-parse.
+    this.app.get('/.well-known/oauth-authorization-server', (req, res) => {
+      res.status(404).json({ error: 'no_authorization_server' });
+    });
+    this.app.get('/.well-known/oauth-protected-resource', (req, res) => {
+      res.status(404).json({ error: 'no_protected_resource' });
+    });
+
     // Health check with version info
     this.app.get('/health', (req, res) => {
       res.json({ 
