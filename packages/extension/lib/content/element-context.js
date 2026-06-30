@@ -70,7 +70,7 @@ import { vibeLocationPath } from './event-bus.js';
         width: window.innerWidth,
         height: window.innerHeight
       },
-      source_mapping: generateSourceMapping(element),
+      source_mapping: await generateSourceMapping(element),
       screenshot: null,
       parent_chain: getParentChainContext(element, 4)
     };
@@ -361,12 +361,12 @@ import { vibeLocationPath } from './event-bus.js';
 
   // --- Source mapping ---
 
-  function generateSourceMapping(element) {
+  async function generateSourceMapping(element) {
     try {
-      const srcInfo = extractSourceInfo(element);
+      const srcInfo = await extractSourceInfo(element);
       const projectArea = getProjectAreaFromURL();
       const urlPath = vibeLocationPath(window.location);
-      const hints = generateContextHints(element);
+      const hints = withIdentityHints(generateContextHints(element), srcInfo);
       return {
         source_file_path: srcInfo.filePath || null,
         source_line_range: srcInfo.lineRange || null,
@@ -387,59 +387,81 @@ import { vibeLocationPath } from './event-bus.js';
     }
   }
 
-  function extractSourceInfo(element) {
-    let info = { filePath: null, lineRange: null, hasSourceMap: false };
-    try {
-      const react = getReactFiberInfo(element);
-      if (react) return { ...info, ...react };
-    } catch { /* continue */ }
+  async function extractSourceInfo(element) {
+    const empty = { filePath: null, lineRange: null, hasSourceMap: false, componentName: null, ownerChain: null };
 
+    // Primary: ask the MAIN world to read the framework fiber/instance.
+    // (Page-set expandos like __reactFiber$… are invisible in the isolated world.)
+    try {
+      const main = await readSourceFromMainWorld(element);
+      if (main) {
+        return {
+          filePath: main.filePath ? normalizeSourcePath(main.filePath) : null,
+          lineRange: main.lineRange || null,
+          hasSourceMap: !!main.hasSourceMap,
+          componentName: main.componentName || null,
+          ownerChain: main.ownerChain || null
+        };
+      }
+    } catch { /* continue to backstop */ }
+
+    // Backstop: build-tool data attributes (data-source-file, data-nextjs-path, …).
     try {
       const data = getDataAttributeInfo(element);
-      if (data) return { ...info, ...data };
+      if (data) return { ...empty, ...data };
     } catch { /* continue */ }
 
-    return info;
+    return empty;
   }
 
-  function getReactFiberInfo(element) {
-    let current = element;
-    let depth = 0;
-    while (current && depth < 10) {
-      const fiberKey = Object.keys(current).find(k =>
-        k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance') || k.startsWith('_reactInternalFiber')
-      );
-      if (fiberKey) {
-        let fiber = current[fiberKey];
-        let fd = 0;
-        while (fiber && fd < 20) {
-          const source = fiber._debugSource || fiber._source ||
-            fiber.elementType?._source || fiber.type?._source;
-          if (source?.fileName) {
-            return {
-              filePath: normalizeSourcePath(source.fileName),
-              lineRange: source.lineNumber ? `${source.lineNumber}-${source.lineNumber + 10}` : null,
-              hasSourceMap: true
-            };
-          }
-          if (fiber._debugOwner) {
-            const os = fiber._debugOwner._debugSource || fiber._debugOwner._source;
-            if (os?.fileName) {
-              return {
-                filePath: normalizeSourcePath(os.fileName),
-                lineRange: os.lineNumber ? `${os.lineNumber}-${os.lineNumber + 10}` : null,
-                hasSourceMap: true
-              };
-            }
-          }
-          fiber = fiber.return || fiber._debugOwner;
-          fd++;
-        }
+  // Ask the MAIN-world script to read framework source/identity for `element`.
+  // Handshake: tag the node with a temporary probe attribute, dispatch a request,
+  // the MAIN world re-selects the same shared node and reads its fiber/instance.
+  // The marker is always stripped, and a timeout guarantees we never hang the
+  // capture (on non-framework pages the MAIN world replies null immediately).
+  const FIBER_PROBE_ATTR = 'data-vibe-fiber-probe';
+  let probeSeq = 0;
+
+  function readSourceFromMainWorld(element) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const marker = 'fp_' + (++probeSeq) + '_' + Date.now();
+      const id = '__vibe_main_' + marker;
+
+      function finish(value) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        document.removeEventListener('vibe-bridge:main-response', handler);
+        try { element.removeAttribute(FIBER_PROBE_ATTR); } catch { /* detached */ }
+        resolve(value);
       }
-      current = VibeShadowDOMUtils.getParentElement(current);
-      depth++;
-    }
-    return null;
+
+      function handler(e) {
+        if (e.detail?.id !== id) return;
+        finish(e.detail.error ? null : e.detail.result);
+      }
+
+      const timer = setTimeout(() => finish(null), 1500);
+
+      try {
+        element.setAttribute(FIBER_PROBE_ATTR, marker);
+        document.addEventListener('vibe-bridge:main-response', handler);
+        document.dispatchEvent(new CustomEvent('vibe-bridge:main-request', {
+          detail: { id, method: 'readSource', args: { marker } }
+        }));
+      } catch {
+        finish(null);
+      }
+    });
+  }
+
+  // Append component identity from the MAIN-world read onto the DOM-derived hints.
+  function withIdentityHints(baseHints, srcInfo) {
+    const hints = Array.isArray(baseHints) ? baseHints.slice() : [];
+    if (srcInfo?.componentName) hints.unshift(`Component: ${srcInfo.componentName}`);
+    if (srcInfo?.ownerChain?.length) hints.push(`Component path: ${srcInfo.ownerChain.join(' > ')}`);
+    return hints.length ? hints : null;
   }
 
   function getDataAttributeInfo(element) {

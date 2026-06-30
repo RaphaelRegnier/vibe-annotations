@@ -878,9 +878,13 @@ class LocalAnnotationsServer {
    * - Strip element_context.styles (computed values, not in source code)
    * - Strip internal extension fields (_synced, badge_offset)
    * - Strip null/empty fields to reduce token noise
+   * Note: context_hints IS preserved — it carries React component identity
+   * (`Component: <name>`, `Component path: …`) plus source/framework hints the
+   * agent uses to locate the right source file. (Empty arrays still get stripped
+   * below as noise.)
    */
   optimizeForAgent(annotation) {
-    const { _synced, badge_offset, context_hints, ...clean } = annotation;
+    const { _synced, badge_offset, ...clean } = annotation;
 
     // Strip computed styles — agents use classes/path/selector_preview to find elements,
     // and pending_changes for design deltas. Computed styles are never useful.
