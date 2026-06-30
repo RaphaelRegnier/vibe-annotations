@@ -5,8 +5,12 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: '.',
   outDir: '.output',
+  // Avoid clashing with the Next.js website dev server on :3000.
+  dev: {
+    server: { port: 3010 },
+  },
   webExt: {
-    startUrls: ['http://localhost:3001'],
+    startUrls: ['http://localhost:3000'],
     keepProfileChanges: true,
   },
   manifest: {
