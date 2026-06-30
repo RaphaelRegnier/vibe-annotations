@@ -1,11 +1,40 @@
 // Vibe Annotations Background Service Worker — WXT entrypoint.
 // Body is unchanged from the pre-WXT build; paths updated + wrapped in defineBackground().
 
-import { isSupportedUrl } from '../lib/background/url-filter.js';
+import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
 import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
+
+function isRestrictedUrl(url) {
+  if (!url) return true;
+  return url.startsWith('chrome://') ||
+    url.startsWith('chrome-extension://') ||
+    url.startsWith('edge://') ||
+    url.startsWith('about:') ||
+    url.startsWith('view-source:');
+}
+
+async function injectContentScripts(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: ['content-scripts/content.js'],
+  });
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ['content-scripts/bridge.js'],
+    world: 'MAIN',
+  });
+}
+
+async function seedBootIntent(tabId, intent, data) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (i, d) => { window.__VIBE_BOOT_INTENT = i; window.__VIBE_BOOT_DATA = d; },
+    args: [intent, data],
+  });
+}
 
 class VibeAnnotationsBackground {
   constructor() {
@@ -114,6 +143,11 @@ class VibeAnnotationsBackground {
         case 'enableSite':
           this.enableSite(request.originPattern, request.tabId)
             .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'requestSitePermission':
+          this.requestSitePermission(request, sender)
+            .then(result => sendResponse({ success: true, ...result }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
         case 'openPopupWithFocus':
@@ -319,6 +353,31 @@ class VibeAnnotationsBackground {
     }
   }
 
+  // Called from the permission modal in the content script. Must run while the user gesture
+  // from the modal click is still valid for chrome.permissions.request (MV3 propagates the
+  // gesture through sendMessage → onMessage).
+  async requestSitePermission({ originPattern, allSites }, sender) {
+    const target = allSites ? { origins: ['*://*/*'] } : { origins: [originPattern] };
+    let granted = false;
+    try {
+      granted = await chrome.permissions.request(target);
+    } catch (err) {
+      console.error('Permission request failed:', err);
+      return { granted: false, error: err.message };
+    }
+    if (!granted) return { granted: false };
+
+    const { vibeEnabledSites = [] } = await chrome.storage.local.get(['vibeEnabledSites']);
+    if (!vibeEnabledSites.includes(originPattern)) {
+      vibeEnabledSites.push(originPattern);
+      await chrome.storage.local.set({ vibeEnabledSites });
+    }
+    // tabId=null so enableSite skips chrome.tabs.reload — the already-injected content
+    // script boots in place via bootNormal() once it sees our grant response.
+    await this.enableSite(originPattern, null);
+    return { granted: true };
+  }
+
   async enableSite(originPattern, tabId) {
     // WXT bundles each entrypoint into a single file under content-scripts/.
     // Entrypoint `content/index.js` → `content-scripts/content.js`.
@@ -355,6 +414,53 @@ export default defineBackground(() => {
         await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' });
       } catch {
         /* Content script not loaded */
+      }
+    }
+  });
+
+  // Icon click — no popup.html anymore. The whole flow lives in the content-script overlay:
+  // localhost/granted pages toggle the existing toolbar; unsupported pages get a permission
+  // modal inside the shadow host.
+  chrome.action.onClicked.addListener(async (tab) => {
+    if (!tab?.id || !tab?.url || isRestrictedUrl(tab.url)) return;
+
+    let originPattern, hostname;
+    try {
+      const u = new URL(tab.url);
+      originPattern = `${u.protocol}//${u.host}/*`;
+      hostname = u.hostname;
+    } catch {
+      return;
+    }
+
+    const localhost = isLocalhostUrl(tab.url);
+    const hasSpecific = await chrome.permissions.contains({ origins: [originPattern] });
+    const hasAll = !localhost && !hasSpecific && await chrome.permissions.contains({ origins: ['*://*/*'] });
+    const granted = localhost || hasSpecific || hasAll;
+
+    if (granted) {
+      // Supported — toggle the overlay. If content scripts haven't loaded (SW restart,
+      // freshly-granted non-localhost), inject them now and retry.
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'toggleOverlay' });
+      } catch {
+        try {
+          await injectContentScripts(tab.id);
+          await chrome.tabs.sendMessage(tab.id, { action: 'toggleOverlay' }).catch(() => {});
+        } catch (err) {
+          console.error('Failed to inject content scripts:', err);
+        }
+      }
+      // Persist registration for non-localhost so future loads auto-inject.
+      if (!localhost) bg.enableSite(originPattern, null).catch(() => {});
+    } else {
+      // Unsupported — seed a boot intent then inject. content/index.js reads the intent and
+      // shows the permission modal instead of booting the toolbar.
+      try {
+        await seedBootIntent(tab.id, 'show-permission-prompt', { originPattern, hostname });
+        await injectContentScripts(tab.id);
+      } catch (err) {
+        console.error('Failed to open permission prompt:', err);
       }
     }
   });

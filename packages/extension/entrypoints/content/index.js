@@ -37,52 +37,120 @@ function injectFontFace() {
 // --- Initialize all modules ---
 async function init() {
   injectFontFace();
-
-  // 1. Shadow host + styles
   VibeShadowHost.init();
 
-  // 1b. Overlay hidden state — persisted in chrome.storage.local
-  const overlayClosed = await VibeAPI.getOverlayHidden();
+  // Boot intent set by the background when it injected us for a one-off reason
+  // (currently: permission prompt on a non-auto-enabled site). Consumed and cleared.
+  const bootIntent = window.__VIBE_BOOT_INTENT;
+  const bootData = window.__VIBE_BOOT_DATA;
+  delete window.__VIBE_BOOT_INTENT;
+  delete window.__VIBE_BOOT_DATA;
 
-  // 1c. Show overlay if not closed (starts hidden to avoid flash)
-  if (!overlayClosed) {
+  if (bootIntent === 'show-permission-prompt') {
     VibeShadowHost.show();
+    showPermissionOverlay(bootData || {});
+    return;
   }
 
-  // 2. Theme
+  await bootNormal();
+}
+
+let normalBooted = false;
+async function bootNormal() {
+  if (normalBooted) return;
+  normalBooted = true;
+
+  const overlayClosed = await VibeAPI.getOverlayHidden();
+  if (!overlayClosed) VibeShadowHost.show();
+
   await VibeThemeManager.init();
-
-  // 3. API bridge is stateless, no init needed
-
-  // 4. Load annotations
   annotations = await VibeAPI.loadAnnotations();
 
-  // 5. Initialize modules
   VibeBadgeManager.init();
   VibeInspectionMode.init();
   VibeAnnotationPopover.init();
   VibeBridgeHandler.init(() => annotations);
   await VibeToolbar.init();
 
-  // 6. Set up message listener (popup ↔ content)
   setupMessageListener();
-
-  // 7. Set up storage listener for external changes
   setupStorageListener();
-
-  // 7b. Set up SPA route change detection
   setupRouteChangeDetection();
-
-  // 8. Set up keyboard shortcuts
   setupKeyboardShortcuts();
-
-  // 9. Wire up annotation lifecycle events
   setupAnnotationEvents();
 
-  // 10. Wait for hydration, then show badges (skip if overlay is closed)
   if (!overlayClosed) {
     waitForHydrationAndShowAnnotations();
   }
+}
+
+// --- Permission modal (non-localhost sites before the user grants access) ---
+function showPermissionOverlay({ originPattern, hostname } = {}) {
+  const root = VibeShadowHost.getRoot();
+  if (!root) return;
+  const logoUrl = chrome.runtime.getURL('assets/icons/icon-hq.png');
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'vibe-permission-backdrop';
+  backdrop.innerHTML = `
+    <div class="vibe-permission-modal">
+      <img class="vibe-permission-logo" src="${logoUrl}" alt="">
+      <h2 class="vibe-permission-title">Enable Vibe Annotations?</h2>
+      <p class="vibe-permission-body">Grant access to <strong>${escapeForModal(hostname || 'this site')}</strong> so the annotation toolbar can load here.</p>
+      <div class="vibe-permission-actions">
+        <button class="vibe-permission-btn vibe-permission-primary" data-scope="site" type="button">Enable on this site</button>
+        <button class="vibe-permission-btn vibe-permission-secondary" data-scope="all" type="button">Enable on all sites</button>
+        <button class="vibe-permission-btn vibe-permission-cancel" type="button">Cancel</button>
+      </div>
+      <div class="vibe-permission-status" aria-live="polite"></div>
+    </div>
+  `;
+  root.appendChild(backdrop);
+
+  const statusEl = backdrop.querySelector('.vibe-permission-status');
+  const dismiss = () => { backdrop.remove(); };
+
+  backdrop.querySelector('.vibe-permission-cancel').addEventListener('click', dismiss);
+
+  async function request(allSites) {
+    setBusy(true);
+    statusEl.textContent = 'Requesting permission…';
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'requestSitePermission',
+        originPattern,
+        allSites,
+      });
+      if (response?.success && response.granted) {
+        statusEl.textContent = 'Granted — loading toolbar…';
+        backdrop.remove();
+        await bootNormal();
+      } else if (response?.success && response.granted === false) {
+        statusEl.textContent = 'Permission was not granted.';
+        setBusy(false);
+      } else {
+        statusEl.textContent = response?.error || 'Something went wrong.';
+        setBusy(false);
+      }
+    } catch (err) {
+      statusEl.textContent = err?.message || 'Request failed.';
+      setBusy(false);
+    }
+  }
+
+  function setBusy(busy) {
+    backdrop.querySelectorAll('.vibe-permission-btn').forEach(b => { b.disabled = busy; });
+    backdrop.classList.toggle('vibe-permission-busy', busy);
+  }
+
+  backdrop.querySelectorAll('[data-scope]').forEach(btn => {
+    btn.addEventListener('click', () => request(btn.dataset.scope === 'all'));
+  });
+}
+
+function escapeForModal(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
 }
 
 // --- Message listener (popup communication) ---

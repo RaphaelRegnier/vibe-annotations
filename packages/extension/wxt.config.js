@@ -39,7 +39,6 @@ export default defineConfig({
     },
     action: {
       default_title: 'Vibe Annotations',
-      default_popup: 'popup.html',
     },
     commands: {
       'toggle-annotate': {

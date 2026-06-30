@@ -1659,4 +1659,117 @@ export const VIBE_STYLES = `
   border-color: var(--v-text-secondary);
 }
 
+/* ===== Permission modal (shown on public sites before access is granted) ===== */
+.vibe-permission-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: auto;
+  animation: vibe-permission-fade-in 0.15s ease;
+}
+
+.vibe-permission-modal {
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  padding: 24px;
+  background: var(--v-panel-bg, var(--v-surface-1));
+  border: 1px solid var(--v-toolbar-border, var(--v-outline));
+  border-radius: var(--v-radius-md, 8px);
+  box-shadow: var(--v-panel-shadow, 0 16px 48px rgba(0,0,0,0.45));
+  font-family: var(--v-font);
+  color: var(--v-toolbar-text, var(--v-text-primary));
+  text-align: left;
+}
+
+.vibe-permission-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.vibe-permission-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--v-text-primary);
+}
+
+.vibe-permission-body {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  color: var(--v-text-secondary);
+}
+
+.vibe-permission-body strong {
+  color: var(--v-text-primary);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.vibe-permission-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vibe-permission-btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  font: 500 13px/1 var(--v-font);
+  cursor: pointer;
+  transition: filter 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.vibe-permission-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.vibe-permission-primary {
+  background: var(--v-pill-gradient);
+  color: #fff;
+}
+
+.vibe-permission-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.vibe-permission-secondary {
+  background: var(--v-surface-hover);
+  color: var(--v-text-primary);
+}
+
+.vibe-permission-secondary:hover:not(:disabled) {
+  background: var(--v-outline-highlight);
+}
+
+.vibe-permission-cancel {
+  background: transparent;
+  color: var(--v-text-secondary);
+}
+
+.vibe-permission-cancel:hover:not(:disabled) {
+  color: var(--v-text-primary);
+}
+
+.vibe-permission-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--v-text-secondary);
+  min-height: 14px;
+}
+
+@keyframes vibe-permission-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 `;
