@@ -2,7 +2,6 @@
 // screenshot capture, source mapping, parent chain.
 // Operates on host page DOM. No UI.
 
-import VibeAPI from './api-bridge.js';
 import VibeShadowDOMUtils from './shadow-dom-utils.js';
 import { vibeLocationPath } from './event-bus.js';
 
@@ -75,10 +74,8 @@ import { vibeLocationPath } from './event-bus.js';
       parent_chain: getParentChainContext(element, 4)
     };
 
-    // Screenshot (uses sync cache — loaded at init, no async delay)
-    try {
-      if (VibeAPI.isScreenshotEnabled()) context.screenshot = captureElementScreenshot(element);
-    } catch { /* skip */ }
+    // Real screenshots are captured asynchronously after save (see screenshot.js) —
+    // a cropped chrome.tabs.captureVisibleTab, not a synthetic canvas. Left null here.
 
     return context;
   }
@@ -603,49 +600,6 @@ import { vibeLocationPath } from './event-bus.js';
     return p;
   }
 
-  // --- Screenshot ---
-
-  function captureElementScreenshot(element) {
-    try {
-      const rect = element.getBoundingClientRect();
-      const pad = 20;
-      const crop = {
-        x: Math.max(0, rect.left - pad),
-        y: Math.max(0, rect.top - pad),
-        width: Math.min(window.innerWidth - Math.max(0, rect.left - pad), rect.width + pad * 2),
-        height: Math.min(window.innerHeight - Math.max(0, rect.top - pad), rect.height + pad * 2)
-      };
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-
-      const style = window.getComputedStyle(element);
-      ctx.fillStyle = style.backgroundColor || '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.strokeStyle = '#d97757';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(Math.max(0, rect.left - crop.x), Math.max(0, rect.top - crop.y), rect.width, rect.height);
-
-      const text = element.textContent.trim().substring(0, 50);
-      if (text) {
-        ctx.fillStyle = style.color || '#000000';
-        ctx.font = '12px Inter, sans-serif';
-        ctx.fillText(text + (element.textContent.length > 50 ? '...' : ''), Math.max(0, rect.left - crop.x) + 5, Math.max(0, rect.top - crop.y) + 15);
-      }
-
-      return {
-        data_url: canvas.toDataURL('image/webp', 0.8),
-        crop_area: crop,
-        element_bounds: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
-        timestamp: new Date().toISOString(),
-        compression: 'webp_80'
-      };
-    } catch {
-      return null;
-    }
-  }
 
   // --- Parent chain ---
 

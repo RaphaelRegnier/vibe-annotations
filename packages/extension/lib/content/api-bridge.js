@@ -109,6 +109,14 @@ const CACHE_TTL = 2000;
     return r.count || 0;
   }
 
+  // Ask the background to capture+crop+store a real screenshot for this annotation.
+  // `crop` is a device-pixel rect { sx, sy, sw, sh } within the visible viewport.
+  async function captureScreenshot(id, crop) {
+    const r = await chrome.runtime.sendMessage({ action: 'captureAnnotationScreenshot', id, crop });
+    if (!r || !r.success) throw new Error(r?.error || 'screenshot capture failed');
+    return r;
+  }
+
   // --- Storage listeners ---
 
   function onAnnotationsChanged(cb) {
@@ -277,6 +285,7 @@ const VibeAPI = {
   updateAnnotation,
   deleteAnnotation,
   deleteAnnotationsByUrl,
+  captureScreenshot,
   onAnnotationsChanged,
   getScreenshotEnabled,
   isScreenshotEnabled,

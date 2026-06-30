@@ -1772,4 +1772,38 @@ export const VIBE_STYLES = `
   to { opacity: 1; }
 }
 
+/* ===== Capture loader (shown briefly while a screenshot is taken on save) ===== */
+.vibe-capture-loader {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--v-panel-bg, var(--v-surface-1));
+  border: 1px solid var(--v-toolbar-border, var(--v-outline));
+  border-radius: 999px;
+  box-shadow: var(--v-panel-shadow, 0 8px 24px rgba(0,0,0,0.35));
+  font: 500 12px/1 var(--v-font);
+  color: var(--v-text-secondary);
+  pointer-events: none;
+  z-index: 90;
+  animation: vibe-permission-fade-in 0.15s ease;
+}
+
+.vibe-capture-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--v-outline-highlight, rgba(255,255,255,0.25));
+  border-top-color: var(--v-accent, #d97757);
+  animation: vibe-capture-spin 0.7s linear infinite;
+}
+
+@keyframes vibe-capture-spin {
+  to { transform: rotate(360deg); }
+}
+
 `;

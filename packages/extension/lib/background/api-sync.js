@@ -72,6 +72,23 @@ export async function saveOne(annotation) {
   }
 }
 
+// Upload a real cropped element screenshot as a raw webp blob (no base64).
+// The server writes it to ~/.vibe-annotations/screenshots/<id>.webp and stores
+// only the path on the annotation. Best-effort: failure never blocks the save.
+export async function attachScreenshot(id, blob) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${API_URL}/api/annotations/${id}/screenshot`, {
+      method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob, signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`screenshot upload error: ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function deleteOne(id) {
   try {
     const response = await fetch(`${API_URL}/api/annotations/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });

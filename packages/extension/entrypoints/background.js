@@ -3,7 +3,7 @@
 
 import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations } from '../lib/background/api-sync.js';
+import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, attachScreenshot } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
 
@@ -127,6 +127,11 @@ class VibeAnnotationsBackground {
           break;
         case 'updateAnnotation':
           this.updateAnnotation(request.id, request.updates)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'captureAnnotationScreenshot':
+          this.captureAnnotationScreenshot(request.id, request.crop, sender)
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
@@ -285,6 +290,28 @@ class VibeAnnotationsBackground {
         throw error;
       }
     });
+  }
+
+  // Capture a real, cropped screenshot of the just-annotated element. The content
+  // script hides our overlay and sends a device-pixel crop rect; here we grab the
+  // visible tab, crop it with OffscreenCanvas (no base64 — captureVisibleTab's data
+  // URL is blob-ified immediately), and upload the raw webp. Screenshots are
+  // server-authoritative, so we never write the path back into chrome.storage.
+  async captureAnnotationScreenshot(id, crop, sender) {
+    if (!crop || !(crop.sw > 0) || !(crop.sh > 0)) return;
+    const windowId = sender?.tab?.windowId;
+
+    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+    const fullBlob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(fullBlob, crop.sx, crop.sy, crop.sw, crop.sh);
+
+    const canvas = new OffscreenCanvas(crop.sw, crop.sh);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    if (bitmap.close) bitmap.close();
+
+    const webp = await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
+    await attachScreenshot(id, webp);
   }
 
   async importAnnotations(newAnnotations) {
