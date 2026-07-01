@@ -131,12 +131,19 @@ const CACHE_TTL = 2000;
   // attachment into chrome.storage so the UI can render it immediately.
   async function uploadUserImage(annotationId, blob, mime) {
     if (isLocalOrigin()) {
-      const res = await fetch(`${SERVER_URL}/api/annotations/${annotationId}/attachments`, {
-        method: 'POST',
-        headers: { 'Content-Type': mime, 'X-Attachment-Kind': 'user' },
-        body: blob,
-      });
-      if (!res.ok) throw new Error(`attachment upload failed: ${res.status}`);
+      // Retry on 404: a brand-new annotation's server-side create can lag behind
+      // this upload, so the annotation may not exist for a moment.
+      let res;
+      for (let i = 0; i < 5; i++) {
+        res = await fetch(`${SERVER_URL}/api/annotations/${annotationId}/attachments`, {
+          method: 'POST',
+          headers: { 'Content-Type': mime, 'X-Attachment-Kind': 'user' },
+          body: blob,
+        });
+        if (res.ok) break;
+        if (res.status === 404 && i < 4) { await new Promise(r => setTimeout(r, 300)); continue; }
+        throw new Error(`attachment upload failed: ${res.status}`);
+      }
       const { attachment } = await res.json();
       chrome.runtime.sendMessage({ action: 'recordAttachment', id: annotationId, att: attachment }).catch(() => {});
       return attachment;
@@ -174,16 +181,25 @@ const CACHE_TTL = 2000;
 
   // --- Settings ---
 
-  let _screenshotEnabledCache = true; // default, updated on load + save
+  let _screenshotEnabledCache = false; // default OFF (needs all-sites permission for captureVisibleTab)
 
   async function getScreenshotEnabled() {
     try {
       const r = await chrome.storage.local.get(['screenshotEnabled']);
-      _screenshotEnabledCache = r.screenshotEnabled !== undefined ? r.screenshotEnabled : true;
+      _screenshotEnabledCache = r.screenshotEnabled !== undefined ? r.screenshotEnabled : false;
       return _screenshotEnabledCache;
     } catch {
-      return true;
+      return false;
     }
+  }
+
+  // Screenshots require chrome.tabs.captureVisibleTab, which needs the broad
+  // host permission (activeTab is gesture-scoped + revoked on navigation, and the
+  // localhost host permission doesn't satisfy it). Request it when the user turns
+  // screenshots on. Returns true if granted (or already held).
+  async function requestScreenshotPermission() {
+    const r = await chrome.runtime.sendMessage({ action: 'requestScreenshotPermission' });
+    return !!(r && r.success && r.granted);
   }
 
   function isScreenshotEnabled() {
@@ -339,6 +355,7 @@ const VibeAPI = {
   getScreenshotEnabled,
   isScreenshotEnabled,
   saveScreenshotEnabled,
+  requestScreenshotPermission,
   getToolbarPosition,
   saveToolbarPosition,
   getToolbarCollapsed,

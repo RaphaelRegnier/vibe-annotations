@@ -16,7 +16,7 @@ import VibeToolbarDocs from './toolbar-docs.js';
   let annotationCount = 0;
   let styleAnnotationCount = 0;
   let clearOnCopy = false;
-  let screenshotEnabled = true;
+  let screenshotEnabled = false;
   let badgeColor = '#D03D68';
   let watcherActive = false;
 
@@ -560,10 +560,17 @@ import VibeToolbarDocs from './toolbar-docs.js';
       await VibeAPI.saveClearOnCopy(clearOnCopy);
     });
 
-    // Screenshot toggle
+    // Screenshot toggle — turning ON requires the broad host permission that
+    // captureVisibleTab needs, so request it first (within this click gesture).
+    // If the user declines, leave the toggle off.
     settingsDropdown.querySelector('.vibe-screenshot-toggle').addEventListener('click', async (e) => {
+      const toggle = e.currentTarget;
+      if (!screenshotEnabled) {
+        const granted = await VibeAPI.requestScreenshotPermission();
+        if (!granted) return; // stay off — no permission, capture can't work
+      }
       screenshotEnabled = !screenshotEnabled;
-      e.currentTarget.classList.toggle('on', screenshotEnabled);
+      toggle.classList.toggle('on', screenshotEnabled);
       await VibeAPI.saveScreenshotEnabled(screenshotEnabled);
     });
 

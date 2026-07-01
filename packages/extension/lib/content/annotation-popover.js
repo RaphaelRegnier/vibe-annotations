@@ -187,6 +187,9 @@ import VibeShadowHost from './shadow-host.js';
     // Object URLs for images added this session, keyed by server attachment id —
     // lets us show a real thumbnail even on https (where we couldn't re-fetch).
     const sessionBlobUrls = new Map();
+    // Track attachment add/remove so the save button reflects it (see updateSave).
+    let attachmentsDirty = false;
+    const markAttachmentsChanged = () => { attachmentsDirty = true; popover._updateSave?.(); };
 
     function renderAttachments() {
       const saved = (isEdit && Array.isArray(activeExistingAnnotation?.attachments)) ? activeExistingAnnotation.attachments : [];
@@ -221,10 +224,12 @@ import VibeShadowHost from './shadow-host.js';
           sessionBlobUrls.set(att.id, URL.createObjectURL(blob));
           activeExistingAnnotation.attachments = [...(activeExistingAnnotation.attachments || []), att];
           renderAttachments();
+          markAttachmentsChanged();
         } catch (err) { console.warn('[Vibe] attach failed:', err); }
       } else {
         pendingAttachments.push({ blob, mime, url: URL.createObjectURL(blob) });
         renderAttachments();
+        markAttachmentsChanged();
       }
     }
 
@@ -258,6 +263,7 @@ import VibeShadowHost from './shadow-host.js';
           if (p) { URL.revokeObjectURL(p.url); pendingAttachments.splice(Number(pendingIndex), 1); }
         }
         renderAttachments();
+        markAttachmentsChanged();
         return;
       }
       // Click a tile → open the full image in a new tab.
@@ -450,17 +456,20 @@ import VibeShadowHost from './shadow-host.js';
     const updateSave = () => {
       const text = textarea.value.trim();
       const hasDesignChanges = !!buildPendingChanges();
+      // An image attachment (pending/added) or a screenshot that will be captured
+      // on save counts as content — the annotation isn't just a bare pointer.
+      const hasImage = pendingAttachments.length > 0 || VibeAPI.isScreenshotEnabled();
       if (isEdit) {
         const commentChanged = text !== (existingAnnotation.comment || '');
         const savedPC = existingAnnotation.pending_changes || null;
         const designChanged = JSON.stringify(buildPendingChanges()) !== JSON.stringify(savedPC);
         const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value : '';
         const cssRulesChanged = cssRulesVal !== cssRulesOriginal;
-        saveBtn.disabled = !commentChanged && !designChanged && !cssRulesChanged;
+        saveBtn.disabled = !commentChanged && !designChanged && !cssRulesChanged && !attachmentsDirty;
         saveBtn.textContent = 'Save';
       } else {
         saveBtn.disabled = false;
-        saveBtn.textContent = (text || hasDesignChanges) ? 'Save annotation' : 'Save as pointer';
+        saveBtn.textContent = (text || hasDesignChanges || hasImage) ? 'Save annotation' : 'Save as pointer';
       }
     };
     textarea.addEventListener('input', updateSave);

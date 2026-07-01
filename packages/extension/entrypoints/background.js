@@ -150,6 +150,11 @@ class VibeAnnotationsBackground {
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
+        case 'requestScreenshotPermission':
+          this.requestScreenshotPermission()
+            .then(granted => sendResponse({ success: true, granted }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
         case 'exportAnnotations':
           formatExport(request.format)
             .then(data => sendResponse({ success: true, data }))
@@ -307,16 +312,15 @@ class VibeAnnotationsBackground {
     });
   }
 
-  // Capture a real, cropped screenshot of the just-annotated element. The content
-  // script hides our overlay and sends a device-pixel crop rect; here we grab the
-  // visible tab, crop it with OffscreenCanvas (no base64 — captureVisibleTab's data
-  // URL is blob-ified immediately), and upload the raw webp. Screenshots are
-  // server-authoritative, so we never write the path back into chrome.storage.
+  // Capture a real, cropped screenshot of the just-annotated element in one shot.
+  // The content script hides our overlay and sends a device-pixel crop rect; here
+  // we grab the visible tab, crop with OffscreenCanvas (no base64 — captureVisibleTab's
+  // data URL is blob-ified immediately), and upload the raw webp as the capture
+  // attachment. Server-authoritative, then mirror into storage.
   async captureAnnotationScreenshot(id, crop, sender) {
     if (!crop || !(crop.sw > 0) || !(crop.sh > 0)) return;
-    const windowId = sender?.tab?.windowId;
 
-    const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+    const dataUrl = await chrome.tabs.captureVisibleTab(sender?.tab?.windowId, { format: 'png' });
     const fullBlob = await (await fetch(dataUrl)).blob();
     const bitmap = await createImageBitmap(fullBlob, crop.sx, crop.sy, crop.sw, crop.sh);
 
@@ -356,6 +360,20 @@ class VibeAnnotationsBackground {
     const { attachment } = await uploadAttachment(id, blob, 'user', mime);
     if (attachment) await this.recordAttachment(id, attachment);
     return attachment;
+  }
+
+  // Request the broad host permission captureVisibleTab needs (screenshots). The
+  // user gesture from the toggle click propagates through sendMessage → here.
+  // Already-granted returns true without a prompt.
+  async requestScreenshotPermission() {
+    try {
+      // Must be '<all_urls>' specifically — captureVisibleTab does not accept
+      // '*://*/*'. Already-granted returns true without a prompt.
+      return await chrome.permissions.request({ origins: ['<all_urls>'] });
+    } catch (err) {
+      console.error('Screenshot permission request failed:', err);
+      return false;
+    }
   }
 
   // Remove an attachment: unlink the file server-side, drop the metadata locally.

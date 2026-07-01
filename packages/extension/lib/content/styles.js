@@ -1772,40 +1772,6 @@ export const VIBE_STYLES = `
   to { opacity: 1; }
 }
 
-/* ===== Capture loader (shown briefly while a screenshot is taken on save) ===== */
-.vibe-capture-loader {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  background: var(--v-panel-bg, var(--v-surface-1));
-  border: 1px solid var(--v-toolbar-border, var(--v-outline));
-  border-radius: 999px;
-  box-shadow: var(--v-panel-shadow, 0 8px 24px rgba(0,0,0,0.35));
-  font: 500 12px/1 var(--v-font);
-  color: var(--v-text-secondary);
-  pointer-events: none;
-  z-index: 90;
-  animation: vibe-permission-fade-in 0.15s ease;
-}
-
-.vibe-capture-spinner {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--v-outline-highlight, rgba(255,255,255,0.25));
-  border-top-color: var(--v-accent, #d97757);
-  animation: vibe-capture-spin 0.7s linear infinite;
-}
-
-@keyframes vibe-capture-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* ===== Image attachments ===== */
 .vibe-attach-btn {
   position: absolute;
@@ -1842,7 +1808,9 @@ export const VIBE_STYLES = `
   width: 56px;
   height: 56px;
   border-radius: 8px;
-  overflow: hidden;
+  /* visible so the remove button can overhang the corner without being clipped;
+     the media rounds itself via its own border-radius */
+  overflow: visible;
   border: 1px solid var(--v-toolbar-border, var(--v-outline));
   background: var(--v-surface-1);
   cursor: pointer;
@@ -1853,6 +1821,7 @@ export const VIBE_STYLES = `
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 7px;
 }
 .vibe-att-chip {
   width: 100%;
@@ -1864,6 +1833,7 @@ export const VIBE_STYLES = `
   gap: 3px;
   font: 500 9px/1 var(--v-font);
   color: var(--v-text-secondary);
+  border-radius: 7px;
 }
 .vibe-att-unavailable .vibe-att-img { display: none; }
 .vibe-att-unavailable::after {
@@ -1876,26 +1846,29 @@ export const VIBE_STYLES = `
   font: 500 9px/1 var(--v-font);
   color: var(--v-text-secondary);
   background: var(--v-surface-1);
+  border-radius: 7px;
 }
+/* Always-visible close button overhanging the top-right corner, ringed against
+   the panel so it never blends into the image and is never clipped. */
 .vibe-att-remove {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 16px;
-  height: 16px;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(20, 20, 20, 0.92);
   border: none;
   border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--v-panel-bg, var(--v-surface-1));
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.12s ease;
+  z-index: 3;
+  transition: background 0.12s ease;
 }
-.vibe-att-tile:hover .vibe-att-remove { opacity: 1; }
 .vibe-att-remove:hover { background: var(--v-badge-bg, #D03D68); }
 
 `;

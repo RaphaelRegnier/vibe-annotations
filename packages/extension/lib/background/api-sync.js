@@ -75,20 +75,23 @@ export async function saveOne(annotation) {
 // Upload an image attachment as a raw binary blob (no base64). kind is 'capture'
 // (the auto element screenshot) or 'user' (paste/upload). The server writes it to
 // ~/.vibe-annotations/attachments/ and records { id, kind, mime } on the annotation.
+// Retries on 404: for a brand-new annotation the attachment can race ahead of the
+// server-side create (saveOne is fire-and-forget), so the annotation may not exist
+// for a moment. Backs off and retries rather than losing the image.
 export async function uploadAttachment(id, blob, kind, mime) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
+  const attempts = 5;
+  for (let i = 0; i < attempts; i++) {
     const response = await fetch(`${API_URL}/api/annotations/${id}/attachments`, {
       method: 'POST',
       headers: { 'Content-Type': mime, 'X-Attachment-Kind': kind },
       body: blob,
-      signal: controller.signal
     });
-    if (!response.ok) throw new Error(`attachment upload error: ${response.status}`);
-    return await response.json();
-  } finally {
-    clearTimeout(timeout);
+    if (response.ok) return await response.json();
+    if (response.status === 404 && i < attempts - 1) {
+      await new Promise(r => setTimeout(r, 300));
+      continue;
+    }
+    throw new Error(`attachment upload error: ${response.status}`);
   }
 }
 
