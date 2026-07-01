@@ -3,7 +3,7 @@
 
 import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, attachScreenshot } from '../lib/background/api-sync.js';
+import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
 
@@ -311,7 +311,7 @@ class VibeAnnotationsBackground {
     if (bitmap.close) bitmap.close();
 
     const webp = await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
-    await attachScreenshot(id, webp);
+    await uploadAttachment(id, webp, 'capture', 'image/webp');
   }
 
   async importAnnotations(newAnnotations) {

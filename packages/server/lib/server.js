@@ -27,11 +27,17 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 const PORT = 3846;
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
-// Real element screenshots are stored as files here (one per annotation), not
-// inline base64 in annotations.json — keeps the store small and gives the agent
-// a readable image path. The annotation only carries screenshot.file (abs path).
-const SCREENSHOT_DIR = path.join(DATA_DIR, 'screenshots');
-const screenshotFileFor = (id) => path.join(SCREENSHOT_DIR, `${id}.webp`);
+// Image attachments (auto element captures + user paste/upload) are stored as
+// files here, one per attachment, named by annotation id + attachment id. The
+// annotation carries only lightweight metadata ({ id, kind, mime }); the absolute
+// path is DERIVED locally and existence-checked at read time. So a path baked into
+// a shared/imported annotation resolves to a local file that isn't there and
+// degrades gracefully instead of handing the agent a dead path.
+const ATTACH_DIR = path.join(DATA_DIR, 'attachments');
+const EXT_BY_MIME = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif' };
+const extForMime = (mime) => EXT_BY_MIME[mime] || 'bin';
+const attachmentFileFor = (annotationId, att) =>
+  path.join(ATTACH_DIR, `${annotationId}__${att.id}.${extForMime(att.mime)}`);
 
 class LocalAnnotationsServer {
   constructor() {
@@ -189,7 +195,7 @@ class LocalAnnotationsServer {
         const existingIndex = annotations.findIndex(a => a.id === annotation.id);
 
         if (existingIndex >= 0) {
-          const preserved = this.preserveScreenshot(annotation, annotations[existingIndex]);
+          const preserved = this.preserveAttachments(annotation, annotations[existingIndex]);
           annotations[existingIndex] = { ...annotations[existingIndex], ...preserved, updated_at: new Date().toISOString() };
         } else {
           annotations.push({
@@ -220,10 +226,10 @@ class LocalAnnotationsServer {
         const currentAnnotations = await this.loadAnnotations();
         console.log(`Sync request: replacing ${currentAnnotations.length} annotations with ${annotations.length} annotations`);
 
-        // Re-attach server-side screenshot references the extension's copy lacks
-        // (screenshots are server-authoritative — see preserveScreenshot).
+        // Re-attach server-side attachment metadata the extension's copy lacks
+        // (attachments are server-authoritative — see preserveAttachments).
         const currentById = new Map(currentAnnotations.map(a => [a.id, a]));
-        const merged = annotations.map(a => this.preserveScreenshot(a, currentById.get(a.id)));
+        const merged = annotations.map(a => this.preserveAttachments(a, currentById.get(a.id)));
 
         // Check if data is actually different to avoid redundant saves
         const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
@@ -235,10 +241,10 @@ class LocalAnnotationsServer {
           return;
         }
 
-        // Orphan cleanup: delete screenshot files for annotations dropped in this sync.
+        // Orphan cleanup: delete attachment files for annotations dropped in this sync.
         const keptIds = new Set(merged.map(a => a.id));
         for (const old of currentAnnotations) {
-          if (!keptIds.has(old.id)) await this.removeScreenshotFile(old);
+          if (!keptIds.has(old.id)) await this.removeAttachmentFiles(old);
         }
 
         // Replace all annotations with the new set
@@ -251,36 +257,100 @@ class LocalAnnotationsServer {
       }
     });
 
-    // Attach a real (cropped) element screenshot the extension captured after the
-    // annotation was created. Body is the raw webp image (binary, no base64);
-    // stored as a file in screenshots/ and the annotation keeps only the path.
-    this.app.post('/api/annotations/:id/screenshot', express.raw({ type: 'image/webp', limit: '10mb' }), async (req, res) => {
-      try {
-        const { id } = req.params;
-        const buf = req.body;
+    // Attach an image to an annotation — the auto element capture (kind=capture,
+    // Content-Type image/webp) or a user paste/upload (kind=user, any image mime).
+    // Body is the raw image (binary, no base64); stored as a file, the annotation
+    // keeps only { id, kind, mime } metadata (path is derived locally on read).
+    this.app.post(
+      '/api/annotations/:id/attachments',
+      express.raw({ type: (req) => (req.headers['content-type'] || '').startsWith('image/'), limit: '15mb' }),
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const buf = req.body;
+          const mime = (req.headers['content-type'] || '').split(';')[0].trim();
+          const kind = req.headers['x-attachment-kind'] === 'user' ? 'user' : 'capture';
 
-        if (!Buffer.isBuffer(buf) || buf.length === 0) {
-          return res.status(400).json({ error: 'Missing image body (expected image/webp)' });
+          if (!Buffer.isBuffer(buf) || buf.length === 0) {
+            return res.status(400).json({ error: 'Missing image body' });
+          }
+          if (!EXT_BY_MIME[mime]) {
+            return res.status(415).json({ error: `Unsupported image type: ${mime}` });
+          }
+
+          const annotations = await this.loadAnnotations();
+          const index = annotations.findIndex(a => a.id === id);
+          if (index === -1) {
+            return res.status(404).json({ error: 'Annotation not found' });
+          }
+
+          await mkdir(ATTACH_DIR, { recursive: true });
+          const att = { id: randomUUID().slice(0, 8), kind, mime, created_at: new Date().toISOString() };
+          await writeFile(attachmentFileFor(id, att), buf);
+
+          const existing = Array.isArray(annotations[index].attachments) ? annotations[index].attachments : [];
+          let attachments;
+          if (kind === 'capture') {
+            // One capture per annotation; replace any prior one (and unlink its file).
+            for (const old of existing.filter(a => a.kind === 'capture')) {
+              try { const f = attachmentFileFor(id, old); if (existsSync(f)) await unlink(f); } catch { /* best effort */ }
+            }
+            attachments = [att, ...existing.filter(a => a.kind !== 'capture')];
+          } else {
+            attachments = [...existing, att];
+          }
+          annotations[index] = { ...annotations[index], attachments, updated_at: new Date().toISOString() };
+          await this.saveAnnotations(annotations);
+
+          res.json({ success: true, attachment: att });
+        } catch (error) {
+          console.error('Error attaching image:', error);
+          res.status(500).json({ error: 'Failed to attach image' });
         }
+      }
+    );
 
+    // Serve an attachment's bytes (for the extension to render thumbnails on
+    // localhost pages, and for open-in-tab from any page). 404 if the file is gone.
+    this.app.get('/api/annotations/:id/attachments/:attId', async (req, res) => {
+      try {
+        const { id, attId } = req.params;
+        const annotations = await this.loadAnnotations();
+        const ann = annotations.find(a => a.id === id);
+        const att = ann?.attachments?.find(a => a.id === attId);
+        if (!att) return res.status(404).json({ error: 'Attachment not found' });
+        const file = attachmentFileFor(id, att);
+        if (!existsSync(file)) return res.status(404).json({ error: 'Attachment file missing' });
+        res.type(att.mime);
+        res.sendFile(file);
+      } catch (error) {
+        console.error('Error serving attachment:', error);
+        res.status(500).json({ error: 'Failed to serve attachment' });
+      }
+    });
+
+    // Clear (remove) a single attachment: unlink the file + drop the metadata.
+    this.app.delete('/api/annotations/:id/attachments/:attId', async (req, res) => {
+      try {
+        const { id, attId } = req.params;
         const annotations = await this.loadAnnotations();
         const index = annotations.findIndex(a => a.id === id);
-        if (index === -1) {
-          return res.status(404).json({ error: 'Annotation not found' });
+        if (index === -1) return res.status(404).json({ error: 'Annotation not found' });
+
+        const att = (annotations[index].attachments || []).find(a => a.id === attId);
+        if (att) {
+          try { const f = attachmentFileFor(id, att); if (existsSync(f)) await unlink(f); } catch { /* best effort */ }
         }
-
-        await mkdir(SCREENSHOT_DIR, { recursive: true });
-        const file = screenshotFileFor(id);
-        await writeFile(file, buf);
-
-        const screenshot = { file, compression: 'webp', timestamp: new Date().toISOString() };
-        annotations[index] = { ...annotations[index], screenshot, updated_at: new Date().toISOString() };
+        annotations[index] = {
+          ...annotations[index],
+          attachments: (annotations[index].attachments || []).filter(a => a.id !== attId),
+          updated_at: new Date().toISOString()
+        };
         await this.saveAnnotations(annotations);
-
-        res.json({ success: true, screenshot });
+        res.json({ success: true });
       } catch (error) {
-        console.error('Error attaching screenshot:', error);
-        res.status(500).json({ error: 'Failed to attach screenshot' });
+        console.error('Error deleting attachment:', error);
+        res.status(500).json({ error: 'Failed to delete attachment' });
       }
     });
 
@@ -325,7 +395,7 @@ class LocalAnnotationsServer {
         annotations.splice(index, 1);
 
         await this.saveAnnotations(annotations);
-        await this.removeScreenshotFile(deletedAnnotation);
+        await this.removeAttachmentFiles(deletedAnnotation);
         res.json({
           success: true,
           deleted: true,
@@ -493,7 +563,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. SCREENSHOTS: when has_screenshot is true the annotation includes screenshot_path — an absolute path to a real cropped screenshot of the annotated element (webp) you can open/read directly without any extra tool; it is deleted automatically when the annotation is deleted.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -526,7 +596,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_annotation',
-            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. IMPORTANT: Consider using delete_project_annotations for batch deletion when implementing multiple fixes. Use this individual deletion tool when: (1) You have successfully implemented a single annotation fix, (2) You prefer to delete annotations one-by-one as you implement them, (3) You are working on just one annotation. For efficiency when handling multiple annotations, use delete_project_annotations instead. The deletion is irreversible and removes the annotation from both extension storage and MCP data — and also deletes the annotation\'s stored screenshot file from disk, so do not delete until you no longer need its screenshot. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders.',
+            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. IMPORTANT: Consider using delete_project_annotations for batch deletion when implementing multiple fixes. Use this individual deletion tool when: (1) You have successfully implemented a single annotation fix, (2) You prefer to delete annotations one-by-one as you implement them, (3) You are working on just one annotation. For efficiency when handling multiple annotations, use delete_project_annotations instead. The deletion is irreversible and removes the annotation from both extension storage and MCP data — and also deletes the annotation\'s image attachment files from disk, so do not delete until you no longer need its screenshot. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -556,7 +626,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_project_annotations',
-            description: 'Batch delete ALL annotations for a specific project after successfully implementing all requested changes. CRITICAL WORKFLOW: Use this tool instead of individual delete_annotation calls when you have completed ALL annotation fixes for a project. This implements the efficient "read all → implement all → delete all" workflow. SAFETY: Requires URL pattern (like "http://localhost:3000/*") to prevent accidental deletion across projects. Always confirm the count of annotations to be deleted before proceeding. Use this tool when: (1) You have successfully implemented ALL annotation fixes for a project, (2) All code changes are complete and working, (3) You want to clean up all annotations for the project at once. This is more efficient than deleting annotations one-by-one. Also deletes each annotation\'s stored screenshot file from disk.',
+            description: 'Batch delete ALL annotations for a specific project after successfully implementing all requested changes. CRITICAL WORKFLOW: Use this tool instead of individual delete_annotation calls when you have completed ALL annotation fixes for a project. This implements the efficient "read all → implement all → delete all" workflow. SAFETY: Requires URL pattern (like "http://localhost:3000/*") to prevent accidental deletion across projects. Always confirm the count of annotations to be deleted before proceeding. Use this tool when: (1) You have successfully implemented ALL annotation fixes for a project, (2) All code changes are complete and working, (3) You want to clean up all annotations for the project at once. This is more efficient than deleting annotations one-by-one. Also deletes each annotation\'s image attachment files from disk.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -927,16 +997,23 @@ class LocalAnnotationsServer {
       has_more: (offset + limit) < total
     };
 
-    // Transform annotations for MCP consumers: strip the raw screenshot blob but
-    // surface its file path so the agent can read the image directly (and via
-    // get_annotation_screenshot). screenshot.file is a local cropped webp; it is
-    // deleted automatically when the annotation is deleted.
+    // Transform annotations for MCP consumers: surface each image attachment as a
+    // readable local file path (with kind), resolved + existence-checked so imported
+    // annotations degrade gracefully. Files are deleted with the annotation.
     const optimized = paginatedResults.map(annotation => {
-      const { screenshot, ...rest } = annotation;
-      const hasShot = !!(screenshot && screenshot.file);
-      const optimized = { ...rest, has_screenshot: hasShot };
-      if (hasShot) optimized.screenshot_path = screenshot.file;
-      return this.optimizeForAgent(optimized);
+      const { attachments, ...rest } = annotation;
+      // Resolve each attachment's local file and existence-check it. A path baked
+      // into a shared/imported annotation won't resolve here and is omitted, so the
+      // agent never receives a dead path. kind distinguishes the auto element
+      // capture (current state) from user attachments (design references / targets).
+      const available = (Array.isArray(attachments) ? attachments : [])
+        .map(att => ({ att, file: attachmentFileFor(annotation.id, att) }))
+        .filter(({ file }) => existsSync(file))
+        .map(({ att, file }) => ({ kind: att.kind, mime: att.mime, path: file }));
+
+      const out = { ...rest, has_screenshot: available.some(a => a.kind === 'capture') };
+      if (available.length) out.attachments = available;
+      return this.optimizeForAgent(out);
     });
 
     return {
@@ -947,25 +1024,29 @@ class LocalAnnotationsServer {
     };
   }
 
-  // Delete the on-disk screenshot file for an annotation, if any. Best-effort:
-  // a missing file is fine (never captured / already gone). Keeps the
-  // screenshots/ dir in lockstep with the annotation store on every deletion.
-  async removeScreenshotFile(annotation) {
-    try {
-      const file = annotation?.screenshot?.file || screenshotFileFor(annotation?.id);
-      if (file && existsSync(file)) await unlink(file);
-    } catch (error) {
-      console.error('Failed to remove screenshot file:', error.message);
+  // Delete all on-disk attachment files for an annotation. Best-effort: a missing
+  // file is fine. Keeps the attachments/ dir in lockstep with the store on deletion.
+  async removeAttachmentFiles(annotation) {
+    const atts = Array.isArray(annotation?.attachments) ? annotation.attachments : [];
+    for (const att of atts) {
+      try {
+        const file = attachmentFileFor(annotation.id, att);
+        if (existsSync(file)) await unlink(file);
+      } catch (error) {
+        console.error('Failed to remove attachment file:', error.message);
+      }
     }
   }
 
-  // Screenshots are server-authoritative: the extension's bidirectional sync
-  // pushes annotations without the screenshot reference, so on every upsert we
-  // re-attach the existing screenshot if the incoming copy lacks one. Without
-  // this, the next sync would wipe the path the agent relies on.
-  preserveScreenshot(incoming, existing) {
-    if (incoming && !incoming.screenshot && existing && existing.screenshot) {
-      return { ...incoming, screenshot: existing.screenshot };
+  // Attachment metadata is server-authoritative: the extension's bidirectional
+  // sync may push an annotation without its attachments, so on every upsert we
+  // re-attach the existing list if the incoming copy has none. Prevents a sync
+  // from silently dropping attachment references the agent relies on.
+  preserveAttachments(incoming, existing) {
+    const incomingHas = Array.isArray(incoming?.attachments) && incoming.attachments.length;
+    const existingHas = Array.isArray(existing?.attachments) && existing.attachments.length;
+    if (incoming && !incomingHas && existingHas) {
+      return { ...incoming, attachments: existing.attachments };
     }
     return incoming;
   }
@@ -1124,7 +1205,7 @@ class LocalAnnotationsServer {
     annotations.splice(index, 1); // Remove the annotation completely
 
     await this.saveAnnotations(annotations);
-    await this.removeScreenshotFile(deletedAnnotation);
+    await this.removeAttachmentFiles(deletedAnnotation);
 
     return {
       id,
@@ -1167,35 +1248,40 @@ class LocalAnnotationsServer {
         };
       }
 
-      const shot = annotation.screenshot;
-      if (!shot || !shot.file) {
+      // The "screenshot" is the auto element capture — the first attachment of
+      // kind 'capture'. Its path is derived locally and existence-checked, so an
+      // imported annotation degrades gracefully instead of erroring.
+      const capture = (Array.isArray(annotation.attachments) ? annotation.attachments : [])
+        .find(a => a.kind === 'capture');
+      if (!capture) {
         return {
           annotation_id: id,
           screenshot: null,
           message: 'No screenshot available for this annotation'
         };
       }
-      if (!existsSync(shot.file)) {
+      const file = attachmentFileFor(id, capture);
+      if (!existsSync(file)) {
         return {
           annotation_id: id,
           screenshot: null,
-          screenshot_path: shot.file,
-          message: 'Screenshot file is missing on disk'
+          screenshot_path: file,
+          message: 'Screenshot file is missing on disk (e.g. an imported annotation)'
         };
       }
 
       // Prefer handing the agent the file path — it can open the image directly,
       // no base64 needed. Include a data_url too only as a convenience for clients
       // that can't read local files.
-      const buf = await readFile(shot.file);
+      const buf = await readFile(file);
 
       return {
         annotation_id: id,
-        screenshot_path: shot.file,
+        screenshot_path: file,
         screenshot: {
-          data_url: `data:image/webp;base64,${buf.toString('base64')}`,
-          compression: shot.compression,
-          timestamp: shot.timestamp,
+          data_url: `data:${capture.mime};base64,${buf.toString('base64')}`,
+          mime: capture.mime,
+          timestamp: capture.created_at,
           viewport: annotation.viewport || null
         },
         message: 'Screenshot retrieved successfully'
@@ -1255,7 +1341,7 @@ class LocalAnnotationsServer {
     // Proceed with deletion
     const remainingAnnotations = annotations.filter(a => !matchingAnnotations.find(m => m.id === a.id));
     await this.saveAnnotations(remainingAnnotations);
-    for (const a of matchingAnnotations) await this.removeScreenshotFile(a);
+    for (const a of matchingAnnotations) await this.removeAttachmentFiles(a);
     
     const deletedInfo = matchingAnnotations.map(a => ({
       id: a.id,

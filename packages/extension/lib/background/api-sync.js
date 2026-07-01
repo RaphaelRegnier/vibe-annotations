@@ -72,21 +72,31 @@ export async function saveOne(annotation) {
   }
 }
 
-// Upload a real cropped element screenshot as a raw webp blob (no base64).
-// The server writes it to ~/.vibe-annotations/screenshots/<id>.webp and stores
-// only the path on the annotation. Best-effort: failure never blocks the save.
-export async function attachScreenshot(id, blob) {
+// Upload an image attachment as a raw binary blob (no base64). kind is 'capture'
+// (the auto element screenshot) or 'user' (paste/upload). The server writes it to
+// ~/.vibe-annotations/attachments/ and records { id, kind, mime } on the annotation.
+export async function uploadAttachment(id, blob, kind, mime) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(`${API_URL}/api/annotations/${id}/screenshot`, {
-      method: 'POST', headers: { 'Content-Type': 'image/webp' }, body: blob, signal: controller.signal
+    const response = await fetch(`${API_URL}/api/annotations/${id}/attachments`, {
+      method: 'POST',
+      headers: { 'Content-Type': mime, 'X-Attachment-Kind': kind },
+      body: blob,
+      signal: controller.signal
     });
-    if (!response.ok) throw new Error(`screenshot upload error: ${response.status}`);
+    if (!response.ok) throw new Error(`attachment upload error: ${response.status}`);
     return await response.json();
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Remove a single attachment (unlinks the file server-side).
+export async function deleteAttachment(id, attId) {
+  const response = await fetch(`${API_URL}/api/annotations/${id}/attachments/${attId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`attachment delete error: ${response.status}`);
+  return await response.json();
 }
 
 export async function deleteOne(id) {
