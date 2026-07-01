@@ -20,8 +20,13 @@ import VibeShadowHost from './shadow-host.js';
   let activeTextDirty = false;
   let activeOriginalCssText = null;
   let activeCssRulesStyleEl = null;
+  let activePendingAttachments = null;
 
   const P = VibePopoverPanels; // shorthand
+
+  const VIBE_IMG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+  const VIBE_X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+  const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 
   function init() {
     VibeEvents.on('inspection:elementClicked', onElementClicked);
@@ -137,8 +142,11 @@ import VibeShadowHost from './shadow-host.js';
       <div class="vibe-popover-body">
         <div class="vibe-input-wrap">
           <textarea class="vibe-textarea" placeholder="What should change?" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
+          <button class="vibe-btn-icon vibe-attach-btn" type="button" title="Attach image (or paste)">${VIBE_IMG_ICON}</button>
           <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
         </div>
+        <div class="vibe-attachments empty"></div>
+        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="vibe-attach-input" hidden multiple>
       </div>
       <div class="vibe-popover-footer">
         <div class="vibe-footer-left">
@@ -168,6 +176,108 @@ import VibeShadowHost from './shadow-host.js';
     activeOriginalCssText = targetElement.style.cssText;
     activeExistingAnnotation = existingAnnotation;
     activeElType = elType;
+
+    // --- Image attachments (paste / pick / clear) ---
+    const attachBtn = popover.querySelector('.vibe-attach-btn');
+    const attachInput = popover.querySelector('.vibe-attach-input');
+    const attachmentsEl = popover.querySelector('.vibe-attachments');
+    const isLocal = VibeAPI.isLocalOrigin();
+    // For a not-yet-saved annotation we buffer blobs and upload them on save.
+    const pendingAttachments = []; // { blob, mime, url }
+    // Object URLs for images added this session, keyed by server attachment id —
+    // lets us show a real thumbnail even on https (where we couldn't re-fetch).
+    const sessionBlobUrls = new Map();
+
+    function renderAttachments() {
+      const saved = (isEdit && Array.isArray(activeExistingAnnotation?.attachments)) ? activeExistingAnnotation.attachments : [];
+      const tiles = [];
+      saved.forEach(att => {
+        const blobUrl = sessionBlobUrls.get(att.id);
+        const src = blobUrl || (isLocal ? VibeAPI.attachmentUrl(activeExistingAnnotation.id, att.id) : null);
+        tiles.push(attachmentTileHTML({ src, attId: att.id, kind: att.kind }));
+      });
+      pendingAttachments.forEach((p, i) => tiles.push(attachmentTileHTML({ src: p.url, pendingIndex: i, kind: 'user' })));
+      attachmentsEl.innerHTML = tiles.join('');
+      attachmentsEl.classList.toggle('empty', tiles.length === 0);
+    }
+
+    function attachmentTileHTML({ src, attId, pendingIndex, kind }) {
+      const ref = attId != null ? `data-att="${P.escapeHTML(attId)}"` : `data-pending="${pendingIndex}"`;
+      const label = kind === 'capture' ? 'Screenshot' : 'Image';
+      const inner = src
+        ? `<img class="vibe-att-img" src="${P.escapeHTML(src)}" alt="${label}">`
+        : `<span class="vibe-att-chip">${VIBE_IMG_ICON}<span>${label}</span></span>`;
+      return `<div class="vibe-att-tile" ${ref} title="${label} — click to open">
+        ${inner}
+        <button class="vibe-att-remove" type="button" title="Remove" ${ref}>${VIBE_X_ICON}</button>
+      </div>`;
+    }
+
+    async function handleAttach(blob, mime) {
+      if (!blob || !ATTACH_MIMES.has(mime)) return;
+      if (isEdit && activeExistingAnnotation?.id) {
+        try {
+          const att = await VibeAPI.uploadUserImage(activeExistingAnnotation.id, blob, mime);
+          sessionBlobUrls.set(att.id, URL.createObjectURL(blob));
+          activeExistingAnnotation.attachments = [...(activeExistingAnnotation.attachments || []), att];
+          renderAttachments();
+        } catch (err) { console.warn('[Vibe] attach failed:', err); }
+      } else {
+        pendingAttachments.push({ blob, mime, url: URL.createObjectURL(blob) });
+        renderAttachments();
+      }
+    }
+
+    attachBtn.addEventListener('click', () => attachInput.click());
+    attachInput.addEventListener('change', () => {
+      for (const file of attachInput.files) handleAttach(file, file.type);
+      attachInput.value = '';
+    });
+    textarea.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) { e.preventDefault(); handleAttach(file, item.type); }
+        }
+      }
+    });
+    attachmentsEl.addEventListener('click', async (e) => {
+      const removeBtn = e.target.closest('.vibe-att-remove');
+      if (removeBtn) {
+        e.stopPropagation();
+        const attId = removeBtn.getAttribute('data-att');
+        const pendingIndex = removeBtn.getAttribute('data-pending');
+        if (attId) {
+          try { await VibeAPI.removeAttachment(activeExistingAnnotation.id, attId); } catch (err) { console.warn('[Vibe] remove failed:', err); }
+          const url = sessionBlobUrls.get(attId);
+          if (url) { URL.revokeObjectURL(url); sessionBlobUrls.delete(attId); }
+          activeExistingAnnotation.attachments = (activeExistingAnnotation.attachments || []).filter(a => a.id !== attId);
+        } else if (pendingIndex != null) {
+          const p = pendingAttachments[Number(pendingIndex)];
+          if (p) { URL.revokeObjectURL(p.url); pendingAttachments.splice(Number(pendingIndex), 1); }
+        }
+        renderAttachments();
+        return;
+      }
+      // Click a tile → open the full image in a new tab.
+      const tile = e.target.closest('.vibe-att-tile');
+      if (!tile) return;
+      const attId = tile.getAttribute('data-att');
+      const pendingIndex = tile.getAttribute('data-pending');
+      if (attId) window.open(VibeAPI.attachmentUrl(activeExistingAnnotation.id, attId), '_blank', 'noopener');
+      else if (pendingIndex != null && pendingAttachments[Number(pendingIndex)]) window.open(pendingAttachments[Number(pendingIndex)].url, '_blank', 'noopener');
+    });
+    attachmentsEl.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img.classList && img.classList.contains('vibe-att-img')) {
+        img.closest('.vibe-att-tile')?.classList.add('vibe-att-unavailable');
+      }
+    }, true);
+    renderAttachments();
+
+    // Expose pending uploads to doSave (uploaded once the annotation exists).
+    activePendingAttachments = pendingAttachments;
 
     // Tab switching
     const tabBtns = popover.querySelectorAll('.vibe-tab');
@@ -448,6 +558,12 @@ import VibeShadowHost from './shadow-host.js';
             annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
           }
           await VibeAPI.saveAnnotation(annotation);
+          // Upload any images attached before the annotation existed on the server.
+          if (activePendingAttachments && activePendingAttachments.length) {
+            for (const p of activePendingAttachments) {
+              VibeAPI.uploadUserImage(annotation.id, p.blob, p.mime).catch(() => {});
+            }
+          }
           VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
         }
 

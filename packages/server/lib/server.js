@@ -195,7 +195,7 @@ class LocalAnnotationsServer {
         const existingIndex = annotations.findIndex(a => a.id === annotation.id);
 
         if (existingIndex >= 0) {
-          const preserved = this.preserveAttachments(annotation, annotations[existingIndex]);
+          const preserved = this.withServerAttachments(annotation, annotations[existingIndex]);
           annotations[existingIndex] = { ...annotations[existingIndex], ...preserved, updated_at: new Date().toISOString() };
         } else {
           annotations.push({
@@ -226,10 +226,11 @@ class LocalAnnotationsServer {
         const currentAnnotations = await this.loadAnnotations();
         console.log(`Sync request: replacing ${currentAnnotations.length} annotations with ${annotations.length} annotations`);
 
-        // Re-attach server-side attachment metadata the extension's copy lacks
-        // (attachments are server-authoritative — see preserveAttachments).
+        // Attachments are server-owned (see withServerAttachments): force each
+        // annotation to keep the server's current attachment list, ignoring the
+        // extension's copy, so a sync can never add/drop attachments.
         const currentById = new Map(currentAnnotations.map(a => [a.id, a]));
-        const merged = annotations.map(a => this.preserveAttachments(a, currentById.get(a.id)));
+        const merged = annotations.map(a => this.withServerAttachments(a, currentById.get(a.id)));
 
         // Check if data is actually different to avoid redundant saves
         const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
@@ -1038,17 +1039,20 @@ class LocalAnnotationsServer {
     }
   }
 
-  // Attachment metadata is server-authoritative: the extension's bidirectional
-  // sync may push an annotation without its attachments, so on every upsert we
-  // re-attach the existing list if the incoming copy has none. Prevents a sync
-  // from silently dropping attachment references the agent relies on.
-  preserveAttachments(incoming, existing) {
-    const incomingHas = Array.isArray(incoming?.attachments) && incoming.attachments.length;
-    const existingHas = Array.isArray(existing?.attachments) && existing.attachments.length;
-    if (incoming && !incomingHas && existingHas) {
-      return { ...incoming, attachments: existing.attachments };
+  // Attachments are a server-owned sub-resource, mutated ONLY via the attachment
+  // endpoints (upload/delete) — never through an annotation upsert or sync. So on
+  // every upsert/sync we force the annotation to carry the server's current
+  // attachment list and ignore whatever the incoming copy had. This makes the
+  // server the single source of truth and avoids sync races (e.g. an in-flight
+  // capture being wiped, or a cleared attachment resurrected).
+  withServerAttachments(incoming, existing) {
+    const out = { ...incoming };
+    if (existing && Array.isArray(existing.attachments) && existing.attachments.length) {
+      out.attachments = existing.attachments;
+    } else {
+      delete out.attachments;
     }
-    return incoming;
+    return out;
   }
 
   /**

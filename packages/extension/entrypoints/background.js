@@ -3,7 +3,7 @@
 
 import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment } from '../lib/background/api-sync.js';
+import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment, deleteAttachment } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
 
@@ -132,6 +132,21 @@ class VibeAnnotationsBackground {
           break;
         case 'captureAnnotationScreenshot':
           this.captureAnnotationScreenshot(request.id, request.crop, sender)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'recordAttachment':
+          this.recordAttachment(request.id, request.att)
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'uploadUserImage':
+          this.uploadUserImage(request.id, request.mime, request.dataUrl)
+            .then(attachment => sendResponse({ success: true, attachment }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'removeAttachment':
+          this.removeAttachment(request.id, request.attId)
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
@@ -311,7 +326,49 @@ class VibeAnnotationsBackground {
     if (bitmap.close) bitmap.close();
 
     const webp = await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 });
-    await uploadAttachment(id, webp, 'capture', 'image/webp');
+    const { attachment } = await uploadAttachment(id, webp, 'capture', 'image/webp');
+    if (attachment) await this.recordAttachment(id, attachment);
+  }
+
+  // Mirror an attachment's metadata into chrome.storage so the extension UI can
+  // render it without waiting for the next server pull. The file already lives on
+  // the server; this only tracks { id, kind, mime }. Capture replaces any prior
+  // capture (mirrors the server); user attachments append (dedup by id).
+  async recordAttachment(id, att) {
+    if (!att) return;
+    return this._withStorageLock(async () => {
+      const { annotations = [] } = await chrome.storage.local.get(['annotations']);
+      const idx = annotations.findIndex(a => a.id === id);
+      if (idx === -1) return;
+      const cur = Array.isArray(annotations[idx].attachments) ? annotations[idx].attachments : [];
+      const next = att.kind === 'capture'
+        ? [att, ...cur.filter(a => a.kind !== 'capture')]
+        : [...cur.filter(a => a.id !== att.id), att];
+      annotations[idx] = { ...annotations[idx], attachments: next };
+      await chrome.storage.local.set({ annotations });
+    });
+  }
+
+  // Upload a user image whose bytes arrived as a data URL (non-local origins that
+  // can't POST to localhost directly). Decode → upload → mirror into storage.
+  async uploadUserImage(id, mime, dataUrl) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const { attachment } = await uploadAttachment(id, blob, 'user', mime);
+    if (attachment) await this.recordAttachment(id, attachment);
+    return attachment;
+  }
+
+  // Remove an attachment: unlink the file server-side, drop the metadata locally.
+  async removeAttachment(id, attId) {
+    try { await deleteAttachment(id, attId); } catch (error) { console.warn('Attachment delete failed on server:', error.message); }
+    return this._withStorageLock(async () => {
+      const { annotations = [] } = await chrome.storage.local.get(['annotations']);
+      const idx = annotations.findIndex(a => a.id === id);
+      if (idx === -1) return;
+      const cur = Array.isArray(annotations[idx].attachments) ? annotations[idx].attachments : [];
+      annotations[idx] = { ...annotations[idx], attachments: cur.filter(a => a.id !== attId) };
+      await chrome.storage.local.set({ annotations });
+    });
   }
 
   async importAnnotations(newAnnotations) {

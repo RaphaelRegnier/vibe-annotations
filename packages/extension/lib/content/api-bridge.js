@@ -117,6 +117,51 @@ const CACHE_TTL = 2000;
     return r;
   }
 
+  // --- Image attachments ---
+
+  // Server URL that serves an attachment's bytes (img src on localhost, open-in-tab anywhere).
+  function attachmentUrl(annotationId, attId) {
+    return `${SERVER_URL}/api/annotations/${annotationId}/attachments/${attId}`;
+  }
+
+  // Upload a user image (paste/drop/file-picker). On local origins we POST the
+  // blob straight to the server (no base64); on other origins we can't reach
+  // localhost directly (mixed content), so we hand the bytes to the background as
+  // a transient data URL and it uploads. Either way the background mirrors the new
+  // attachment into chrome.storage so the UI can render it immediately.
+  async function uploadUserImage(annotationId, blob, mime) {
+    if (isLocalOrigin()) {
+      const res = await fetch(`${SERVER_URL}/api/annotations/${annotationId}/attachments`, {
+        method: 'POST',
+        headers: { 'Content-Type': mime, 'X-Attachment-Kind': 'user' },
+        body: blob,
+      });
+      if (!res.ok) throw new Error(`attachment upload failed: ${res.status}`);
+      const { attachment } = await res.json();
+      chrome.runtime.sendMessage({ action: 'recordAttachment', id: annotationId, att: attachment }).catch(() => {});
+      return attachment;
+    }
+    const dataUrl = await blobToDataUrl(blob);
+    const r = await chrome.runtime.sendMessage({ action: 'uploadUserImage', id: annotationId, mime, dataUrl });
+    if (!r || !r.success) throw new Error(r?.error || 'attachment upload failed');
+    return r.attachment;
+  }
+
+  async function removeAttachment(annotationId, attId) {
+    const r = await chrome.runtime.sendMessage({ action: 'removeAttachment', id: annotationId, attId });
+    if (!r || !r.success) throw new Error(r?.error || 'attachment remove failed');
+    return true;
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
   // --- Storage listeners ---
 
   function onAnnotationsChanged(cb) {
@@ -279,6 +324,7 @@ const VibeAPI = {
   checkServerStatus,
   clearStatusCache,
   isFileProtocol,
+  isLocalOrigin,
   loadAnnotations,
   loadProjectAnnotations,
   saveAnnotation,
@@ -286,6 +332,9 @@ const VibeAPI = {
   deleteAnnotation,
   deleteAnnotationsByUrl,
   captureScreenshot,
+  attachmentUrl,
+  uploadUserImage,
+  removeAttachment,
   onAnnotationsChanged,
   getScreenshotEnabled,
   isScreenshotEnabled,

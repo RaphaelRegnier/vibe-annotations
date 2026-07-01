@@ -1806,4 +1806,96 @@ export const VIBE_STYLES = `
   to { transform: rotate(360deg); }
 }
 
+/* ===== Image attachments ===== */
+.vibe-attach-btn {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--v-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.vibe-attach-btn:hover {
+  color: var(--v-text-primary);
+  background: var(--v-surface-hover);
+}
+
+.vibe-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.vibe-attachments.empty { display: none; }
+
+.vibe-att-tile {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--v-toolbar-border, var(--v-outline));
+  background: var(--v-surface-1);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.vibe-att-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.vibe-att-chip {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font: 500 9px/1 var(--v-font);
+  color: var(--v-text-secondary);
+}
+.vibe-att-unavailable .vibe-att-img { display: none; }
+.vibe-att-unavailable::after {
+  content: "missing";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 9px/1 var(--v-font);
+  color: var(--v-text-secondary);
+  background: var(--v-surface-1);
+}
+.vibe-att-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.vibe-att-tile:hover .vibe-att-remove { opacity: 1; }
+.vibe-att-remove:hover { background: var(--v-badge-bg, #D03D68); }
+
 `;
