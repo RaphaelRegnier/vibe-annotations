@@ -186,8 +186,11 @@ class LocalAnnotationsServer {
       try {
         const annotation = req.body;
 
-        // Validate annotation
-        if (!annotation.id || !annotation.url || !annotation.comment) {
+        // Validate annotation. Comment is OPTIONAL — a design-edit-only or
+        // screenshot-only annotation has no text. Requiring it made those fail
+        // saveOne and only reach the server via the slower sync, which broke the
+        // screenshot upload's 404-retry timing (no capture attached).
+        if (!annotation.id || !annotation.url) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
 
