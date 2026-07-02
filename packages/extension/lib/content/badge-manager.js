@@ -49,6 +49,8 @@ import VibeShadowHost from './shadow-host.js';
   let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
   let provisionalBadge = null;
+  let provisionalPagePos = null;
+  let provisionalScrollHandler = null;
   let lastProjectTotal = 0;
   let domObserver = null;
   let rematchDebounceTimer = null;
@@ -162,13 +164,31 @@ import VibeShadowHost from './shadow-host.js';
     label.className = 'vibe-badge-label';
     if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = (lastProjectTotal + 1).toString(); }
     badge.appendChild(label);
-    badge.style.top = `${clientY - 11}px`;
-    badge.style.left = `${clientX}px`;
     root.appendChild(badge);
     provisionalBadge = badge;
+
+    // Anchor to the PAGE, not the viewport: badges are position:fixed, so on scroll
+    // we recompute viewport coords from the stored page point. This keeps the pin
+    // glued to the spot on the page (like a saved badge) while the popover stays put.
+    provisionalPagePos = { x: clientX + window.scrollX, y: clientY + window.scrollY };
+    const reposition = () => {
+      if (!provisionalBadge || !provisionalPagePos) return;
+      provisionalBadge.style.top = `${provisionalPagePos.y - window.scrollY - 11}px`;
+      provisionalBadge.style.left = `${provisionalPagePos.x - window.scrollX}px`;
+    };
+    reposition();
+    provisionalScrollHandler = () => reposition();
+    window.addEventListener('scroll', provisionalScrollHandler, { passive: true, capture: true });
+    window.addEventListener('resize', provisionalScrollHandler, { passive: true });
   }
 
   function removeProvisional() {
+    if (provisionalScrollHandler) {
+      window.removeEventListener('scroll', provisionalScrollHandler, { capture: true });
+      window.removeEventListener('resize', provisionalScrollHandler);
+      provisionalScrollHandler = null;
+    }
+    provisionalPagePos = null;
     if (provisionalBadge) {
       provisionalBadge.remove();
       provisionalBadge = null;

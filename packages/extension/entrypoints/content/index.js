@@ -180,6 +180,9 @@ function setupMessageListener() {
           sendResponse({ success: true, visible: false });
         } else {
           VibeShadowHost.show();
+          // Badges were cleared on close (overlay:closed) — re-render so they
+          // re-anchor to their elements at the current scroll/layout position.
+          VibeEvents.emit('overlay:opened');
           sendResponse({ success: true, visible: true });
         }
         break;
