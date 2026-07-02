@@ -54,8 +54,9 @@ import VibeShadowHost from './shadow-host.js';
   let rematchDebounceTimer = null;
   let lastTotal = 0; // total annotations (including unanchored)
   let watchMode = false;
+  let renderSeq = 0; // guards against out-of-order async renders (see render())
 
-  const EYE_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_SVG ='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 
   function init() {
     VibeEvents.on('annotations:render', render);
@@ -158,12 +159,16 @@ import VibeShadowHost from './shadow-host.js';
   }
 
   async function render(annotations) {
+    const myGen = ++renderSeq;
     removeProvisional();
     // In watch mode, don't revert pending changes — agent implemented them in source
     clearAll(undefined, { skipRevert: watchMode });
 
     // Load all project annotations for project-wide numbering and total count
     const projectAnnotations = await VibeAPI.loadProjectAnnotations();
+    // A newer render started while we awaited — bail so we don't emit a stale
+    // total (e.g. leaving the "View all" count at 1 after deleting everything).
+    if (myGen !== renderSeq) return;
     const projectSorted = [...projectAnnotations].sort((a, b) =>
       new Date(a.created_at) - new Date(b.created_at)
     );
