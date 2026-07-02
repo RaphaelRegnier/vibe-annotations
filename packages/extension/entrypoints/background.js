@@ -264,6 +264,26 @@ class VibeAnnotationsBackground {
       try {
         const result = await chrome.storage.local.get(['annotations', 'deletedAnnotationIds']);
         const annotations = result.annotations || [];
+        const target = annotations.find(a => a.id === id);
+
+        // Protected delete: a variants annotation that has generated scaffolding is
+        // NEVER hard-deleted from the client. Tombstoning it would make smartSync
+        // fire a second server DELETE that hard-wipes it (once it's no longer
+        // mid-cycle), destroying the agent's cleanup contract. Instead mark it
+        // variants-discarded so it persists — surfaced to the agent for cleanup and
+        // shown in "View all" as pending agent deletion — until the agent resolves it.
+        if (target && target.mode === 'variants' && target.variantsPayload && target.status !== 'resolved') {
+          if (target.status !== 'variants-discarded') {
+            const updated = annotations.map(a => a.id === id
+              ? { ...a, status: 'variants-discarded', updated_at: new Date().toISOString() }
+              : a);
+            await chrome.storage.local.set({ annotations: updated });
+          }
+          await updateBadgeForUrl(target.url);
+          await updateAllBadges();
+          return;
+        }
+
         const deletedIds = result.deletedAnnotationIds || [];
         const filtered = annotations.filter(a => a.id !== id);
         if (!deletedIds.includes(id)) deletedIds.push(id);

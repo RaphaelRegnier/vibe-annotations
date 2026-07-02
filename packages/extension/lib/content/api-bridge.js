@@ -97,6 +97,13 @@ const CACHE_TTL = 2000;
     return true;
   }
 
+  // Push local changes to the server now (updates only touch chrome.storage; the
+  // periodic sync would otherwise lag). Used e.g. after choosing a variant so the
+  // agent can finalize immediately.
+  async function forceSync() {
+    try { await chrome.runtime.sendMessage({ action: 'forceMCPSync' }); } catch { /* ignore */ }
+  }
+
   async function deleteAnnotation(id) {
     const r = await chrome.runtime.sendMessage({ action: 'deleteAnnotation', id });
     if (!r || !r.success) throw new Error(r?.error || 'delete failed');
@@ -356,6 +363,7 @@ const VibeAPI = {
   loadProjectAnnotations,
   saveAnnotation,
   updateAnnotation,
+  forceSync,
   deleteAnnotation,
   deleteAnnotationsByUrl,
   captureScreenshot,

@@ -65,6 +65,9 @@ import VibeShadowHost from './shadow-host.js';
     VibeEvents.on('inspection:elementClicked', onProvisionalPin);
     VibeEvents.on('popover:cancelled', removeProvisional);
     VibeEvents.on('watch:changed', onWatchChanged);
+    // Variant preview switches the active child via CSS only (no size/scroll
+    // change), so nudge the badges to re-anchor to the newly-visible variant.
+    VibeEvents.on('variants:switched', scheduleReposition);
     startDOMObserver();
   }
 
@@ -114,6 +117,20 @@ import VibeShadowHost from './shadow-host.js';
   function rematchDisconnectedBadges() {
     let changed = false;
     for (const entry of badges) {
+      // Variant badges anchor to the container — re-resolve it, not the original
+      // selector (which would find a variant child instead of the wrapper).
+      if (entry.variant) {
+        if (!entry.variant.container.isConnected) {
+          const re = resolveVariantAnchor(entry.annotation);
+          if (re) {
+            entry.variant = re;
+            entry.targetElement = re.container;
+            entry.el.style.display = '';
+            changed = true;
+          }
+        }
+        continue;
+      }
       if (!entry.targetElement.isConnected) {
         const newTarget = VibeElementContext.findElementBySelector(entry.annotation);
         if (newTarget && newTarget !== entry.targetElement) {
@@ -164,8 +181,12 @@ import VibeShadowHost from './shadow-host.js';
     // In watch mode, don't revert pending changes — agent implemented them in source
     clearAll(undefined, { skipRevert: watchMode });
 
-    // Load all project annotations for project-wide numbering and total count
-    const projectAnnotations = await VibeAPI.loadProjectAnnotations();
+    // Load all project annotations for project-wide numbering and total count.
+    // Exclude resolved — the agent has finalized/cleaned those, so they're done
+    // and must not inflate the "View all" count pill (variants-discarded and
+    // variant-chosen still count: they're pending agent action, shown in the list).
+    const projectAnnotations = (await VibeAPI.loadProjectAnnotations())
+      .filter(a => a.status !== 'resolved');
     // A newer render started while we awaited — bail so we don't emit a stale
     // total (e.g. leaving the "View all" count at 1 after deleting everything).
     if (myGen !== renderSeq) return;
@@ -181,9 +202,31 @@ import VibeShadowHost from './shadow-host.js';
     );
 
     sorted.forEach((annotation) => {
+      // Terminal variant states are agent-only (cleanup / done) — no badge on the
+      // page. Skipping here also stops a discarded variant from falling through to
+      // the normal selector path and drawing a stray pin on a variant child.
+      if (annotation.status === 'variants-discarded' || annotation.status === 'resolved') {
+        // Revert the live preview to the original (variant 1) so the page stops
+        // showing the abandoned choice. This runs on every render, so ANY deletion
+        // surface (popover discard, View-all card/delete-all) reverts immediately —
+        // not just the popover. Matches what a reload shows (scaffold hardcodes "1").
+        if (annotation.status === 'variants-discarded') revertVariantToOriginal(annotation);
+        return;
+      }
+
       // Stylesheet annotations — inject as <style> tag
       if (annotation.type === 'stylesheet' && annotation.css) {
         injectStyleAnnotation(annotation);
+        return;
+      }
+
+      // Variant annotations: anchor to the stable container, not the original
+      // selector element (which becomes one variant child and gets hidden when
+      // another variant is selected). positionBadge() tracks the active child.
+      const variant = resolveVariantAnchor(annotation);
+      if (variant) {
+        const badgeNum = projectIndexMap.get(annotation.id) || 1;
+        addBadge(variant.container, annotation, badgeNum, variant);
         return;
       }
 
@@ -220,7 +263,35 @@ import VibeShadowHost from './shadow-host.js';
     styleInjections.push({ styleEl: style, annotation });
   }
 
-  function addBadge(targetElement, annotation, index) {
+  // For a variant annotation, resolve the stable wrapper container so the badge
+  // can follow whichever variant child is currently active.
+  function resolveVariantAnchor(annotation) {
+    if (!annotation || annotation.mode !== 'variants') return null;
+    if (annotation.status === 'resolved' || annotation.status === 'variants-discarded') return null;
+    const p = annotation.variantsPayload;
+    if (!p || !p.container) return null;
+    let container = null;
+    try { container = document.querySelector(p.container); } catch (_) {}
+    if (!container) return null;
+    return { container, attribute: p.attribute || 'data-vibe-active' };
+  }
+
+  // Point a discarded variant's live wrapper back at the original (variant 1),
+  // undoing whatever choice was being previewed. No-op if the wrapper isn't on
+  // this page (wrong route / not reloaded) or already shows the original.
+  function revertVariantToOriginal(annotation) {
+    if (!annotation || annotation.mode !== 'variants') return;
+    const p = annotation.variantsPayload;
+    if (!p || !p.container) return;
+    let container = null;
+    try { container = document.querySelector(p.container); } catch (_) {}
+    if (!container) return;
+    const attr = p.attribute || 'data-vibe-active';
+    const original = (p.variants && p.variants[0]) ? String(p.variants[0].value) : '1';
+    if (container.getAttribute(attr) !== original) container.setAttribute(attr, original);
+  }
+
+  function addBadge(targetElement, annotation, index, variant) {
     const root = VibeShadowHost.getRoot();
     if (!root) return;
 
@@ -244,7 +315,7 @@ import VibeShadowHost from './shadow-host.js';
 
     root.appendChild(badge);
 
-    const entry = { el: badge, annotation, targetElement };
+    const entry = { el: badge, annotation, targetElement, variant: variant || null };
 
     // Click → edit (read from entry so we get the latest annotation after updates)
     badge.addEventListener('click', (e) => {
@@ -261,6 +332,27 @@ import VibeShadowHost from './shadow-host.js';
   }
 
   function positionBadge(entry) {
+    // Variant badges anchor to the container but position against whichever
+    // variant child is active (the container itself is display:contents and
+    // has no box). Re-resolving here means the badge follows variant switches.
+    if (entry.variant) {
+      const { container, attribute } = entry.variant;
+      if (!container.isConnected) { entry.el.style.display = 'none'; return; }
+      const active = container.getAttribute(attribute) || '1';
+      let child = null;
+      try {
+        const esc = (window.CSS && CSS.escape) ? CSS.escape(active) : active;
+        child = container.querySelector(`:scope > [data-variant="${esc}"]`);
+      } catch (_) {}
+      const anchor = child || container;
+      const rect = anchor.getBoundingClientRect();
+      if (!rect.width && !rect.height) { entry.el.style.display = 'none'; return; }
+      entry.el.style.display = '';
+      entry.el.style.top = `${rect.top - 11}px`;
+      entry.el.style.left = `${rect.left + rect.width / 2}px`;
+      return;
+    }
+
     if (!entry.targetElement.isConnected) {
       entry.el.style.display = 'none';
       return;

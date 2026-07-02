@@ -231,7 +231,9 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     const btn = toolbarEl.querySelector('.vibe-tb-viewall');
     if (btn) btn.classList.add('active');
 
-    const annotations = await VibeAPI.loadProjectAnnotations();
+    // Exclude resolved (agent finalized/cleaned them — done). variants-discarded and
+    // variant-chosen stay, shown with a "pending agent" label; the count pill matches.
+    const annotations = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
     const hostname = window.location.host || window.location.hostname;
 
     // Group by route (path)
@@ -292,13 +294,24 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
           bodyHTML = '';
         }
 
+        // Variant lifecycle chip — signals states that need agent action so the
+        // list is self-explanatory (esp. why a "deleted" variant lingers here).
+        const vs = variantStatusLabel(a);
+        const statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
+        // A scaffolded variant can't be hard-deleted (it awaits agent cleanup), so
+        // hide the trash for the discarded state to avoid a no-op button.
+        const deleteHTML = a.status === 'variants-discarded'
+          ? ''
+          : `<button class="vibe-viewall-card-delete" data-id="${a.id}" title="Delete">${trashIcon}</button>`;
+
         return `
           <div class="vibe-viewall-card" data-id="${a.id}">
             <div class="vibe-viewall-card-content">
               ${headerHTML}
               ${bodyHTML}
+              ${statusHTML}
             </div>
-            <button class="vibe-viewall-card-delete" data-id="${a.id}" title="Delete">${trashIcon}</button>
+            ${deleteHTML}
           </div>
         `;
       }).join('');
@@ -414,6 +427,9 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       for (const a of annotations) {
         await VibeAPI.deleteAnnotation(a.id);
       }
+      // Re-render so the count pill recomputes immediately (deletes happen in the
+      // background service worker, which doesn't push a render to this page).
+      VibeEvents.emit('annotations:render', await VibeAPI.loadAnnotations());
       openViewAll();
     });
 
@@ -434,6 +450,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
         for (const a of routeAnnotations) {
           await VibeAPI.deleteAnnotation(a.id);
         }
+        VibeEvents.emit('annotations:render', await VibeAPI.loadAnnotations());
         openViewAll();
       });
     });
@@ -450,6 +467,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
         }
         if (viewAllPanel) viewAllPanel._suppressRefresh = true;
         await VibeAPI.deleteAnnotation(id);
+        VibeEvents.emit('annotations:render', await VibeAPI.loadAnnotations());
         openViewAll();
       });
     });
@@ -1279,6 +1297,18 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  // Lifecycle chip for a variants annotation in a state that awaits agent action.
+  // Returns null for normal annotations and for terminal 'resolved' (filtered out).
+  function variantStatusLabel(a) {
+    if (!a || a.mode !== 'variants') return null;
+    switch (a.status) {
+      case 'variants-ready': return { text: 'Variants ready — click badge to review', cls: 'ready' };
+      case 'variant-chosen': return { text: 'Chosen — awaiting agent finalize', cls: 'chosen' };
+      case 'variants-discarded': return { text: 'Pending agent deletion', cls: 'discarded' };
+      default: return null;
+    }
   }
 
   function formatShortcut(sc) {

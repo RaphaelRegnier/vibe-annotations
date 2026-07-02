@@ -1234,6 +1234,34 @@ export const VIBE_STYLES = `
   flex-shrink: 0;
 }
 
+/* Variant lifecycle chip — states awaiting agent action */
+.vibe-viewall-status {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font: 600 10.5px/1.3 var(--v-font);
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+.vibe-viewall-status.discarded {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+.vibe-viewall-status.chosen {
+  color: var(--v-status-online);
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+.vibe-viewall-status.ready {
+  color: var(--v-status-watching);
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
 .vibe-viewall-card-delete {
   display: flex;
   align-items: center;
@@ -1909,5 +1937,58 @@ export const VIBE_STYLES = `
 .vibe-share-opt:hover { background: var(--v-surface-hover); }
 .vibe-share-opt strong { font-weight: 600; color: var(--v-toolbar-text-active); }
 .vibe-share-opt span { font-size: 11px; color: var(--v-text-secondary); font-weight: 400; }
+
+/* ===== Create variants toggle (annotation popover) ===== */
+.vibe-variants-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 5px 11px;
+  background: var(--v-surface-1);
+  border: 1px solid var(--v-toolbar-border, var(--v-outline));
+  border-radius: 999px;
+  color: var(--v-text-secondary);
+  font: 500 12px/1 var(--v-font);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.vibe-variants-toggle[hidden] { display: none; }
+.vibe-variants-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+.vibe-variants-toggle:not(:disabled):hover { color: var(--v-text-primary); border-color: var(--v-text-secondary); }
+.vibe-variants-toggle.on {
+  color: #fff;
+  background: var(--v-pill-gradient);
+  border-color: transparent;
+}
+
+/* ===== Variants review (browse + choose) ===== */
+.vibe-variants-review { padding: 12px 16px 4px; }
+.vibe-variants-hint { margin: 0 0 10px; font-size: 12px; color: var(--v-text-secondary); }
+.vibe-variants-warn { margin: 0; padding: 8px 0; font-size: 12px; line-height: 1.5; color: var(--v-text-secondary); }
+.vibe-variant-list { display: flex; flex-direction: column; gap: 4px; }
+.vibe-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--v-toolbar-border, var(--v-outline));
+  border-radius: 8px;
+  background: var(--v-surface-1);
+  cursor: pointer;
+  font: 500 13px/1 var(--v-font);
+  color: var(--v-toolbar-text);
+  transition: border-color 0.12s ease;
+}
+.vibe-variant-row:hover { border-color: var(--v-text-secondary); }
+/* Gradient stroke (matching the CTA) via the double-background border trick,
+   which keeps the rounded corners unlike border-image. */
+.vibe-variant-row.active {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--v-surface-1), var(--v-surface-1)) padding-box,
+    var(--v-pill-gradient) border-box;
+}
+.vibe-variant-row input { accent-color: var(--v-accent, #d97757); margin: 0; }
 
 `;

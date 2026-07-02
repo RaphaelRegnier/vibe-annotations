@@ -27,6 +27,7 @@ import VibeShadowHost from './shadow-host.js';
   const VIBE_IMG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
   const VIBE_X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
   const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+  const VIBE_VARIANTS_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
 
   function init() {
     VibeEvents.on('inspection:elementClicked', onElementClicked);
@@ -55,12 +56,19 @@ import VibeShadowHost from './shadow-host.js';
     const isEdit = !!existingAnnotation;
     const isFile = VibeAPI.isFileProtocol();
     const elType = P.classifyElement(targetElement);
+    // Once the agent has generated variants, reopening shows the live variant
+    // browser (keyed on variantsPayload to tolerate a lagging local status).
+    const isVariantsReview = !!(existingAnnotation && existingAnnotation.mode === 'variants'
+      && existingAnnotation.variantsPayload && existingAnnotation.status !== 'resolved');
 
-    // Target highlight
-    currentTargetHighlight = document.createElement('div');
-    currentTargetHighlight.className = 'vibe-target-highlight';
-    root.appendChild(currentTargetHighlight);
-    positionTargetHighlight(targetElement);
+    // Target highlight — skipped for variants review so the selection rect doesn't
+    // obscure the live preview of the variant being browsed.
+    if (!isVariantsReview) {
+      currentTargetHighlight = document.createElement('div');
+      currentTargetHighlight.className = 'vibe-target-highlight';
+      root.appendChild(currentTargetHighlight);
+      positionTargetHighlight(targetElement);
+    }
 
     // Anchor wrapper
     const anchor = document.createElement('div');
@@ -70,6 +78,11 @@ import VibeShadowHost from './shadow-host.js';
     // Popover card
     const popover = document.createElement('div');
     popover.className = 'vibe-popover';
+
+    if (isVariantsReview) {
+      renderVariantsReview(anchor, popover, targetElement, existingAnnotation, clickX, clickY);
+      return;
+    }
 
     let warningHTML = '';
     if (isFile) {
@@ -140,6 +153,7 @@ import VibeShadowHost from './shadow-host.js';
       </div>
       ${warningHTML}
       <div class="vibe-popover-body">
+        ${isEdit ? '' : `<button class="vibe-variants-toggle" type="button" disabled title="Requires the MCP server">${VIBE_VARIANTS_ICON}<span>Create variants</span></button>`}
         <div class="vibe-input-wrap">
           <textarea class="vibe-textarea" placeholder="What should change?" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
           <button class="vibe-btn-icon vibe-attach-btn" type="button" title="Attach image (or paste)">${VIBE_IMG_ICON}</button>
@@ -284,6 +298,26 @@ import VibeShadowHost from './shadow-host.js';
 
     // Expose pending uploads to doSave (uploaded once the annotation exists).
     activePendingAttachments = pendingAttachments;
+
+    // --- Create variants (mode) — new annotations only, shown when the MCP server
+    // is connected. Toggling it saves the annotation as mode:"variants"; the agent
+    // then generates coexisting design variants (see the server-side contract).
+    const variantsToggle = popover.querySelector('.vibe-variants-toggle');
+    let variantsMode = false;
+    if (variantsToggle) {
+      VibeAPI.checkServerStatus().then(s => {
+        if (s?.connected) {
+          variantsToggle.disabled = false;
+          variantsToggle.title = 'Ask your agent to generate several coexisting design variants';
+        }
+      }).catch(() => {});
+      variantsToggle.addEventListener('click', () => {
+        variantsMode = !variantsMode;
+        variantsToggle.classList.toggle('on', variantsMode);
+        textarea.placeholder = variantsMode ? 'What variants do you want?' : 'What should change?';
+        textarea.focus();
+      });
+    }
 
     // Tab switching
     const tabBtns = popover.querySelectorAll('.vibe-tab');
@@ -558,6 +592,7 @@ import VibeShadowHost from './shadow-host.js';
           VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
         } else {
           const annotation = buildAnnotation(context, comment, pendingChanges);
+          if (variantsMode) annotation.mode = 'variants';
           annotation.selector_preview = getElementOpenTagPreview(targetElement);
           annotation.element_context.id = targetElement.id || null;
           annotation.element_context.role = targetElement.getAttribute('role') || null;
@@ -585,6 +620,137 @@ import VibeShadowHost from './shadow-host.js';
     }
 
     saveBtn.addEventListener('click', doSave);
+  }
+
+  // --- Variants review (browse + choose) ---
+
+  function renderVariantsReview(anchor, popover, targetElement, annotation, clickX, clickY) {
+    const payload = annotation.variantsPayload || {};
+    const variants = Array.isArray(payload.variants) ? payload.variants : [];
+    const attribute = payload.attribute || 'data-vibe-active';
+    const container = payload.container ? document.querySelector(payload.container) : null;
+    let chosenValue = annotation.chosenVariant != null ? String(annotation.chosenVariant) : null;
+    const title = P.escapeHTML(annotation.comment || 'Variants');
+
+    const close = () => dismiss(true);
+
+    if (!container || !variants.length) {
+      // Container not on this page (wrong route, not reloaded, or scaffolding gone).
+      popover.innerHTML = `
+        <div class="vibe-drag-handle"></div>
+        <div class="vibe-popover-title"><span>${title}</span></div>
+        <div class="vibe-variants-review">
+          <p class="vibe-variants-warn">Variants not detected on this page — reload the page, or check you're on the route where they were generated.</p>
+        </div>
+        <div class="vibe-popover-footer"><div class="vibe-footer-left"></div><div class="vibe-footer-right"><button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">Close</button></div></div>
+      `;
+      anchor.appendChild(popover);
+      currentPopover = anchor;
+      positionPopover(anchor, targetElement, clickX, clickY);
+      wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
+      popover.querySelector('.vibe-cancel-btn').addEventListener('click', close);
+      anchor.addEventListener('pointerdown', (e) => { if (e.target === anchor) close(); });
+      escHandler = (e) => { if (e.key === 'Escape') close(); };
+      document.addEventListener('keydown', escHandler);
+      return;
+    }
+
+    // Restore the chosen variant into the live preview on open (the code hardcodes
+    // data-vibe-active="1", so the page won't otherwise reflect a prior choice).
+    if (chosenValue) {
+      container.setAttribute(attribute, chosenValue);
+      VibeEvents.emit('variants:switched', { id: annotation.id, variant: chosenValue });
+    }
+    const current = chosenValue || container.getAttribute(attribute) || String(variants[0].value);
+    const rows = variants.map(v => {
+      const val = P.escapeHTML(String(v.value));
+      const on = String(v.value) === String(current);
+      return `<label class="vibe-variant-row${on ? ' active' : ''}">
+        <input type="radio" name="vibe-variant" value="${val}"${on ? ' checked' : ''}>
+        <span>${P.escapeHTML(v.name || String(v.value))}</span>
+      </label>`;
+    }).join('');
+
+    popover.innerHTML = `
+      <div class="vibe-drag-handle"></div>
+      <div class="vibe-popover-title"><span>${title}</span></div>
+      <div class="vibe-variants-review">
+        <p class="vibe-variants-hint">${chosenValue != null ? 'Chosen — now ask your agent to finalize.' : 'Pick a variant to preview it live in the page.'}</p>
+        <div class="vibe-variant-list">${rows}</div>
+      </div>
+      <div class="vibe-popover-footer">
+        <div class="vibe-footer-left"><button class="vibe-btn-icon vibe-variants-delete" title="Discard variants">${P.ICONS.trash}</button></div>
+        <div class="vibe-footer-right">
+          <button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">Close</button>
+          <button class="vibe-btn vibe-btn-primary vibe-variants-choose"${chosenValue != null ? ' disabled' : ''}>${chosenValue != null ? 'Chosen ✓' : 'Choose this variant'}</button>
+        </div>
+      </div>
+    `;
+
+    anchor.appendChild(popover);
+    currentPopover = anchor;
+    positionPopover(anchor, targetElement, clickX, clickY);
+    wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
+
+    popover.querySelector('.vibe-cancel-btn').addEventListener('click', close);
+    anchor.addEventListener('pointerdown', (e) => { if (e.target === anchor) close(); });
+    escHandler = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', escHandler);
+
+    const chooseBtn = popover.querySelector('.vibe-variants-choose');
+    const hint = popover.querySelector('.vibe-variants-hint');
+
+    // The CTA reflects whether the selected radio matches the persisted choice:
+    // same → "Chosen ✓" (disabled); different (or none yet) → an actionable button.
+    function refreshChoose() {
+      const selected = popover.querySelector('input[name="vibe-variant"]:checked')?.value;
+      const isSel = chosenValue != null && String(selected) === chosenValue;
+      chooseBtn.textContent = isSel ? 'Chosen ✓' : (chosenValue != null ? 'Update selection' : 'Choose this variant');
+      chooseBtn.disabled = isSel;
+      if (hint) hint.textContent = chosenValue == null
+        ? 'Pick a variant to preview it live in the page.'
+        : (isSel ? 'Chosen — now ask your agent to finalize.' : 'Selection changed — update it to save.');
+    }
+
+    // Radio → flip the single attribute (THE ONLY DOM write) + refresh the CTA.
+    popover.querySelectorAll('input[name="vibe-variant"]').forEach(input => {
+      input.addEventListener('change', () => {
+        container.setAttribute(attribute, input.value);
+        popover.querySelectorAll('.vibe-variant-row').forEach(r => r.classList.toggle('active', r.contains(input)));
+        VibeEvents.emit('variants:switched', { id: annotation.id, variant: input.value });
+        refreshChoose();
+      });
+    });
+
+    // Choose / update → persist chosenVariant + status:variant-chosen.
+    chooseBtn.addEventListener('click', async () => {
+      const active = popover.querySelector('input[name="vibe-variant"]:checked')?.value
+        || container.getAttribute(attribute) || String(variants[0].value);
+      try {
+        await VibeAPI.updateAnnotation(annotation.id, { chosenVariant: active, status: 'variant-chosen' });
+        VibeAPI.forceSync(); // push to server so the agent can finalize right away
+        chosenValue = String(active);
+        refreshChoose();
+      } catch (err) { console.warn('[Vibe] choose variant failed:', err); }
+    });
+
+    // Discard → mark variants-discarded (NOT a hard delete). A plain delete
+    // tombstones the id and hard-deletes it from the server on sync, losing the
+    // scaffolding-cleanup contract. Marking discarded keeps the annotation so the
+    // agent still sees it (with cleanup instructions) on a normal read; the badge
+    // is removed from view via annotation:deleted. Also revert the live preview to
+    // the original (variant 1) so the page no longer shows the abandoned choice.
+    popover.querySelector('.vibe-variants-delete').addEventListener('click', async () => {
+      const original = String(variants[0].value);
+      container.setAttribute(attribute, original);
+      VibeEvents.emit('variants:switched', { id: annotation.id, variant: original });
+      try {
+        await VibeAPI.updateAnnotation(annotation.id, { status: 'variants-discarded' });
+        VibeAPI.forceSync();
+      } catch { /* ignore */ }
+      VibeEvents.emit('annotation:deleted', { id: annotation.id });
+      close();
+    });
   }
 
   // --- Dismiss ---
