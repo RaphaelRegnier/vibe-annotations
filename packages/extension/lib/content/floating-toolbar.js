@@ -353,7 +353,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     // Copy all (project-wide)
     const copyBtn = viewAllPanel.querySelector('.vibe-viewall-copy');
     copyBtn.addEventListener('click', async () => {
-      const all = await VibeAPI.loadProjectAnnotations();
+      const all = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
       if (!all.length) return;
       const text = renderAnnotationsMarkdown(all, window.location.host);
       try { await navigator.clipboard.writeText(text); } catch {
@@ -1020,7 +1020,8 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
   // Fetch a shareable export from the server and trigger a file download.
   // format: 'md' (agent, local image paths) or 'html' (self-contained, base64 images).
   async function downloadShare(format) {
-    const all = await VibeAPI.loadProjectAnnotations();
+    // Exclude resolved so exports match the "View all" list (no finalized variant artifacts).
+    const all = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
     if (!all.length) { showInfoModal('Nothing to export', 'No annotations for this site yet.'); return; }
     const host = window.location.host.replace(/[^a-z0-9.-]/gi, '_') || 'annotations';
     try {

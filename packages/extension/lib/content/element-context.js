@@ -107,7 +107,12 @@ import { vibeLocationPath } from './event-bus.js';
     const pathSel = generateRobustPathSelector(element);
     if (pathSel && isUnique(pathSel)) return pathSel;
 
-    return generateDataAttributeSelector(element);
+    // Last resort: a best-effort STRUCTURAL selector. It may not be perfectly unique,
+    // but unlike a runtime-injected data-vibe-id it actually exists in the source — so
+    // an agent grepping the codebase (or another person reading the annotation) can
+    // find the element. Live badge anchoring still disambiguates via text / class /
+    // position (see findElementBySelector), so uniqueness here isn't required.
+    return pathSel || generateFallbackSelector(element) || element.tagName.toLowerCase();
   }
 
   // Build "host >> host >> innerSelector" for elements inside shadow DOM
@@ -167,7 +172,8 @@ import { vibeLocationPath } from './event-bus.js';
     const pathSel = pathParts.join(' > ');
     if (pathSel && isUniqueIn(pathSel, root)) return pathSel;
 
-    return generateDataAttributeSelector(element);
+    // Prefer a structural path (greppable in source) over an injected data-vibe-id.
+    return pathSel || generateDataAttributeSelector(element);
   }
 
   function findUniqueAttributeSelector(element, root = document) {

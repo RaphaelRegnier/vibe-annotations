@@ -34,7 +34,7 @@ const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
 // a shared/imported annotation resolves to a local file that isn't there and
 // degrades gracefully instead of handing the agent a dead path.
 const ATTACH_DIR = path.join(DATA_DIR, 'attachments');
-const EXT_BY_MIME = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif' };
+const EXT_BY_MIME = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/bmp': 'bmp', 'image/avif': 'avif' };
 const extForMime = (mime) => EXT_BY_MIME[mime] || 'bin';
 const attachmentFileFor = (annotationId, att) =>
   path.join(ATTACH_DIR, `${annotationId}__${att.id}.${extForMime(att.mime)}`);
@@ -366,7 +366,9 @@ class LocalAnnotationsServer {
         const { url } = req.query;
         const annotations = await this.loadAnnotations();
         const filtered = url ? this.filterByUrlPattern(annotations, url) : annotations;
-        const items = this.buildExportItems(filtered.filter(a => a.type !== 'stylesheet'));
+        // Exclude resolved (finalized/cleaned — done) so the export matches the
+        // extension's "View all" list rather than surfacing internal variant artifacts.
+        const items = this.buildExportItems(filtered.filter(a => a.type !== 'stylesheet' && a.status !== 'resolved'));
 
         let hostname = 'annotations';
         try { hostname = new URL(String(url).replace(/\/\*$/, '')).host || hostname; }
@@ -1193,7 +1195,11 @@ class LocalAnnotationsServer {
         url_path: a.url_path || a.url || '',
         component: componentHint ? componentHint.replace('Component:', '').trim() : null,
         source_file_path: a.source_file_path || null,
-        selector: a.selector || null,
+        // A data-vibe-id is injected live by the extension and is NOT in the source —
+        // useless to an agent/reader. Fall back to the readable DOM path instead.
+        selector: (a.selector && a.selector.includes('data-vibe-id'))
+          ? (a.element_context?.path || null)
+          : (a.selector || null),
         tag: a.element_context?.tag || null,
         text: a.element_context?.text || null,
         css: a.css || null,

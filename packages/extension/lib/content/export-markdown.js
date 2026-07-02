@@ -40,7 +40,10 @@ export function renderAnnotationsMarkdown(annotations, host) {
     if (componentHint) md += `- **Component:** \`${componentHint.replace('Component:', '').trim()}\`\n`;
     if (a.source_file_path) md += `- **Source:** \`${a.source_file_path}${a.source_line_range ? ` (lines ${a.source_line_range})` : ''}\`\n`;
     if (a.url_path) md += `- **Page:** ${a.url_path}\n`;
-    if (a.selector) md += `- **Selector:** \`${a.selector}\`\n`;
+    // A data-vibe-id is injected live by the extension (not in the source) — swap it
+    // for the readable DOM path so an agent/reader can actually locate the element.
+    const selector = (a.selector && a.selector.includes('data-vibe-id')) ? (ec.path || null) : a.selector;
+    if (selector) md += `- **Selector:** \`${selector}\`\n`;
     if (ec.tag || ec.text) md += `- **Element:** \`${ec.tag || ''}\` "${truncate(ec.text, 60)}"\n`;
 
     const changes = [];
