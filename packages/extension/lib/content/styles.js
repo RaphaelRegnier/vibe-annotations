@@ -396,6 +396,107 @@ export const VIBE_STYLES = `
   border-bottom: 1px solid var(--v-outline);
 }
 
+/* Intent mode bar (Comment / Design / Variants) */
+.vibe-mode-bar {
+  display: flex;
+  gap: 6px;
+  padding: 4px 14px 10px;
+}
+.vibe-mode-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  background: var(--v-surface-1);
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-sm);
+  color: var(--v-text-secondary);
+  font: 500 11.5px/1 var(--v-font);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.vibe-mode-tab svg { width: 13px; height: 13px; flex-shrink: 0; }
+.vibe-mode-tab:not(:disabled):hover { color: var(--v-text-primary); background: var(--v-toolbar-btn-hover); border-color: var(--v-outline-highlight); }
+.vibe-mode-tab.active { color: var(--v-text-primary); background: var(--v-toolbar-btn-active); border-color: var(--v-outline-highlight); }
+.vibe-mode-tab:disabled { opacity: 0.45; cursor: not-allowed; }
+.vibe-mode-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--v-design-change);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.vibe-mode-dot.on { opacity: 1; }
+
+/* Mode panels */
+.vibe-mode-panel { padding: 0 14px 4px; }
+.vibe-mode-panel[hidden] { display: none; }
+.vibe-mode-panel[data-mode="comment"] { padding-top: 2px; }
+
+/* Design edit — vertical accordion */
+.vibe-design-accordion {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-top: 2px;
+}
+.vibe-design-section {
+  border-top: 1px solid var(--v-outline);
+  padding: 6px 0;
+}
+.vibe-design-section:first-child { border-top: none; }
+.vibe-design-sec-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.vibe-design-sec-chevron {
+  display: inline-flex;
+  color: var(--v-text-secondary);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+.vibe-design-sec-chevron.open { transform: rotate(90deg); }
+.vibe-design-sec-label { font: 500 11.5px/1 var(--v-font); color: var(--v-text-primary); }
+.vibe-design-sec-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--v-design-change);
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.vibe-design-sec-dot.on { opacity: 1; }
+.vibe-design-sec-body { padding: 6px 0 2px; }
+
+/* Variants mode */
+.vibe-variants-explain {
+  margin: 8px 2px 0;
+  font: 400 11px/1.4 var(--v-font);
+  color: var(--v-instruction-text);
+}
+.vibe-variants-input {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-sm);
+  background: var(--v-textarea-bg);
+  color: var(--v-text-primary);
+  font: 400 13px/1.4 var(--v-font);
+  resize: vertical;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vibe-variants-input:focus { outline: none; border-color: var(--v-highlight); background: var(--v-surface-hover); }
+.vibe-variants-input::placeholder { color: var(--v-text-secondary); }
+
 .vibe-design-row {
   display: flex;
   align-items: center;
@@ -663,6 +764,7 @@ export const VIBE_STYLES = `
 }
 
 .vibe-textarea {
+  display: block; /* avoid the inline-block baseline gap under the field (misaligns the + button) */
   width: 100%;
   min-height: 72px;
   padding: 10px;
@@ -696,6 +798,60 @@ export const VIBE_STYLES = `
   opacity: 0.7;
   pointer-events: none;
 }
+
+/* Attachment "+" menu — bottom-left of the comment field */
+.vibe-textarea-add { padding-bottom: 34px; }
+.vibe-add-btn {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--v-radius-sm);
+  background: transparent;
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.vibe-add-btn svg { transition: transform 0.2s ease; }
+.vibe-add-btn:hover { color: var(--v-text-primary); background: var(--v-surface-hover); }
+.vibe-add-btn.open { color: var(--v-text-primary); background: var(--v-surface-hover); }
+.vibe-add-btn.open svg { transform: rotate(45deg); }
+.vibe-add-menu {
+  position: absolute;
+  left: 6px;
+  bottom: 38px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 172px;
+  padding: 4px;
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-outline-highlight);
+  border-radius: var(--v-radius-sm);
+  box-shadow: var(--v-panel-shadow);
+}
+.vibe-add-menu[hidden] { display: none; }
+.vibe-add-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  background: none;
+  border: none;
+  border-radius: var(--v-radius-xs);
+  color: var(--v-text-primary);
+  font: 500 12.5px/1 var(--v-font);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.vibe-add-opt:hover { background: var(--v-surface-hover); }
+.vibe-add-opt svg { color: var(--v-text-secondary); flex-shrink: 0; }
 
 /* Actions footer */
 .vibe-popover-footer {

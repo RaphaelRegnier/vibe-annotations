@@ -135,13 +135,18 @@ class VibeAnnotationsBackground {
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
+        case 'captureVisibleTab':
+          chrome.tabs.captureVisibleTab(sender?.tab?.windowId, { format: 'png' })
+            .then(dataUrl => sendResponse({ success: true, dataUrl }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
         case 'recordAttachment':
           this.recordAttachment(request.id, request.att)
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
         case 'uploadUserImage':
-          this.uploadUserImage(request.id, request.mime, request.dataUrl)
+          this.uploadUserImage(request.id, request.mime, request.dataUrl, request.kind)
             .then(attachment => sendResponse({ success: true, attachment }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
@@ -375,9 +380,9 @@ class VibeAnnotationsBackground {
 
   // Upload a user image whose bytes arrived as a data URL (non-local origins that
   // can't POST to localhost directly). Decode → upload → mirror into storage.
-  async uploadUserImage(id, mime, dataUrl) {
+  async uploadUserImage(id, mime, dataUrl, kind = 'user') {
     const blob = await (await fetch(dataUrl)).blob();
-    const { attachment } = await uploadAttachment(id, blob, 'user', mime);
+    const { attachment } = await uploadAttachment(id, blob, kind, mime);
     if (attachment) await this.recordAttachment(id, attachment);
     return attachment;
   }

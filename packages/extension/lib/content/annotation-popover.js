@@ -26,8 +26,29 @@ import VibeShadowHost from './shadow-host.js';
 
   const VIBE_IMG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
   const VIBE_X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-  const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+  const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml', 'image/bmp', 'image/avif']);
+  const ATTACH_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/bmp,image/avif';
+  const VIBE_PLUS_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+  const VIBE_PAPERCLIP_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+  const VIBE_CAMERA_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
   const VIBE_VARIANTS_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
+  const VIBE_COMMENT_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+  const VIBE_DESIGN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M4 16v3a1 1 0 0 1 1 1h3"/><path d="M12 12l7.5 3-3.2 1.1-1.1 3.2z"/></svg>';
+
+  // Maps a pending-change property (camelCase) to its Design-accordion section, so
+  // a "changed" dot can light on the right section header. Unmapped raw-CSS edits
+  // fall back to the 'raw-css' section (handled separately via _userEdited).
+  const PROP_TO_SECTION = {
+    copyChange: 'content',
+    fontSize: 'font', fontWeight: 'font', lineHeight: 'font', textAlign: 'font', color: 'font',
+    letterSpacing: 'font', textTransform: 'font', fontStyle: 'font', textDecoration: 'font',
+    width: 'sizing', minWidth: 'sizing', maxWidth: 'sizing', height: 'sizing', minHeight: 'sizing', maxHeight: 'sizing',
+    paddingTop: 'spacing', paddingRight: 'spacing', paddingBottom: 'spacing', paddingLeft: 'spacing',
+    marginTop: 'spacing', marginRight: 'spacing', marginBottom: 'spacing', marginLeft: 'spacing',
+    display: 'layout', flexDirection: 'layout', flexWrap: 'layout', justifyContent: 'layout', alignItems: 'layout',
+    gap: 'layout', columnGap: 'layout', rowGap: 'layout', gridTemplateColumns: 'layout', gridTemplateRows: 'layout',
+    borderWidth: 'appearance', borderRadius: 'appearance', borderStyle: 'appearance', borderColor: 'appearance', backgroundColor: 'appearance',
+  };
 
   function init() {
     VibeEvents.on('inspection:elementClicked', onElementClicked);
@@ -129,13 +150,21 @@ import VibeShadowHost from './shadow-host.js';
         </div>
       </div>`;
 
-    const tabs = P.getTabsForType(elType);
-    const tabBarHTML = tabs.map(t =>
-      `<button class="vibe-tab" data-tab="${t.key}" type="button">${t.label}</button>`
-    ).join('');
-    const panelsHTML = tabs.map(t =>
-      `<div class="vibe-tab-panel" data-tab-panel="${t.key}" style="display:none">${panelContent[t.key] || ''}</div>`
-    ).join('');
+    // Design edit is a vertical accordion — reuse the design panels as collapsible
+    // sections (same order as the old tab bar). First section opens by default.
+    const sections = P.getTabsForType(elType);
+    const designAccordionHTML = sections.map((sec, i) => {
+      const open = i === 0;
+      return `
+        <div class="vibe-design-section">
+          <button class="vibe-design-sec-toggle" type="button">
+            <span class="vibe-design-sec-chevron${open ? ' open' : ''}">${P.ICONS.chevron}</span>
+            <span class="vibe-design-sec-label">${sec.label}</span>
+            <span class="vibe-design-sec-dot" data-sec-dot="${sec.key}"></span>
+          </button>
+          <div class="vibe-design-sec-body" style="display:${open ? '' : 'none'}">${panelContent[sec.key] || ''}</div>
+        </div>`;
+    }).join('');
 
     const selectorLabel = context.classes.length
       ? `${context.tag}.${context.classes[0]}`
@@ -145,22 +174,30 @@ import VibeShadowHost from './shadow-host.js';
       <div class="vibe-drag-handle"></div>
       <div class="vibe-popover-title">
         <span>Editing <code>${P.escapeHTML(selectorLabel)}</code></span>
-        <button class="vibe-design-reset" type="button" title="Reset all">${P.ICONS.reset}</button>
+        <button class="vibe-design-reset" type="button" title="Reset design changes">${P.ICONS.reset}</button>
       </div>
-      <div class="vibe-tab-bar">${tabBarHTML}</div>
-      <div class="vibe-design-toolbar">
-        ${panelsHTML}
+      <div class="vibe-mode-bar">
+        <button class="vibe-mode-tab active" data-mode="comment" type="button" title="Comment — an AI instruction">${VIBE_COMMENT_ICON}<span>Comment</span></button>
+        <button class="vibe-mode-tab" data-mode="design" type="button" title="Design edit — tweak CSS visually">${VIBE_DESIGN_ICON}<span>Design</span><span class="vibe-mode-dot"></span></button>
+        ${isEdit ? '' : `<button class="vibe-mode-tab" data-mode="variants" type="button" disabled title="Requires the MCP server">${VIBE_VARIANTS_ICON}<span>Variants</span></button>`}
       </div>
       ${warningHTML}
-      <div class="vibe-popover-body">
-        ${isEdit ? '' : `<button class="vibe-variants-toggle" type="button" disabled title="Requires the MCP server">${VIBE_VARIANTS_ICON}<span>Create variants</span></button>`}
+      <div class="vibe-mode-panel" data-mode="comment">
         <div class="vibe-input-wrap">
-          <textarea class="vibe-textarea" placeholder="What should change?" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
-          <button class="vibe-btn-icon vibe-attach-btn" type="button" title="Attach image (or paste)">${VIBE_IMG_ICON}</button>
+          <textarea class="vibe-textarea vibe-textarea-add" placeholder="Describe the change for your AI agent…" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
+          <button class="vibe-add-btn" type="button" title="Add an attachment">${VIBE_PLUS_ICON}</button>
+          <div class="vibe-add-menu" hidden>
+            <button class="vibe-add-opt" data-add="file" type="button">${VIBE_PAPERCLIP_ICON}<span>Attach file</span></button>
+            <button class="vibe-add-opt" data-add="shot" type="button">${VIBE_CAMERA_ICON}<span>Take a screenshot</span></button>
+          </div>
           <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
         </div>
+        <p class="vibe-variants-explain" hidden>Your agent builds these in your codebase, you'll preview and pick your favorite right here.</p>
         <div class="vibe-attachments empty"></div>
-        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="vibe-attach-input" hidden multiple>
+        <input type="file" accept="${ATTACH_ACCEPT}" class="vibe-attach-input" hidden multiple>
+      </div>
+      <div class="vibe-mode-panel vibe-design-accordion" data-mode="design" hidden>
+        ${designAccordionHTML}
       </div>
       <div class="vibe-popover-footer">
         <div class="vibe-footer-left">
@@ -191,8 +228,17 @@ import VibeShadowHost from './shadow-host.js';
     activeExistingAnnotation = existingAnnotation;
     activeElType = elType;
 
-    // --- Image attachments (paste / pick / clear) ---
-    const attachBtn = popover.querySelector('.vibe-attach-btn');
+    // Capture the click offset within the element NOW, same frame as the click —
+    // it's element-relative and scroll-invariant. Computing it later (at save) would
+    // mix a stale viewport clickY with the element's current rect if the user scrolled
+    // while typing, landing the badge far from where they clicked.
+    let savedBadgeOffset = null;
+    if (clickX != null) {
+      const r0 = targetElement.getBoundingClientRect();
+      savedBadgeOffset = { x: clickX - r0.left, y: clickY - r0.top };
+    }
+
+    // --- Attachments (paste / pick / screenshot / clear) ---
     const attachInput = popover.querySelector('.vibe-attach-input');
     const attachmentsEl = popover.querySelector('.vibe-attachments');
     const isLocal = VibeAPI.isLocalOrigin();
@@ -213,7 +259,7 @@ import VibeShadowHost from './shadow-host.js';
         const src = blobUrl || (isLocal ? VibeAPI.attachmentUrl(activeExistingAnnotation.id, att.id) : null);
         tiles.push(attachmentTileHTML({ src, attId: att.id, kind: att.kind }));
       });
-      pendingAttachments.forEach((p, i) => tiles.push(attachmentTileHTML({ src: p.url, pendingIndex: i, kind: 'user' })));
+      pendingAttachments.forEach((p, i) => tiles.push(attachmentTileHTML({ src: p.url, pendingIndex: i, kind: p.kind || 'user' })));
       attachmentsEl.innerHTML = tiles.join('');
       attachmentsEl.classList.toggle('empty', tiles.length === 0);
     }
@@ -230,28 +276,100 @@ import VibeShadowHost from './shadow-host.js';
       </div>`;
     }
 
-    async function handleAttach(blob, mime) {
+    async function handleAttach(blob, mime, kind = 'user') {
       if (!blob || !ATTACH_MIMES.has(mime)) return;
       if (isEdit && activeExistingAnnotation?.id) {
         try {
-          const att = await VibeAPI.uploadUserImage(activeExistingAnnotation.id, blob, mime);
+          const att = await VibeAPI.uploadUserImage(activeExistingAnnotation.id, blob, mime, kind);
           sessionBlobUrls.set(att.id, URL.createObjectURL(blob));
-          activeExistingAnnotation.attachments = [...(activeExistingAnnotation.attachments || []), att];
+          const cur = activeExistingAnnotation.attachments || [];
+          // A capture is singular (server replaces the prior one) — mirror that locally.
+          activeExistingAnnotation.attachments = kind === 'capture'
+            ? [att, ...cur.filter(a => a.kind !== 'capture')]
+            : [...cur, att];
           renderAttachments();
           markAttachmentsChanged();
         } catch (err) { console.warn('[Vibe] attach failed:', err); }
       } else {
-        pendingAttachments.push({ blob, mime, url: URL.createObjectURL(blob) });
+        pendingAttachments.push({ blob, mime, kind, url: URL.createObjectURL(blob) });
         renderAttachments();
         markAttachmentsChanged();
       }
     }
 
-    attachBtn.addEventListener('click', () => attachInput.click());
+    // "+" menu: Attach file / Take a screenshot. The "+" rotates into an "×" open.
+    const addBtn = popover.querySelector('.vibe-add-btn');
+    const addMenu = popover.querySelector('.vibe-add-menu');
+    const closeAddMenu = () => { addMenu.hidden = true; addBtn.classList.remove('open'); };
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = addMenu.hidden;
+      addMenu.hidden = !open;
+      addBtn.classList.toggle('open', open);
+    });
+    addMenu.querySelector('[data-add="file"]').addEventListener('click', () => { closeAddMenu(); attachInput.click(); });
+    addMenu.querySelector('[data-add="shot"]').addEventListener('click', () => { closeAddMenu(); takeScreenshot(); });
+    // Close on any click inside the popover that isn't the button/menu. Scoped to the
+    // popover so the listener is GC'd with it (no cross-open leak); clicks outside the
+    // popover dismiss it entirely anyway.
+    popover.addEventListener('pointerdown', (e) => {
+      if (!addMenu.hidden && !addMenu.contains(e.target) && !addBtn.contains(e.target)) closeAddMenu();
+    }, true);
+
     attachInput.addEventListener('change', () => {
       for (const file of attachInput.files) handleAttach(file, file.type);
       attachInput.value = '';
     });
+
+    // Take a screenshot of the annotated element: request the capture permission
+    // (a natural discovery moment), hide our overlay for the shot so the popover
+    // isn't in it, grab the element's region, and attach it as a capture. Works even
+    // when the Screenshots setting is off.
+    let capturing = false;
+    async function takeScreenshot() {
+      if (capturing) return;
+      capturing = true;
+      try {
+        const granted = await VibeAPI.requestScreenshotPermission();
+        if (!granted) return;
+        const r = targetElement.getBoundingClientRect();
+        const PAD = 16;
+        const left = Math.max(0, r.left - PAD);
+        const top = Math.max(0, r.top - PAD);
+        const right = Math.min(window.innerWidth, r.right + PAD);
+        const bottom = Math.min(window.innerHeight, r.bottom + PAD);
+        const cw = right - left, ch = bottom - top;
+        if (cw <= 0 || ch <= 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        const crop = { sx: Math.round(left * dpr), sy: Math.round(top * dpr), sw: Math.round(cw * dpr), sh: Math.round(ch * dpr) };
+
+        const host = VibeShadowHost.getHost();
+        if (host) host.style.visibility = 'hidden';
+        await new Promise(rf => requestAnimationFrame(() => rf()));
+        let fullDataUrl;
+        try {
+          fullDataUrl = await VibeAPI.captureVisibleTab();
+        } finally {
+          if (host) host.style.visibility = '';
+        }
+        if (!fullDataUrl) return;
+
+        // Crop to the element region in the content world (service workers can't
+        // easily turn a Blob back into a data URL), then attach the webp.
+        const fullBlob = await (await fetch(fullDataUrl)).blob();
+        const bitmap = await createImageBitmap(fullBlob, crop.sx, crop.sy, crop.sw, crop.sh);
+        const canvas = document.createElement('canvas');
+        canvas.width = crop.sw; canvas.height = crop.sh;
+        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+        if (bitmap.close) bitmap.close();
+        const webp = await new Promise(res => canvas.toBlob(res, 'image/webp', 0.85));
+        if (webp) await handleAttach(webp, 'image/webp', 'capture');
+      } catch (err) {
+        console.warn('[Vibe] screenshot failed:', err);
+      } finally {
+        capturing = false;
+      }
+    }
     textarea.addEventListener('paste', (e) => {
       const items = e.clipboardData?.items || [];
       for (const item of items) {
@@ -299,57 +417,85 @@ import VibeShadowHost from './shadow-host.js';
     // Expose pending uploads to doSave (uploaded once the annotation exists).
     activePendingAttachments = pendingAttachments;
 
-    // --- Create variants (mode) — new annotations only, shown when the MCP server
-    // is connected. Toggling it saves the annotation as mode:"variants"; the agent
-    // then generates coexisting design variants (see the server-side contract).
-    const variantsToggle = popover.querySelector('.vibe-variants-toggle');
-    let variantsMode = false;
-    if (variantsToggle) {
+    // --- Mode bar (Comment / Design / Variants) ---
+    // Comment + Design are combinable views on ONE annotation (both save together).
+    // Variants is a distinct save path (mode:"variants") — new annotations only,
+    // gated on the MCP server being connected.
+    let activeMode = 'comment';
+    const modeTabs = popover.querySelectorAll('.vibe-mode-tab');
+    const instructionPanel = popover.querySelector('.vibe-mode-panel[data-mode="comment"]');
+    const designPanel = popover.querySelector('.vibe-mode-panel[data-mode="design"]');
+    const variantsExplain = popover.querySelector('.vibe-variants-explain');
+
+    const variantsTab = popover.querySelector('.vibe-mode-tab[data-mode="variants"]');
+    if (variantsTab) {
       VibeAPI.checkServerStatus().then(s => {
         if (s?.connected) {
-          variantsToggle.disabled = false;
-          variantsToggle.title = 'Ask your agent to generate several coexisting design variants';
+          variantsTab.disabled = false;
+          variantsTab.title = 'Ask your agent to generate several coexisting design variants';
         }
       }).catch(() => {});
-      variantsToggle.addEventListener('click', () => {
-        variantsMode = !variantsMode;
-        variantsToggle.classList.toggle('on', variantsMode);
-        textarea.placeholder = variantsMode ? 'What variants do you want?' : 'What should change?';
-        textarea.focus();
-      });
     }
 
-    // Tab switching
-    const tabBtns = popover.querySelectorAll('.vibe-tab');
-    const tabPanels = popover.querySelectorAll('.vibe-tab-panel');
-    const designToolbar = popover.querySelector('.vibe-design-toolbar');
-    designToolbar.style.display = 'none';
-    tabBtns.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const wasActive = tab.classList.contains('active');
-        tabBtns.forEach(t => t.classList.remove('active'));
-        if (wasActive) {
-          designToolbar.style.display = 'none';
-          tabPanels.forEach(p => p.style.display = 'none');
-        } else {
-          tab.classList.add('active');
-          designToolbar.style.display = '';
-          tabPanels.forEach(p => p.style.display = p.dataset.tabPanel === tab.dataset.tab ? '' : 'none');
-          if (tab.dataset.tab === 'content') {
-            const contentInput = popover.querySelector('.vibe-content-input');
-            if (contentInput) requestAnimationFrame(() => P.autoResizeContentInput(contentInput));
-          }
-          if (tab.dataset.tab === 'raw-css') {
-            const rawTA = popover.querySelector('.vibe-raw-css');
-            if (rawTA && !rawTA._userEdited) {
-              rawTA.value = P.buildRawCssContent(context);
-            }
-          }
+    // Lazy touch-ups when a design section reveals: keep the content input sized and
+    // the raw-CSS textarea fresh (mirrors the old per-tab behavior).
+    function refreshDesignSection(body) {
+      const contentInput = body.querySelector('.vibe-content-input');
+      if (contentInput) requestAnimationFrame(() => P.autoResizeContentInput(contentInput));
+      const rawTA = body.querySelector('.vibe-raw-css');
+      if (rawTA && !rawTA._userEdited) rawTA.value = P.buildRawCssContent(context);
+    }
+
+    function setMode(mode) {
+      activeMode = mode;
+      modeTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+      const isDesign = mode === 'design';
+      // Comment and Variants share ONE instruction field (both feed the annotation's
+      // comment); only the framing changes. Design swaps in the accordion.
+      designPanel.hidden = !isDesign;
+      instructionPanel.hidden = isDesign;
+      if (variantsExplain) variantsExplain.hidden = mode !== 'variants';
+      textarea.placeholder = mode === 'variants'
+        ? 'What variants do you want?'
+        : 'Describe the change for your AI agent…';
+      if (isDesign) {
+        popover.querySelectorAll('.vibe-design-sec-body').forEach(body => {
+          if (body.style.display !== 'none') refreshDesignSection(body);
+        });
+      } else {
+        textarea.focus();
+      }
+      popover._updateSave?.();
+    }
+    modeTabs.forEach(tab => {
+      tab.addEventListener('click', () => { if (!tab.disabled) setMode(tab.dataset.mode); });
+    });
+
+    // Design accordion — single-open: opening a section collapses the others, so the
+    // active panel's content (e.g. the CSS textareas) is always fully visible near the
+    // top instead of buried below other expanded sections.
+    const designSections = popover.querySelectorAll('.vibe-design-section');
+    popover.querySelectorAll('.vibe-design-sec-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const section = btn.parentElement;
+        const body = section.querySelector('.vibe-design-sec-body');
+        const chevron = btn.querySelector('.vibe-design-sec-chevron');
+        const willOpen = body.style.display === 'none';
+        designSections.forEach(sec => {
+          const b = sec.querySelector('.vibe-design-sec-body');
+          const c = sec.querySelector('.vibe-design-sec-chevron');
+          const open = sec === section && willOpen;
+          if (b) b.style.display = open ? '' : 'none';
+          if (c) c.classList.toggle('open', open);
+        });
+        if (willOpen) {
+          refreshDesignSection(body);
+          requestAnimationFrame(() => btn.scrollIntoView({ block: 'nearest' }));
         }
       });
     });
 
-    // Collapsible toggles in CSS panel
+    // Collapsible toggles inside the CSS section (Inline overrides / CSS rules)
     popover.querySelectorAll('.vibe-raw-css-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
         const section = btn.closest('.vibe-raw-css-section');
@@ -486,8 +632,33 @@ import VibeShadowHost from './shadow-host.js';
     }
     updateResetVisibility();
 
+    // Light a "changed" dot on each Design section header (and the Design tab) that
+    // currently carries a pending change, so edits are visible without opening every
+    // section.
+    function updateSectionDots() {
+      const pc = buildPendingChanges() || {};
+      const active = new Set();
+      for (const key of Object.keys(pc)) {
+        const sec = PROP_TO_SECTION[key];
+        active.add(sec || 'raw-css');
+      }
+      if (rawCssTextarea?._userEdited || cssRulesTextarea?._userEdited) active.add('raw-css');
+      popover.querySelectorAll('.vibe-design-sec-dot').forEach(dot => {
+        dot.classList.toggle('on', active.has(dot.getAttribute('data-sec-dot')));
+      });
+      const designDot = popover.querySelector('.vibe-mode-tab[data-mode="design"] .vibe-mode-dot');
+      if (designDot) designDot.classList.toggle('on', active.size > 0);
+    }
+
     // Enable/disable save
     const updateSave = () => {
+      updateSectionDots();
+      // Variants is its own path — save is gated on the (shared) instruction only.
+      if (activeMode === 'variants') {
+        saveBtn.textContent = 'Create variants';
+        saveBtn.disabled = !textarea.value.trim();
+        return;
+      }
       const text = textarea.value.trim();
       const hasDesignChanges = !!buildPendingChanges();
       // An image attachment (pending/added) or a screenshot that will be captured
@@ -573,9 +744,13 @@ import VibeShadowHost from './shadow-host.js';
       saveBtn.disabled = true;
 
       try {
+        // Variants is a separate flow: use the variants instruction as the comment
+        // and skip design edits. Otherwise the comment comes from the Comment tab and
+        // design edits from the accordion (the two combine on one annotation).
+        const isVariants = activeMode === 'variants';
         const comment = textarea.value.trim();
-        const pendingChanges = buildPendingChanges();
-        const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value.trim() : '';
+        const pendingChanges = isVariants ? null : buildPendingChanges();
+        const cssRulesVal = (!isVariants && cssRulesTextarea) ? cssRulesTextarea.value.trim() : '';
         const cssField = cssRulesVal || null;
 
         targetElement.style.cssText = activeOriginalCssText || '';
@@ -592,20 +767,17 @@ import VibeShadowHost from './shadow-host.js';
           VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
         } else {
           const annotation = buildAnnotation(context, comment, pendingChanges);
-          if (variantsMode) annotation.mode = 'variants';
+          if (isVariants) annotation.mode = 'variants';
           annotation.selector_preview = getElementOpenTagPreview(targetElement);
           annotation.element_context.id = targetElement.id || null;
           annotation.element_context.role = targetElement.getAttribute('role') || null;
           if (cssField) annotation.css = cssField;
-          if (clickX != null) {
-            const r = targetElement.getBoundingClientRect();
-            annotation.badge_offset = { x: clickX - r.left, y: clickY - r.top };
-          }
+          if (savedBadgeOffset) annotation.badge_offset = savedBadgeOffset;
           await VibeAPI.saveAnnotation(annotation);
           // Upload any images attached before the annotation existed on the server.
           if (activePendingAttachments && activePendingAttachments.length) {
             for (const p of activePendingAttachments) {
-              VibeAPI.uploadUserImage(annotation.id, p.blob, p.mime).catch(() => {});
+              VibeAPI.uploadUserImage(annotation.id, p.blob, p.mime, p.kind || 'user').catch(() => {});
             }
           }
           VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
@@ -689,7 +861,16 @@ import VibeShadowHost from './shadow-host.js';
 
     anchor.appendChild(popover);
     currentPopover = anchor;
-    positionPopover(anchor, targetElement, clickX, clickY);
+    // The badge (and thus targetElement) anchors to the container, which is
+    // display:contents and has an empty rect at (0,0) — positioning against it
+    // would fling the popover to the top-left. Position against the active variant
+    // child, which has a real box on the page.
+    let posEl = null;
+    try {
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(current) : current;
+      posEl = container.querySelector(`:scope > [data-variant="${esc}"]`) || container.querySelector(':scope > [data-variant]');
+    } catch (_) {}
+    positionPopover(anchor, posEl || targetElement, clickX, clickY);
     wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
 
     popover.querySelector('.vibe-cancel-btn').addEventListener('click', close);

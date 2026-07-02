@@ -136,7 +136,7 @@ const CACHE_TTL = 2000;
   // localhost directly (mixed content), so we hand the bytes to the background as
   // a transient data URL and it uploads. Either way the background mirrors the new
   // attachment into chrome.storage so the UI can render it immediately.
-  async function uploadUserImage(annotationId, blob, mime) {
+  async function uploadUserImage(annotationId, blob, mime, kind = 'user') {
     if (isLocalOrigin()) {
       // Retry on 404: a brand-new annotation's server-side create can lag behind
       // this upload, so the annotation may not exist for a moment.
@@ -144,7 +144,7 @@ const CACHE_TTL = 2000;
       for (let i = 0; i < 5; i++) {
         res = await fetch(`${SERVER_URL}/api/annotations/${annotationId}/attachments`, {
           method: 'POST',
-          headers: { 'Content-Type': mime, 'X-Attachment-Kind': 'user' },
+          headers: { 'Content-Type': mime, 'X-Attachment-Kind': kind },
           body: blob,
         });
         if (res.ok) break;
@@ -156,9 +156,17 @@ const CACHE_TTL = 2000;
       return attachment;
     }
     const dataUrl = await blobToDataUrl(blob);
-    const r = await chrome.runtime.sendMessage({ action: 'uploadUserImage', id: annotationId, mime, dataUrl });
+    const r = await chrome.runtime.sendMessage({ action: 'uploadUserImage', id: annotationId, mime, dataUrl, kind });
     if (!r || !r.success) throw new Error(r?.error || 'attachment upload failed');
     return r.attachment;
+  }
+
+  // Grab the full visible tab as a PNG data URL (the caller crops it). Needs the
+  // screenshot host permission — request it first via requestScreenshotPermission.
+  async function captureVisibleTab() {
+    const r = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' });
+    if (!r || !r.success) throw new Error(r?.error || 'capture failed');
+    return r.dataUrl;
   }
 
   async function removeAttachment(annotationId, attId) {
@@ -367,6 +375,7 @@ const VibeAPI = {
   deleteAnnotation,
   deleteAnnotationsByUrl,
   captureScreenshot,
+  captureVisibleTab,
   attachmentUrl,
   uploadUserImage,
   removeAttachment,

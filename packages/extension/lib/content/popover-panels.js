@@ -160,24 +160,24 @@ import VibeElementContext from './element-context.js';
     if (elType === 'text') return [
       { key: 'content', label: 'Content' },
       { key: 'font', label: 'Font' },
-      { key: 'sizing', label: 'Sizing' },
       { key: 'spacing', label: 'Spacing' },
+      { key: 'sizing', label: 'Sizing' },
       { key: 'raw-css', label: 'CSS' }
     ];
     if (elType === 'container') return [
-      { key: 'sizing', label: 'Sizing' },
-      { key: 'spacing', label: 'Spacing' },
       { key: 'layout', label: 'Layout' },
+      { key: 'spacing', label: 'Spacing' },
       { key: 'appearance', label: 'Appearance' },
+      { key: 'sizing', label: 'Sizing' },
       { key: 'raw-css', label: 'CSS' }
     ];
     return [
       { key: 'content', label: 'Content' },
       { key: 'font', label: 'Font' },
-      { key: 'sizing', label: 'Sizing' },
-      { key: 'spacing', label: 'Spacing' },
       { key: 'layout', label: 'Layout' },
+      { key: 'spacing', label: 'Spacing' },
       { key: 'appearance', label: 'Appearance' },
+      { key: 'sizing', label: 'Sizing' },
       { key: 'raw-css', label: 'CSS' }
     ];
   }
@@ -676,7 +676,10 @@ import VibeElementContext from './element-context.js';
 
     wireStepperInputs(popover, targetElement, PROP_CONFIG);
 
-    const modeBtns = popover.querySelectorAll('[data-mode]');
+    // Scope to the flow group's buttons — a bare [data-mode] also matches the
+    // popover's Comment/Design/Variants mode tabs, which would wrongly wire the
+    // flex/grid logic onto them and hide the layout options.
+    const modeBtns = popover.querySelectorAll('.vibe-flow-group [data-mode]');
     const flexOptions = popover.querySelector('.vibe-flex-options');
     const gridOptions = popover.querySelector('.vibe-grid-options');
 
