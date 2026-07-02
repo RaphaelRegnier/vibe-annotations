@@ -421,7 +421,15 @@ class LocalAnnotationsServer {
         if (index === -1) {
           return res.status(404).json({ error: 'Annotation not found' });
         }
-        
+
+        // Protected delete: a variants annotation mid-cycle becomes variants-discarded
+        // (for agent scaffolding cleanup) rather than being hard-deleted.
+        if (this.isVariantMidCycle(annotations[index])) {
+          annotations[index] = { ...annotations[index], status: 'variants-discarded', updated_at: new Date().toISOString() };
+          await this.saveAnnotations(annotations);
+          return res.json({ success: true, deleted: false, discarded: true, status: 'variants-discarded' });
+        }
+
         const deletedAnnotation = annotations[index];
         annotations.splice(index, 1);
 
@@ -594,7 +602,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -620,6 +628,11 @@ class LocalAnnotationsServer {
                 url: {
                   type: 'string',
                   description: 'Filter by specific localhost URL. Supports exact match (e.g., "http://localhost:3000/dashboard") or pattern match with base URL (e.g., "http://localhost:3000/" or "http://localhost:3000/*" to get all annotations from that project)'
+                },
+                include_variants: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Set true ONLY when the user asks to FINALIZE variants — includes annotations awaiting finalization (status variant-chosen / variants-discarded), each carrying variant_instructions for cleanup. Normal reads exclude these so a routine "implement my annotations" never re-triggers or prematurely finalizes a variants cycle.'
                 }
               },
               additionalProperties: false
@@ -709,6 +722,39 @@ class LocalAnnotationsServer {
                 }
               },
               required: ['url'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'update_annotation',
+            description: 'Write generated variant scaffolding back to a VARIANTS annotation, or transition its lifecycle. After you code the variants for a mode="variants" annotation (per its variant_instructions), call this with variantsPayload — it is validated and moves the annotation pending → variants-ready so the user can preview and pick one in the extension. On FINALIZATION (after removing all scaffolding), call it with status "resolved". Only for variants annotations; not a general editor.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Annotation ID' },
+                variantsPayload: {
+                  type: 'object',
+                  description: 'The scaffolding map the extension and finalization pass rely on.',
+                  properties: {
+                    container: { type: 'string', description: 'CSS selector of the stable wrapper you added (e.g. ".vibe-var-<id>")' },
+                    attribute: { type: 'string', description: 'The toggled attribute, "data-vibe-active"' },
+                    variants: {
+                      type: 'array',
+                      description: '>=2 items, unique values, non-empty names',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          value: { type: 'string', description: 'data-vibe-active value, e.g. "1"' },
+                          name: { type: 'string', description: 'Human name shown in the radio, e.g. "Material card"' }
+                        }
+                      }
+                    },
+                    files: { type: 'array', items: { type: 'string' }, description: 'Every file you touched (carries the sentinel comment)' }
+                  }
+                },
+                status: { type: 'string', enum: ['variants-ready', 'resolved'], description: 'Lifecycle transition. Usually set implicitly by variantsPayload; pass "resolved" on finalization.' }
+              },
+              required: ['id'],
               additionalProperties: false
             }
           }
@@ -824,6 +870,23 @@ class LocalAnnotationsServer {
                     data: result.annotations || [],
                     count: result.annotations?.length || 0,
                     message: result.message,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'update_annotation': {
+            const result = await this.updateAnnotation(args || {});
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'update_annotation',
+                    status: 'success',
+                    data: result,
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -965,12 +1028,23 @@ class LocalAnnotationsServer {
   // MCP Tool implementations
   async readAnnotations(args) {
     const annotations = await this.loadAnnotations();
-    const { status = 'pending', limit = 50, offset = 0, url } = args;
+    const { status = 'pending', limit = 50, offset = 0, url, include_variants = false } = args;
 
     let filtered = annotations;
 
     if (status !== 'all') {
       filtered = filtered.filter(a => a.status === status);
+    }
+
+    // Finalization: only when explicitly asked, surface variant annotations awaiting
+    // cleanup. Normal reads (status pending) never include variants-ready /
+    // variant-chosen / variants-discarded / resolved, so a routine "implement my
+    // annotations" can't re-trigger or prematurely finalize a variants cycle.
+    if (include_variants) {
+      const seen = new Set(filtered.map(a => a.id));
+      for (const a of annotations) {
+        if (['variant-chosen', 'variants-discarded'].includes(a.status) && !seen.has(a.id)) filtered.push(a);
+      }
     }
 
     if (url) {
@@ -1044,7 +1118,11 @@ class LocalAnnotationsServer {
 
       const out = { ...rest, has_screenshot: available.some(a => a.kind === 'capture') };
       if (available.length) out.attachments = available;
-      return this.optimizeForAgent(out);
+      const optimized = this.optimizeForAgent(out);
+      // Embed the self-contained variant contract (generate / finalize) inline.
+      const vi = this.variantInstructionsFor(annotation);
+      if (vi) optimized.variant_instructions = vi;
+      return optimized;
     });
 
     return {
@@ -1178,6 +1256,102 @@ figure{margin:0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;max-w
 figure img{display:block;width:100%;height:auto}
 figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
 </style></head><body><header><h1>Vibe Annotations</h1><p>${esc(meta.hostname)} · Exported ${meta.date} · ${items.length} annotation${items.length === 1 ? '' : 's'}</p></header><main>${cards.join('') || '<p style="color:#6b7280">No annotations.</p>'}</main></body></html>`;
+  }
+
+  // --- Variant generation (Feature 1) ---
+  // The full agent contract travels IN the read_annotations response (per the PRD),
+  // so the agent needs no external docs to generate/finalize variants.
+
+  variantGenerateInstructions(id) {
+    return [
+      `This is a VARIANTS annotation (mode "variants"): the user wants several coexisting design variants of the target element, previewable in place. Follow this contract exactly — do NOT implement a single design or delete anything yet.`,
+      ``,
+      `1. Wrap the target element in a stable container, each variant a sibling (idiomatic JSX/Vue/etc):`,
+      `   <div class="vibe-var-${id}" data-vibe-active="1">`,
+      `     <div class="vibe-variant" data-variant="1">…variant 1 (or the original)…</div>`,
+      `     <div class="vibe-variant" data-variant="2">…variant 2…</div>`,
+      `     … one per variant …`,
+      `   </div>`,
+      `   If the target is a flex/grid child, add \`display: contents\` to the container so the wrapper doesn't break the parent layout.`,
+      `2. Add ONE scaffold CSS block (dedicated file or the global stylesheet) showing only the active variant:`,
+      `   /* vibe-annotations:scaffold ${id} — DO NOT EDIT, removed on finalize */`,
+      `   .vibe-var-${id} > .vibe-variant { display: none; }`,
+      `   .vibe-var-${id}[data-vibe-active="1"] > [data-variant="1"] { display: block; }  /* … one rule per variant … */`,
+      `3. Hardcode data-vibe-active="1" in the code so the preview survives reloads/HMR/re-renders. The extension only ever flips this one attribute.`,
+      `4. Mark EVERY file you touch with a greppable sentinel comment \`vibe-annotations:scaffold ${id}\` (JSX {/* … */}, CSS /* … */, Vue <!-- … -->) — this is the finalization cleanup map.`,
+      `5. Then call update_annotation with variantsPayload { container: ".vibe-var-${id}", attribute: "data-vibe-active", variants: [{ value: "1", name: "…" }, …], files: [every file you touched] }. This moves it to "variants-ready". Tell the user in chat to reopen the extension to preview and choose.`,
+    ].join('\n');
+  }
+
+  variantFinalizeInstructions(id, chosen) {
+    return [
+      `This VARIANTS annotation was CHOSEN (variant "${chosen}"). Finalize:`,
+      `1. Grep the codebase for \`vibe-annotations:scaffold ${id}\` to locate all scaffolding.`,
+      `2. Replace the wrapper with the chosen variant's content, idiomatically — no wrapper, no data-vibe-* attributes, no vibe-* classes.`,
+      `3. Remove the scaffold CSS rules and every sentinel comment for this id.`,
+      `4. Call update_annotation with status "resolved". The final diff must contain zero \`vibe-*\` traces.`,
+    ].join('\n');
+  }
+
+  variantDiscardInstructions(id) {
+    return [
+      `This VARIANTS annotation was DISCARDED. Clean up:`,
+      `1. Grep for \`vibe-annotations:scaffold ${id}\`.`,
+      `2. Restore the ORIGINAL element (variant "1") in place, removing the wrapper, data-vibe-* attributes and vibe-* classes.`,
+      `3. Remove the scaffold CSS rules and every sentinel comment for this id.`,
+      `4. Call update_annotation with status "resolved".`,
+    ].join('\n');
+  }
+
+  variantInstructionsFor(a) {
+    if (!a || a.mode !== 'variants') return null;
+    if (a.status === 'pending') return this.variantGenerateInstructions(a.id);
+    if (a.status === 'variant-chosen') return this.variantFinalizeInstructions(a.id, a.chosenVariant);
+    if (a.status === 'variants-discarded') return this.variantDiscardInstructions(a.id);
+    return null;
+  }
+
+  validateVariantsPayload(p) {
+    if (!p || typeof p !== 'object') return 'variantsPayload must be an object';
+    if (!p.container || typeof p.container !== 'string') return 'container (stable wrapper selector) is required';
+    if (!Array.isArray(p.variants) || p.variants.length < 2) return 'at least 2 variants are required';
+    const values = new Set();
+    for (const v of p.variants) {
+      if (!v || !String(v.name || '').trim()) return 'each variant needs a non-empty name';
+      const val = v.value == null ? '' : String(v.value).trim();
+      if (!val) return 'each variant needs a value';
+      if (values.has(val)) return `variant values must be unique (duplicate "${val}")`;
+      values.add(val);
+    }
+    return null;
+  }
+
+  // Agent write path: attach generated variantsPayload (pending → variants-ready)
+  // and/or transition status (→ resolved on finalization).
+  async updateAnnotation(args) {
+    const { id, variantsPayload, status } = args || {};
+    if (!id) throw new Error('id is required');
+    const annotations = await this.loadAnnotations();
+    const idx = annotations.findIndex(a => a.id === id);
+    if (idx === -1) throw new Error(`Annotation ${id} not found`);
+    const ann = annotations[idx];
+    const updates = {};
+
+    if (variantsPayload !== undefined) {
+      const err = this.validateVariantsPayload(variantsPayload);
+      if (err) throw new Error(`Invalid variantsPayload: ${err}`);
+      updates.variantsPayload = variantsPayload;
+      if (ann.status === 'pending') updates.status = 'variants-ready';
+    }
+    if (status !== undefined) {
+      const allowed = ['variants-ready', 'resolved'];
+      if (!allowed.includes(status)) throw new Error(`status must be one of: ${allowed.join(', ')}`);
+      updates.status = status;
+    }
+
+    annotations[idx] = { ...ann, ...updates, updated_at: new Date().toISOString() };
+    await this.saveAnnotations(annotations);
+    return { id, status: annotations[idx].status, message: `Annotation ${id} updated` };
   }
 
   /**
@@ -1330,6 +1504,19 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       return { id, deleted: true, message: `Annotation ${id} already deleted or not found` };
     }
     
+    // Protected delete: a variants annotation with scaffolding in the codebase is
+    // converted to variants-discarded (for agent cleanup), never hard-deleted.
+    if (this.isVariantMidCycle(annotations[index])) {
+      annotations[index] = { ...annotations[index], status: 'variants-discarded', updated_at: new Date().toISOString() };
+      await this.saveAnnotations(annotations);
+      return {
+        id,
+        deleted: false,
+        discarded: true,
+        message: `Annotation ${id} has generated scaffolding — marked variants-discarded so an agent can clean it up (read with include_variants:true to finalize). Not hard-deleted.`
+      };
+    }
+
     const deletedAnnotation = annotations[index];
     annotations.splice(index, 1); // Remove the annotation completely
 
@@ -1342,6 +1529,13 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       message: `Annotation ${id} has been successfully deleted`,
       deletedAnnotation
     };
+  }
+
+  // A variants annotation with scaffolding must not be hard-deleted mid-cycle —
+  // it becomes variants-discarded so the agent can remove the scaffolding it wrote.
+  isVariantMidCycle(a) {
+    return !!(a && a.mode === 'variants' && a.variantsPayload
+      && a.status !== 'resolved' && a.status !== 'variants-discarded');
   }
 
   /**
@@ -1467,22 +1661,31 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       };
     }
     
-    // Proceed with deletion
-    const remainingAnnotations = annotations.filter(a => !matchingAnnotations.find(m => m.id === a.id));
+    // Variants annotations mid-cycle are discarded-in-place (agent cleanup), not
+    // hard-deleted; everything else is removed.
+    const toDiscard = matchingAnnotations.filter(a => this.isVariantMidCycle(a));
+    const toRemove = matchingAnnotations.filter(a => !this.isVariantMidCycle(a));
+    const discardIds = new Set(toDiscard.map(a => a.id));
+    const removeIds = new Set(toRemove.map(a => a.id));
+
+    const remainingAnnotations = annotations
+      .filter(a => !removeIds.has(a.id))
+      .map(a => discardIds.has(a.id) ? { ...a, status: 'variants-discarded', updated_at: new Date().toISOString() } : a);
     await this.saveAnnotations(remainingAnnotations);
-    for (const a of matchingAnnotations) await this.removeAttachmentFiles(a);
-    
+    for (const a of toRemove) await this.removeAttachmentFiles(a);
+
     const deletedInfo = matchingAnnotations.map(a => ({
       id: a.id,
       url: a.url,
       comment: a.comment.substring(0, 100) + (a.comment.length > 100 ? '...' : '')
     }));
-    
+
     return {
       url_pattern,
       count: matchingAnnotations.length,
       deleted: true,
-      message: `Successfully deleted ${matchingAnnotations.length} annotation(s) for project ${url_pattern}`,
+      discarded_for_cleanup: toDiscard.length,
+      message: `Removed ${toRemove.length}; ${toDiscard.length} variants annotation(s) marked variants-discarded for agent cleanup (read with include_variants:true to finalize).`,
       deleted_annotations: deletedInfo,
       remaining_total: remainingAnnotations.length
     };
