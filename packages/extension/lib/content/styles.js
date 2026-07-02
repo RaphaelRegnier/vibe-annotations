@@ -1871,4 +1871,43 @@ export const VIBE_STYLES = `
 }
 .vibe-att-remove:hover { background: var(--v-badge-bg, #D03D68); }
 
+/* ===== Share / export dropdown (View all header) ===== */
+.vibe-viewall-share {
+  position: relative;
+  display: inline-flex;
+}
+/* fixed so the View all panel's overflow can't clip it (position set in JS) */
+.vibe-viewall-share-menu {
+  position: fixed;
+  width: 200px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--v-panel-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 12px;
+  box-shadow: var(--v-panel-shadow);
+  z-index: 101;
+  pointer-events: auto;
+}
+.vibe-viewall-share-menu[hidden] { display: none; }
+.vibe-share-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--v-toolbar-text);
+  font: 500 13px/1.2 var(--v-font);
+}
+.vibe-share-opt:hover { background: var(--v-surface-hover); }
+.vibe-share-opt strong { font-weight: 600; color: var(--v-toolbar-text-active); }
+.vibe-share-opt span { font-size: 11px; color: var(--v-text-secondary); font-weight: 400; }
+
 `;

@@ -7,6 +7,7 @@ import VibeElementContext from './element-context.js';
 import VibeEvents, { vibeLocationPath } from './event-bus.js';
 import VibeShadowHost from './shadow-host.js';
 import VibeToolbarDocs from './toolbar-docs.js';
+import { renderAnnotationsMarkdown } from './export-markdown.js';
 
   let toolbarEl = null;
   let settingsDropdown = null;
@@ -254,7 +255,7 @@ import VibeToolbarDocs from './toolbar-docs.js';
 
     const trashIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
     const copyIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
-    const exportIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+    const shareIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>';
     const smallTrash = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
     const sparkleIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>';
 
@@ -325,7 +326,7 @@ import VibeToolbarDocs from './toolbar-docs.js';
         <span class="vibe-viewall-url">${escapeHTML(hostname)}</span>
         <div class="vibe-viewall-actions">
           <button class="vibe-viewall-copy" title="Copy all">${copyIcon}</button>
-          <button class="vibe-viewall-export" title="Export">${exportIcon}</button>
+          <button class="vibe-viewall-export" title="Share / Export">${shareIcon}</button>
           <button class="vibe-viewall-deleteall" title="Delete all">${trashIcon}</button>
         </div>
       </div>
@@ -341,7 +342,7 @@ import VibeToolbarDocs from './toolbar-docs.js';
     copyBtn.addEventListener('click', async () => {
       const all = await VibeAPI.loadProjectAnnotations();
       if (!all.length) return;
-      const text = formatAnnotationsForClipboard(all);
+      const text = renderAnnotationsMarkdown(all, window.location.host);
       try { await navigator.clipboard.writeText(text); } catch {
         const ta = document.createElement('textarea'); ta.value = text;
         document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
@@ -360,10 +361,40 @@ import VibeToolbarDocs from './toolbar-docs.js';
       }
     });
 
-    // Export
-    viewAllPanel.querySelector('.vibe-viewall-export').addEventListener('click', () => {
-      showExportModal();
+    // Share / Export — dropdown with .md (agent) and .html (human share) options.
+    // The menu is rendered at the shadow root (not inside the panel) to avoid the
+    // panel's overflow clipping and the toolbar's transform breaking fixed-position.
+    const shareBtn = viewAllPanel.querySelector('.vibe-viewall-export');
+    let shareMenu = null;
+    const closeShareMenu = () => { if (shareMenu) { shareMenu.remove(); shareMenu = null; } };
+    shareBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (shareMenu) { closeShareMenu(); return; }
+      const root = VibeShadowHost.getRoot();
+      if (!root) return;
+      const r = shareBtn.getBoundingClientRect();
+      shareMenu = document.createElement('div');
+      shareMenu.className = 'vibe-viewall-share-menu';
+      shareMenu.style.top = `${Math.round(r.bottom + 6)}px`;
+      shareMenu.style.left = `${Math.round(Math.max(8, r.right - 200))}px`;
+      shareMenu.innerHTML = `
+        <button class="vibe-share-opt" data-format="md" type="button"><strong>.md</strong><span>for personal use</span></button>
+        <button class="vibe-share-opt" data-format="html" type="button"><strong>.html</strong><span>to share externally</span></button>
+      `;
+      root.appendChild(shareMenu);
+      shareMenu.querySelectorAll('.vibe-share-opt').forEach(opt => {
+        opt.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const fmt = opt.dataset.format;
+          closeShareMenu();
+          await downloadShare(fmt);
+        });
+      });
     });
+    // Close on any click elsewhere (in the overlay or on the page).
+    const onOutsideClick = (ev) => { if (shareMenu && !shareMenu.contains(ev.target) && ev.target !== shareBtn) closeShareMenu(); };
+    VibeShadowHost.getRoot()?.addEventListener('click', onOutsideClick);
+    document.addEventListener('click', closeShareMenu);
 
     // Delete all (animate all cards out with stagger, then delete)
     viewAllPanel.querySelector('.vibe-viewall-deleteall').addEventListener('click', async () => {
@@ -454,6 +485,9 @@ import VibeToolbarDocs from './toolbar-docs.js';
     // Store cleanup reference
     viewAllPanel._cleanupEvents = () => {
       VibeEvents.off('badges:rendered', refreshHandler);
+      document.removeEventListener('click', closeShareMenu);
+      VibeShadowHost.getRoot()?.removeEventListener('click', onOutsideClick);
+      closeShareMenu();
     };
   }
 
@@ -964,6 +998,36 @@ import VibeToolbarDocs from './toolbar-docs.js';
   }
 
   // --- Import / Export ---
+
+  // Fetch a shareable export from the server and trigger a file download.
+  // format: 'md' (agent, local image paths) or 'html' (self-contained, base64 images).
+  async function downloadShare(format) {
+    const all = await VibeAPI.loadProjectAnnotations();
+    if (!all.length) { showInfoModal('Nothing to export', 'No annotations for this site yet.'); return; }
+    const host = window.location.host.replace(/[^a-z0-9.-]/gi, '_') || 'annotations';
+    try {
+      let content, mime;
+      if (format === 'md') {
+        // Same renderer as the clipboard — client-side, works with no server.
+        content = renderAnnotationsMarkdown(all, window.location.host);
+        mime = 'text/markdown';
+      } else {
+        // HTML embeds the images as base64, which needs the server to read them.
+        ({ content, mime } = await VibeAPI.getShareExport(`${window.location.origin}/*`, 'html'));
+      }
+      const blob = new Blob([content], { type: mime || 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `vibe-annotations-${host}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (err) {
+      console.warn('[Vibe] export failed:', err);
+      showInfoModal('Export failed', 'Could not reach the annotations server on this page.');
+    }
+  }
 
   function showExportModal() {
     const root = VibeShadowHost.getRoot();

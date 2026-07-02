@@ -185,7 +185,7 @@ class LocalAnnotationsServer {
     this.app.post('/api/annotations', async (req, res) => {
       try {
         const annotation = req.body;
-        
+
         // Validate annotation
         if (!annotation.id || !annotation.url || !annotation.comment) {
           return res.status(400).json({ error: 'Missing required fields' });
@@ -352,6 +352,33 @@ class LocalAnnotationsServer {
       } catch (error) {
         console.error('Error deleting attachment:', error);
         res.status(500).json({ error: 'Failed to delete attachment' });
+      }
+    });
+
+    // Self-contained HTML export (human sharing, base64-embedded images, prints to
+    // PDF). Markdown is rendered client-side by the extension (single format, works
+    // offline); HTML needs the server because it reads the image files to embed them.
+    this.app.get('/api/export', async (req, res) => {
+      try {
+        const { url } = req.query;
+        const annotations = await this.loadAnnotations();
+        const filtered = url ? this.filterByUrlPattern(annotations, url) : annotations;
+        const items = this.buildExportItems(filtered.filter(a => a.type !== 'stylesheet'));
+
+        let hostname = 'annotations';
+        try { hostname = new URL(String(url).replace(/\/\*$/, '')).host || hostname; }
+        catch { if (filtered[0]?.url) { try { hostname = new URL(filtered[0].url).host; } catch { /* keep default */ } } }
+
+        const meta = { hostname, date: new Date().toISOString().slice(0, 10) };
+        const safeName = hostname.replace(/[^a-z0-9.-]/gi, '_');
+
+        const html = await this.renderExportHtml(items, meta);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="vibe-annotations-${safeName}.html"`);
+        res.send(html);
+      } catch (error) {
+        console.error('Export error:', error);
+        res.status(500).json({ error: 'Failed to build export' });
       }
     });
 
@@ -1053,6 +1080,101 @@ class LocalAnnotationsServer {
       delete out.attachments;
     }
     return out;
+  }
+
+  // --- Shareable exports (markdown for agents, self-contained HTML for humans) ---
+
+  // Normalize annotations into a flat, ordered shape for rendering. Resolves each
+  // attachment to its local file and existence-checks it (imported annotations
+  // whose files live elsewhere simply have no images).
+  buildExportItems(annotations) {
+    const sorted = [...annotations].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    return sorted.map((a, i) => {
+      const images = (Array.isArray(a.attachments) ? a.attachments : [])
+        .map(att => ({ kind: att.kind, mime: att.mime, file: attachmentFileFor(a.id, att) }))
+        .filter(img => existsSync(img.file));
+      const componentHint = (a.context_hints || []).find(h => typeof h === 'string' && h.startsWith('Component:'));
+      // Flatten the design edits (pending_changes) into label/from/to rows.
+      const changes = [];
+      for (const [prop, v] of Object.entries(a.pending_changes || {})) {
+        if (!v || v.value == null) continue;
+        changes.push({ label: prop === 'copyChange' ? 'Text' : prop, from: v.original, to: v.value });
+      }
+      return {
+        num: i + 1,
+        comment: a.comment || '',
+        url_path: a.url_path || a.url || '',
+        component: componentHint ? componentHint.replace('Component:', '').trim() : null,
+        source_file_path: a.source_file_path || null,
+        selector: a.selector || null,
+        tag: a.element_context?.tag || null,
+        text: a.element_context?.text || null,
+        css: a.css || null,
+        changes,
+        images,
+      };
+    });
+  }
+
+  // Self-contained HTML: images embedded as base64 data URIs so the single file is
+  // portable (email/Slack) and prints to PDF from any browser. base64 here is fine —
+  // it's a one-off artifact, not the store.
+  async renderExportHtml(items, meta) {
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const cards = [];
+    for (const it of items) {
+      const figs = [];
+      for (const img of it.images) {
+        try {
+          const buf = await readFile(img.file);
+          const label = img.kind === 'capture' ? 'Screenshot' : 'Reference';
+          figs.push(`<figure><img src="data:${img.mime};base64,${buf.toString('base64')}" alt="${label}"><figcaption>${label}</figcaption></figure>`);
+        } catch { /* skip unreadable image */ }
+      }
+      const rows = [
+        it.component ? `<dt>Component</dt><dd><code>${esc(it.component)}</code></dd>` : '',
+        it.source_file_path ? `<dt>Source</dt><dd><code>${esc(it.source_file_path)}</code></dd>` : '',
+        it.url_path ? `<dt>Page</dt><dd>${esc(it.url_path)}</dd>` : '',
+        it.selector ? `<dt>Selector</dt><dd><code>${esc(it.selector)}</code></dd>` : '',
+        it.text ? `<dt>Element</dt><dd><code>${esc(it.tag || '')}</code> “${esc(it.text)}”</dd>` : '',
+      ].join('');
+      const changesHtml = it.changes.length
+        ? `<div class="changes"><span class="lbl">Design changes</span><ul>${it.changes.map(c => `<li><code>${esc(c.label)}</code> <span class="from">${esc(c.from ?? '—')}</span> → <span class="to">${esc(c.to)}</span></li>`).join('')}</ul></div>`
+        : '';
+      const cssHtml = it.css ? `<pre class="css"><code>${esc(it.css)}</code></pre>` : '';
+      cards.push(`<article class="card"><h2><span class="n">${it.num}</span>${esc(it.comment || '(no comment)')}</h2><dl>${rows}</dl>${changesHtml}${cssHtml}${figs.length ? `<div class="shots">${figs.join('')}</div>` : ''}</article>`);
+    }
+
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vibe Annotations — ${esc(meta.hostname)}</title><style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;color:#1a1d21;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:32px 24px 16px;max-width:820px;margin:0 auto}
+header h1{margin:0 0 4px;font-size:22px}
+header p{margin:0;color:#6b7280;font-size:13px}
+main{max-width:820px;margin:0 auto;padding:8px 24px 48px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card h2{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:10px}
+.card h2 .n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:linear-gradient(90deg,#E85B5C,#D03D68);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 14px;font-size:13px}
+dt{color:#6b7280}
+dd{margin:0}
+code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:12px}
+.changes{margin:0 0 14px;font-size:13px}
+.changes .lbl{display:block;color:#6b7280;margin-bottom:4px}
+.changes ul{margin:0;padding-left:18px}
+.changes li{margin:2px 0}
+.changes .from{color:#9ca3af;text-decoration:line-through}
+.changes .to{color:#111;font-weight:600}
+pre.css{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px;margin:0 0 14px}
+pre.css code{background:none;color:inherit;padding:0}
+.shots{display:flex;flex-wrap:wrap;gap:12px}
+figure{margin:0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;max-width:360px}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
+</style></head><body><header><h1>Vibe Annotations</h1><p>${esc(meta.hostname)} · Exported ${meta.date} · ${items.length} annotation${items.length === 1 ? '' : 's'}</p></header><main>${cards.join('') || '<p style="color:#6b7280">No annotations.</p>'}</main></body></html>`;
   }
 
   /**

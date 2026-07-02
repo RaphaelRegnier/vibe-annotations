@@ -318,6 +318,17 @@ const CACHE_TTL = 2000;
     } catch { /* ignore */ }
   }
 
+  // Fetch a shareable export (markdown or self-contained HTML) from the server.
+  // Direct fetch works on local origins (the export is a localhost-dev feature).
+  async function getShareExport(urlPattern, format) {
+    const res = await fetch(
+      `${SERVER_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
+      { signal: AbortSignal.timeout(15000) }
+    );
+    if (!res.ok) throw new Error(`export failed: ${res.status}`);
+    return { content: await res.text(), mime: res.headers.get('Content-Type') || 'text/plain' };
+  }
+
   async function stopWatchers() {
     try {
       await fetch(`${SERVER_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
@@ -372,5 +383,6 @@ const VibeAPI = {
   saveCustomShortcut,
   getWatchers,
   stopWatchers,
+  getShareExport,
 };
 export default VibeAPI;
