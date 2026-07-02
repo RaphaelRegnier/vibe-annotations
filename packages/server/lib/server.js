@@ -1036,14 +1036,20 @@ class LocalAnnotationsServer {
       filtered = filtered.filter(a => a.status === status);
     }
 
-    // Finalization: only when explicitly asked, surface variant annotations awaiting
-    // cleanup. Normal reads (status pending) never include variants-ready /
-    // variant-chosen / variants-discarded / resolved, so a routine "implement my
-    // annotations" can't re-trigger or prematurely finalize a variants cycle.
-    if (include_variants) {
+    // Variant lifecycle surfacing:
+    // - variants-discarded ALWAYS surfaces (even on a normal "implement my
+    //   annotations" read) — it left stale scaffolding in the codebase that must be
+    //   cleaned up, so the agent should always see it.
+    // - variant-chosen surfaces only with include_variants (explicit finalization),
+    //   so a routine read never prematurely finalizes a choice still under review.
+    // - variants-ready / resolved never surface here (mid-review / done).
+    const surface = new Set();
+    if (status === 'pending') surface.add('variants-discarded');
+    if (include_variants) { surface.add('variants-discarded'); surface.add('variant-chosen'); }
+    if (surface.size) {
       const seen = new Set(filtered.map(a => a.id));
       for (const a of annotations) {
-        if (['variant-chosen', 'variants-discarded'].includes(a.status) && !seen.has(a.id)) filtered.push(a);
+        if (surface.has(a.status) && !seen.has(a.id)) filtered.push(a);
       }
     }
 
