@@ -10,7 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink, readdir } from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -1142,16 +1142,44 @@ class LocalAnnotationsServer {
   }
 
   // Delete all on-disk attachment files for an annotation. Best-effort: a missing
-  // file is fine. Keeps the attachments/ dir in lockstep with the store on deletion.
+  // dir/file is fine. Keeps the attachments/ dir in lockstep with the store on
+  // deletion. Matches by the `<annotationId>__` filename prefix rather than the
+  // metadata array, so a user attachment that a sync race dropped from
+  // `annotation.attachments` still gets its file cleaned up instead of leaking.
   async removeAttachmentFiles(annotation) {
-    const atts = Array.isArray(annotation?.attachments) ? annotation.attachments : [];
-    for (const att of atts) {
-      try {
-        const file = attachmentFileFor(annotation.id, att);
-        if (existsSync(file)) await unlink(file);
-      } catch (error) {
-        console.error('Failed to remove attachment file:', error.message);
+    const id = annotation?.id;
+    if (!id) return;
+    const prefix = `${id}__`;
+    try {
+      const files = await readdir(ATTACH_DIR);
+      await Promise.all(
+        files
+          .filter(f => f.startsWith(prefix))
+          .map(f => unlink(path.join(ATTACH_DIR, f)).catch(() => { /* best effort */ }))
+      );
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.error('Failed to remove attachment files:', error.message);
+    }
+  }
+
+  // One-time sweep on boot: drop any attachment file whose annotation id is no
+  // longer in the store — orphans left by an interrupted delete, a sync race, or
+  // a pre-cleanup build. Prevents the attachments/ dir from bloating over time.
+  async sweepOrphanAttachments() {
+    try {
+      const files = await readdir(ATTACH_DIR);
+      if (!files.length) return;
+      const liveIds = new Set((await this.loadAnnotations()).map(a => a.id));
+      let removed = 0;
+      for (const f of files) {
+        const sep = f.indexOf('__');
+        if (sep === -1) continue; // not one of our `<id>__<attId>.<ext>` files
+        if (liveIds.has(f.slice(0, sep))) continue;
+        try { await unlink(path.join(ATTACH_DIR, f)); removed++; } catch { /* best effort */ }
       }
+      if (removed) console.log(`Swept ${removed} orphan attachment file(s)`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.error('Attachment sweep failed:', error.message);
     }
   }
 
@@ -1342,7 +1370,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   // and/or transition status (→ resolved on finalization).
   async updateAnnotation(args) {
     const { id, variantsPayload, status } = args || {};
-    if (!id) throw new Error('id is required');
+    if (!id || typeof id !== 'string') throw new Error('update_annotation requires "id" (string annotation id)');
     const annotations = await this.loadAnnotations();
     const idx = annotations.findIndex(a => a.id === id);
     if (idx === -1) throw new Error(`Annotation ${id} not found`);
@@ -1430,8 +1458,8 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   }
 
   async watchAnnotations(args) {
-    const { url, timeout = 300 } = args;
-    if (!url) throw new Error('url parameter is required');
+    const { url, timeout = 300 } = args || {};
+    if (!url || typeof url !== 'string') throw new Error('watch_annotations requires "url" (e.g. "http://localhost:3000/*")');
 
     if (this.watchers.size >= 100) {
       throw new Error('Too many active watchers (limit: 100). Stop existing watchers before creating new ones.');
@@ -1506,8 +1534,12 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   }
 
   async deleteAnnotation(args) {
-    const { id } = args;
-    
+    const { id } = args || {};
+    // The MCP SDK does not enforce inputSchema server-side; without this check a
+    // missing id fell through to the idempotent "already deleted" branch below —
+    // a silent no-op that reported deleted:true for malformed calls.
+    if (!id || typeof id !== 'string') throw new Error('delete_annotation requires "id" (string annotation id)');
+
     const annotations = await this.loadAnnotations();
     const index = annotations.findIndex(a => a.id === id);
     
@@ -1557,16 +1589,8 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
    * @returns {Object} Screenshot data response with annotation_id, screenshot, and message
    */
   async getAnnotationScreenshot(args) {
-    const { id } = args;
-
-    // Validate input
-    if (!id || typeof id !== 'string') {
-      return {
-        annotation_id: id || '',
-        screenshot: null,
-        message: 'Invalid annotation ID: must be a non-empty string'
-      };
-    }
+    const { id } = args || {};
+    if (!id || typeof id !== 'string') throw new Error('get_annotation_screenshot requires "id" (string annotation id)');
 
     try {
       // Load annotations - we only need to find the specific one
@@ -1632,8 +1656,9 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   }
 
   async deleteProjectAnnotations(args) {
-    const { url_pattern, confirm = false } = args;
-    
+    const { url_pattern, confirm = false } = args || {};
+    if (!url_pattern || typeof url_pattern !== 'string') throw new Error('delete_project_annotations requires "url_pattern" (e.g. "http://localhost:3000/*")');
+
     const annotations = await this.loadAnnotations();
     
     // Filter annotations matching the URL pattern
@@ -1704,8 +1729,9 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   }
 
   async getProjectContext(args) {
-    const { url } = args;
-    
+    const { url } = args || {};
+    if (!url || typeof url !== 'string') throw new Error('get_project_context requires "url" (a localhost URL, e.g. "http://localhost:3000/")');
+
     // Parse localhost URL to infer project structure
     const urlObj = new URL(url);
     const port = urlObj.port;
@@ -1942,7 +1968,10 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
 
   async start() {
     await this.ensureDataFile();
-    
+
+    // Reclaim attachment files whose annotation is gone (non-blocking).
+    this.sweepOrphanAttachments().catch(() => {});
+
     // Set up process handlers only once
     this.setupProcessHandlers();
     
