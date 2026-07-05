@@ -32,7 +32,7 @@ function formatBody(body: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/`(.+?)`/g, '<code class="bg-white/10 px-1 py-0.5 rounded text-sm">$1</code>')
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-accent-pink hover:underline" target="_blank" rel="noopener">$1</a>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-[#9191FD] hover:underline" target="_blank" rel="noopener">$1</a>')
     // Strip video URLs (rendered separately as LazyVideo components)
     .replace(/(?:^|\n)https:\/\/github\.com\/user-attachments\/assets\/[\w-]+/g, '')
     .replace(/\n\n/g, '<br/>')
@@ -47,7 +47,7 @@ export default async function ReleasesPage() {
         <h1 className="text-xl font-semibold mb-4">Release Notes</h1>
         <p className="text-white/60">
           Unable to load releases. View them on{' '}
-          <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases" className="text-accent-pink hover:underline" target="_blank" rel="noopener">
+          <a href="https://github.com/RaphaelRegnier/vibe-annotations/releases" className="text-[#9191FD] hover:underline" target="_blank" rel="noopener">
             GitHub
           </a>.
         </p>
@@ -66,7 +66,7 @@ export default async function ReleasesPage() {
                 href={release.html_url}
                 target="_blank"
                 rel="noopener"
-                className="text-base font-semibold text-white hover:text-accent-pink transition-colors"
+                className="text-base font-semibold text-white hover:text-[#9191FD] transition-colors"
               >
                 {release.name || release.tag_name}
               </a>

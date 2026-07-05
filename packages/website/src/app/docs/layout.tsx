@@ -119,7 +119,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           </div>
         </nav>
         <div className="hidden lg:block" />{/* gap column */}
-        <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:font-[550] prose-a:text-accent-pink prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-ink-2 prose-pre:border prose-pre:border-white/10 [&_pre_code]:bg-transparent [&_pre_code]:p-0">
+        <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:font-[550] prose-a:text-[#9191FD] prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-ink-2 prose-pre:border prose-pre:border-white/10 [&_pre_code]:bg-transparent [&_pre_code]:p-0">
           {children}
         </article>
       </div>
