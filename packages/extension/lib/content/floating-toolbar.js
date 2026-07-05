@@ -374,7 +374,8 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       }
     });
 
-    // Share / Export — dropdown with .md (agent) and .html (human share) options.
+    // Share / Export — dropdown with .md (agent), .html (human share), and .json
+    // (re-importable) options.
     // The menu is rendered at the shadow root (not inside the panel) to avoid the
     // panel's overflow clipping and the toolbar's transform breaking fixed-position.
     const shareBtn = viewAllPanel.querySelector('.vibe-viewall-export');
@@ -393,6 +394,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       shareMenu.innerHTML = `
         <button class="vibe-share-opt" data-format="md" type="button"><strong>.md</strong><span>for personal use</span></button>
         <button class="vibe-share-opt" data-format="html" type="button"><strong>.html</strong><span>to share externally</span></button>
+        <button class="vibe-share-opt" data-format="json" type="button"><strong>.json</strong><span>to re-import later</span></button>
       `;
       root.appendChild(shareMenu);
       shareMenu.querySelectorAll('.vibe-share-opt').forEach(opt => {
@@ -1030,6 +1032,12 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
         // Same renderer as the clipboard — client-side, works with no server.
         content = renderAnnotationsMarkdown(all, window.location.host);
         mime = 'text/markdown';
+      } else if (format === 'json') {
+        // The stored annotation objects in a re-importable envelope (see
+        // processImport). Client-side, works with no server. Round-trips onto
+        // another localhost via the settings-menu Import.
+        content = buildExportEnvelope(all);
+        mime = 'application/json';
       } else {
         // HTML embeds the images as base64, which needs the server to read them.
         ({ content, mime } = await VibeAPI.getShareExport(`${window.location.origin}/*`, 'html'));
@@ -1048,87 +1056,23 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     }
   }
 
-  function showExportModal() {
-    const root = VibeShadowHost.getRoot();
-    if (!root) return;
-
-    const backdrop = document.createElement('div');
-    backdrop.className = 'vibe-confirm-backdrop';
-    backdrop.innerHTML = `
-      <div class="vibe-confirm">
-        <div class="vibe-confirm-title">Export annotations</div>
-        <div class="vibe-confirm-msg">Choose what to include in the export file.</div>
-        <div class="vibe-export-options">
-          <button class="vibe-export-option vibe-export-page" type="button">This page only</button>
-          <button class="vibe-export-option vibe-export-project" type="button">All from this site</button>
-        </div>
-        <div class="vibe-confirm-actions" style="margin-top:12px;justify-content:flex-start;">
-          <button class="vibe-btn vibe-btn-secondary vibe-export-cancel">Cancel</button>
-        </div>
-      </div>
-    `;
-    root.appendChild(backdrop);
-
-    backdrop.querySelector('.vibe-export-cancel').addEventListener('click', () => backdrop.remove());
-    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
-
-    backdrop.querySelector('.vibe-export-page').addEventListener('click', async () => {
-      const annotations = await VibeAPI.loadAnnotations();
-      if (!annotations.length) {
-        backdrop.remove();
-        showInfoModal('Nothing to export', 'No annotations on this page.');
-        return;
-      }
-      doExport(annotations, 'page');
-      backdrop.remove();
-    });
-
-    backdrop.querySelector('.vibe-export-project').addEventListener('click', async () => {
-      const annotations = await VibeAPI.loadProjectAnnotations();
-      if (!annotations.length) {
-        backdrop.remove();
-        showInfoModal('Nothing to export', 'No annotations for this site.');
-        return;
-      }
-      doExport(annotations, 'project');
-      backdrop.remove();
-    });
-  }
-
-  function doExport(annotations, scope) {
+  // Wrap the stored annotation objects in the re-importable envelope processImport
+  // expects. The `source.origin` lets Import offer a cross-origin remap; `screenshot`
+  // is stripped (attachments travel by reference, not inline). Returns a JSON string.
+  function buildExportEnvelope(annotations) {
     const loc = window.location;
-    const exportData = {
+    return JSON.stringify({
       vibe_annotations_export: true,
       version: '1.0',
       exported_at: new Date().toISOString(),
-      source: {
-        origin: loc.origin,
-        hostname: loc.hostname,
-        port: loc.port || ''
-      },
-      scope,
+      source: { origin: loc.origin, hostname: loc.hostname, port: loc.port || '' },
+      scope: 'project',
       annotations: annotations.map(a => {
         const cleaned = { ...a };
         delete cleaned.screenshot;
         return cleaned;
       })
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const hostStr = loc.hostname + (loc.port ? '-' + loc.port : '');
-    const filename = `vibe-annotations-${hostStr}-${dateStr}.json`;
-
-    // Must append to document.body (not shadow root) for downloads to work
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    }, null, 2);
   }
 
   function triggerImport() {
