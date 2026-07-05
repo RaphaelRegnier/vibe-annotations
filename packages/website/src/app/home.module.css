@@ -209,25 +209,28 @@
 /* ===== hero demo — mobile portrait canvas =====
    Instead of shrinking the 1076-wide landscape to an unreadable thumbnail, switch
    to a 760-wide portrait canvas (still uniformly scaled by --ds, which the JS sets
-   against 760 at ≤640px). The browser sits on top at a fixed height so its
+   against 760 below md). The browser sits on top at a fixed height so its
    px-positioned pins/bubbles stay coherent; the prompt panel stacks below full
    width; the annotation queue and the landscape-only roaming cursor are hidden. */
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .dwrap { --sx: 50%; --sy: 50%; }
   .demo {
     width: 760px;
     height: 700px;
-    border-radius: 18px;
+    /* .demo is transform-scaled by --ds, so divide the target radius by --ds to
+       land a consistent 8px on screen at any width. */
+    border-radius: calc(8px / var(--ds, 1));
     gap: 12px;
     padding: 14px;
   }
-  /* .demo's radius is transform-scaled (→ 18px·ds on screen), but the frame and
-     glow that wrap it are NOT scaled — so their radii must track 18px·ds to nest
-     cleanly instead of looking rounder than everything inside them. */
-  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: calc(18px * var(--ds, 1) + 2px); }
-  .dframe::before { border-radius: calc(18px * var(--ds, 1)); }
-  .dframe::after { border-radius: calc(18px * var(--ds, 1) + 2px); }
-  .dglow { border-radius: calc(18px * var(--ds, 1) + 2px); }
+  /* the frame/glow that wrap .demo are NOT scaled, so they take the on-screen
+     values directly: 8px demo edge + 2px frame padding = 10px. */
+  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: 10px; }
+  .dframe::before { border-radius: 8px; }
+  .dframe::after { border-radius: 10px; }
+  .dglow { border-radius: 10px; }
+  /* inner containers are scaled too — divide to keep them a matching 8px */
+  .dbrowser, .dpanel { border-radius: calc(8px / var(--ds, 1)); }
   .dmain { flex-direction: column; gap: 12px; }
   .dbrowser { flex: none; height: 470px; }
   .dright { width: 100%; flex: none; }
@@ -252,7 +255,7 @@
     display: block;
     position: absolute;
     inset-inline: 0;
-    top: 0;
+    top: -80px; /* shave the empty space above the mascot so it sits higher */
     z-index: 1;
     pointer-events: none;
     aspect-ratio: 1080 / 1918;
@@ -262,6 +265,9 @@
     -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
     mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
   }
+  /* the mascot's vertical position scales with width (taller image → lower mascot),
+     so push the copy down proportionally to keep the character above the text */
+  .heroCopy { padding-top: clamp(120px, calc(52vw - 60px), 300px); }
 }
 
 /* Touch devices can't hover, so the cursor-driven decorations only ever sit idle

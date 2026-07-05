@@ -536,7 +536,7 @@ export default function Home() {
     const el = demoWrapRef.current
     if (!el) return
     const compute = () => {
-      const designW = window.matchMedia('(max-width: 640px)').matches ? 760 : 1076
+      const designW = window.matchMedia('(max-width: 767px)').matches ? 760 : 1076
       el.style.setProperty('--ds', String(Math.min(1, (el.clientWidth - 4) / designW)))
     }
     const ro = new ResizeObserver(compute)
@@ -657,7 +657,7 @@ export default function Home() {
 
         <motion.div
           {...fadeInUp}
-          className="relative z-10 max-w-[880px] mx-auto px-4 md:px-8 pt-24 md:pt-28 pb-28 text-center flex flex-col items-center"
+          className={`${s.heroCopy} relative z-10 max-w-[880px] mx-auto px-4 md:px-8 md:pt-28 pb-28 text-center flex flex-col items-center`}
         >
           <Overline className="mb-5">{content.hero.eyebrow}</Overline>
           <h1 className="font-display font-[550] text-[clamp(44px,6.5vw,76px)] leading-[1.06] tracking-[-0.02em] text-white mb-6 max-w-[860px]">
@@ -668,10 +668,12 @@ export default function Home() {
           </p>
           <div className="flex gap-3.5 justify-center flex-wrap mb-5">
             <Button href={CHROME_STORE_URL} external size="lg" iconRight="heroicons:arrow-right">
-              Download extension
+              <span className="sm:hidden">Extension</span>
+              <span className="hidden sm:inline">Download extension</span>
             </Button>
             <Button href={GITHUB_URL} external size="lg" variant="outline" icon="mdi:github">
-              View on GitHub
+              <span className="sm:hidden">GitHub</span>
+              <span className="hidden sm:inline">View on GitHub</span>
             </Button>
           </div>
           <CommandChip />
