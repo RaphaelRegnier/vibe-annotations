@@ -243,6 +243,8 @@ function DesignEditsCard() {
               Gap space
               <label className={s.deVal}>
                 <span className={s.deTry}>Try it<i /></span>
+                {/* touch devices get +/- steppers (no on-screen keyboard); desktop keeps the editable field */}
+                <button type="button" className={s.deStep} onClick={() => setGap((g) => Math.max(0, g - 2))} aria-label="Decrease gap">−</button>
                 <input
                   type="number"
                   min={0}
@@ -251,7 +253,9 @@ function DesignEditsCard() {
                   onChange={(e) => setGap(Math.max(0, Math.min(40, Number(e.target.value) || 0)))}
                   aria-label="Gap space in pixels"
                 />
+                <span className={s.deNum}>{gap}</span>
                 <i>px</i>
+                <button type="button" className={s.deStep} onClick={() => setGap((g) => Math.min(40, g + 2))} aria-label="Increase gap">+</button>
               </label>
             </div>
             <div className={s.deFoot}>
@@ -522,15 +526,21 @@ function Overline({ children, className = '' }: { children: React.ReactNode; cla
 export default function Home() {
   const demoWrapRef = useRef<HTMLDivElement>(null)
   // the demo's internal layout (pins, bubbles, cursor keyframes) is authored in px
-  // at a fixed 1076×600 design size — below that width we scale the whole scene
-  // uniformly instead of reflowing it (--ds consumed by .demo/.dframe in the CSS)
+  // and scaled uniformly to fit width (--ds consumed by .demo/.dframe in the CSS).
+  // Desktop uses the 1076×600 landscape canvas; ≤640px switches to a taller portrait
+  // canvas (760×760, see the mobile block in home.module.css) that stacks the prompt
+  // panel below the browser and hides the queue — so the px-positioned pins stay
+  // coherent instead of shrinking to an unreadable landscape thumbnail.
   useEffect(() => {
     const el = demoWrapRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => {
-      el.style.setProperty('--ds', String(Math.min(1, (el.clientWidth - 4) / 1076)))
-    })
+    const compute = () => {
+      const designW = window.matchMedia('(max-width: 640px)').matches ? 760 : 1076
+      el.style.setProperty('--ds', String(Math.min(1, (el.clientWidth - 4) / designW)))
+    }
+    const ro = new ResizeObserver(compute)
     ro.observe(el)
+    compute()
     return () => ro.disconnect()
   }, [])
   const heroSceneRef = useRef<HTMLDivElement>(null)

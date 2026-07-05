@@ -206,6 +206,29 @@
   .demo *, .demo *::after { animation-play-state: paused !important; }
 }
 
+/* ===== hero demo — mobile portrait canvas =====
+   Instead of shrinking the 1076-wide landscape to an unreadable thumbnail, switch
+   to a 760-wide portrait canvas (still uniformly scaled by --ds, which the JS sets
+   against 760 at ≤640px). The browser sits on top at a fixed height so its
+   px-positioned pins/bubbles stay coherent; the prompt panel stacks below full
+   width; the annotation queue and the landscape-only roaming cursor are hidden. */
+@media (max-width: 640px) {
+  .dwrap { --sx: 50%; --sy: 50%; }
+  .demo {
+    width: 760px;
+    height: 700px;
+    border-radius: 18px;
+    gap: 12px;
+    padding: 14px;
+  }
+  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: 20px; }
+  .dmain { flex-direction: column; gap: 12px; }
+  .dbrowser { flex: none; height: 470px; }
+  .dright { width: 100%; flex: none; }
+  .dqueue { display: none; }
+  .cur { display: none; }
+}
+
 /* ===== features bento — card shell + split layout (reference: 2 wide on top, 3-col below) ===== */
 .fcard { position: relative; background: var(--ink-2); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 14px 34px rgba(0,0,0,0.4); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
 .fcard:hover { transform: translateY(-3px); box-shadow: 0 20px 44px rgba(0,0,0,0.55); }
@@ -284,6 +307,29 @@
 .deVal i { font-style: normal; color: rgba(255,255,255,0.4); }
 .deFoot { display: flex; align-items: center; gap: 8px; padding-top: 2px; border-top: 1px solid rgba(255,255,255,0.07); }
 .deVp { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: rgba(255,255,255,0.5); padding-top: 6px; }
+/* gap stepper — desktop edits the number field; touch gets +/- buttons instead
+   (hidden here, revealed in the mobile block below) so no on-screen keyboard pops */
+.deStep, .deNum { display: none; }
+
+/* --- design-edits reflow once the card stacks (viz no longer has the text column
+   beside it, so the skeleton's negative offset would sit off-card) --- */
+@media (max-width: 1023px) {
+  .deSkel { left: 20px; bottom: 24px; z-index: 3; }
+  .deThread { display: none; } /* the thread's curve was tuned to the off-card position */
+}
+@media (max-width: 640px) {
+  .deVal { cursor: default; }
+  .deVal input { display: none; }
+  .deTry { display: none; }
+  .deNum { display: inline; min-width: 15px; text-align: right; }
+  .deStep {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 5px; flex: none;
+    border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.08);
+    color: #fff; font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .deStep:active { background: rgba(255,255,255,0.18); }
+}
 
 /* --- card 3: variants preview — interactive radio rows + switching skeleton --- */
 .vViz { flex: 1; display: flex; flex-direction: column; gap: 9px; padding: 30px 22px 16px; }
