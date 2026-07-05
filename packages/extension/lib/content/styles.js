@@ -133,6 +133,34 @@ export const VIBE_STYLES = `
   z-index: 1;
 }
 
+/* brief selector hint on the hover highlight — sits just above the rect's
+   top-left, or inside it when the element hugs the top of the viewport */
+.vibe-inspect-label {
+  position: absolute;
+  left: -2px;
+  bottom: 100%;
+  margin-bottom: 3px;
+  max-width: 340px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: #fff;
+  font-family: var(--v-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.vibe-inspect-label--inside {
+  bottom: auto;
+  top: 2px;
+  margin-bottom: 0;
+}
+
 /* ===== Badges (numbered pins) ===== */
 .vibe-badge {
   position: fixed;

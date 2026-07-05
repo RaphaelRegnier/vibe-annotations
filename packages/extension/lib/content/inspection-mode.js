@@ -5,9 +5,11 @@
 import VibeEvents from './event-bus.js';
 import VibeShadowDOMUtils from './shadow-dom-utils.js';
 import VibeShadowHost from './shadow-host.js';
+import VibeElementContext from './element-context.js';
 
   let active = false;
   let highlightEl = null;
+  let labelEl = null;
   let hoveredElement = null;
   let navigatedByKeyboard = false;
   let navStack = []; // ancestors visited via ArrowUp, for ArrowDown to retrace
@@ -33,10 +35,13 @@ import VibeShadowHost from './shadow-host.js';
     const root = VibeShadowHost.getRoot();
     if (!root) return;
 
-    // Create highlight overlay
+    // Create highlight overlay + its selector label (a child so it rides along)
     highlightEl = document.createElement('div');
     highlightEl.className = 'vibe-highlight';
     highlightEl.style.display = 'none';
+    labelEl = document.createElement('div');
+    labelEl.className = 'vibe-inspect-label';
+    highlightEl.appendChild(labelEl);
     root.appendChild(highlightEl);
 
     // Set up capture-phase listeners on document
@@ -83,8 +88,9 @@ import VibeShadowHost from './shadow-host.js';
     }
     onMouseOver = onMouseOut = onPointerMove = onPointerDown = onMouseDown = onClick = onKeyDown = null;
 
-    // Remove highlight
+    // Remove highlight (the label is a child, removed with it)
     if (highlightEl) { highlightEl.remove(); highlightEl = null; }
+    labelEl = null;
 
     hoveredElement = null;
     navigatedByKeyboard = false;
@@ -290,6 +296,27 @@ import VibeShadowHost from './shadow-host.js';
     highlightEl.style.left = `${rect.left}px`;
     highlightEl.style.width = `${rect.width}px`;
     highlightEl.style.height = `${rect.height}px`;
+
+    // Brief selector hint above the rect's top-left; flip inside when the
+    // element is too close to the top of the viewport for the label to fit.
+    if (labelEl) {
+      labelEl.textContent = briefSelectorLabel(element);
+      labelEl.classList.toggle('vibe-inspect-label--inside', rect.top < 22);
+    }
+  }
+
+  // A short, readable hint for the hovered element — tag + id, or tag + its
+  // first couple of stable classes. Not the full capture selector (that runs on
+  // click); just enough to tell elements apart while hovering.
+  function briefSelectorLabel(element) {
+    const tag = element.tagName ? element.tagName.toLowerCase() : 'node';
+    if (element.id) return `${tag}#${element.id}`.slice(0, 42);
+    let out = tag;
+    try {
+      const classes = (VibeElementContext.getDisplayClasses(element) || []).slice(0, 2);
+      out += classes.map((c) => `.${c}`).join('');
+    } catch { /* getDisplayClasses is best-effort */ }
+    return out.length > 42 ? out.slice(0, 41) + '…' : out;
   }
 
 const VibeInspectionMode = { init, start, stop, isActive, tempDisable, reEnable };
