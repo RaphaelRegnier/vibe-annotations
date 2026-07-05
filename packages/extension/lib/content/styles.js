@@ -804,7 +804,8 @@ export const VIBE_STYLES = `
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 8px 5px 5px;
+  /* extra right padding reserves the bottom-right corner for the resize grip */
+  padding: 0 22px 5px 5px;
 }
 
 .vibe-kbd-hint {
@@ -814,16 +815,19 @@ export const VIBE_STYLES = `
   pointer-events: none;
 }
 
-.vibe-foot-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* resize handle pinned flush to the field's bottom-right corner (like a native
+   textarea grip). The wrap is position:relative, so this anchors to its corner. */
 .vibe-resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
   display: flex;
-  padding: 5px;
-  margin: -5px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 3px;
   color: var(--v-text-secondary);
   cursor: ns-resize;
   touch-action: none;

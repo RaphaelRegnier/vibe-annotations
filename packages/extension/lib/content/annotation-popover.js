@@ -187,13 +187,11 @@ import VibeShadowHost from './shadow-host.js';
           <textarea class="vibe-textarea vibe-textarea-add" placeholder="Describe the change for your AI agent…" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
           <div class="vibe-input-foot">
             <button class="vibe-add-btn" type="button" title="Add an attachment">${VIBE_PLUS_ICON}</button>
-            <span class="vibe-foot-right">
-              <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
-              <span class="vibe-resize-grip" title="Drag to resize">
-                <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M8 1L1 8M8 5L5 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              </span>
-            </span>
+            <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
           </div>
+          <span class="vibe-resize-grip" title="Drag to resize">
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M8 1L1 8M8 5L5 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          </span>
           <div class="vibe-add-menu" hidden>
             <button class="vibe-add-opt" data-add="file" type="button">${VIBE_PAPERCLIP_ICON}<span>Attach file</span></button>
             <button class="vibe-add-opt" data-add="shot" type="button">${VIBE_CAMERA_ICON}<span>Take a screenshot</span></button>
