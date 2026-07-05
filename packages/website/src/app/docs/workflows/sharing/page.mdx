@@ -1,0 +1,23 @@
+export const metadata = { title: 'Sharing exports' }
+
+# Sharing a Review
+
+Package a batch of annotations into a single file to hand off to a teammate or an agent. Open **View All** in the toolbar and use **Share / Export**.
+
+## Two formats
+
+- **`.md`** — *for personal use.* A plain-markdown rundown of every annotation (selector, comment, design changes, image paths). Rendered entirely client-side, so it works with **no server running**. This is the same format as the **Copy** button, saved to a file.
+- **`.html`** — *to share externally.* A single self-contained page with every screenshot and reference image embedded as base64 — no external files, opens in any browser. Building it reads the image files, so it **requires the local server**.
+
+## Workflow
+
+1. Open **View All** in the toolbar
+2. Click **Share / Export** and choose `.md` or `.html`
+3. The file downloads for the whole site's annotations (finalized variants are excluded, matching the list you see)
+
+## Which one?
+
+- Handing off to your own coding agent, or working offline → **`.md`**.
+- Sending to someone without the extension (design review, stakeholder sign-off) → **`.html`**, so the images come along and it opens anywhere.
+
+For a two-way handoff where a teammate re-imports annotations onto their own localhost — badges, previews and all — see [Collaboration](/docs/workflows/collaboration).

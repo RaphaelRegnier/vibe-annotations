@@ -1,0 +1,22 @@
+export const metadata = { title: 'Design edits' }
+
+# Design Edits
+
+Tweak size, spacing, color, and text in a Figma-like panel and preview every change in place before handing it to your agent.
+
+## Workflow
+
+1. Click an element to open the popover, then switch to the **Design** tab
+2. Adjust layout (flex direction, justify, align, gap), size, spacing, colors, or replace the text
+3. The page updates **live** so you can see the change in context before committing to it
+4. Save the annotation, then **Copy** or sync it to your agent like any other
+
+## What the agent receives
+
+Design edits are stored as `pending_changes` — the original and new value for each property, plus a text `copyChange` when you edit copy. Your agent gets the exact deltas alongside the selector and element context.
+
+## Tips
+
+- Edits are **previews**, not committed code. Nothing changes in your codebase until your agent implements the annotation — the live preview only reflects the change locally in the browser.
+- Ask your agent to map raw values to your design system (Tailwind classes, CSS variables, or tokens) rather than pasting literal pixel/hex values. The `read_annotations` MCP tool hints at this automatically.
+- Combine a design edit with a comment on the same pin to add intent ("tighten this, it should match the cards below").

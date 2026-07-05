@@ -6,12 +6,15 @@ import Navbar from '@/components/Navbar'
 
 function getExtensionVersion(): string {
   try {
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(process.cwd(), '..', 'extension', 'manifest.json'), 'utf8')
+    // WXT generates the manifest into .output/ at build time and sources its
+    // version from the extension's package.json, so read that (the old
+    // manifest.json at the extension root no longer exists post-WXT migration).
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), '..', 'extension', 'package.json'), 'utf8')
     )
-    return manifest.version
+    return pkg.version
   } catch {
-    return '1.6.2'
+    return '1.6.3'
   }
 }
 
@@ -33,6 +36,10 @@ const NAV: NavItem[] = [
       { href: '/docs/workflows/copy-paste', label: 'Copy & paste' },
       { href: '/docs/workflows/mcp', label: 'Multi-page (MCP)' },
       { href: '/docs/workflows/watch-mode', label: 'Watch mode' },
+      { href: '/docs/workflows/design-edits', label: 'Design edits' },
+      { href: '/docs/workflows/variants', label: 'Variant generation' },
+      { href: '/docs/workflows/screenshots', label: 'Screenshots & images' },
+      { href: '/docs/workflows/sharing', label: 'Sharing exports' },
       { href: '/docs/workflows/collaboration', label: 'Collaboration' },
       { href: '/docs/workflows/agents', label: 'Agent annotation' },
     ]

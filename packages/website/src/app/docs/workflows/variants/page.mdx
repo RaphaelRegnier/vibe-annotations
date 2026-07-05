@@ -1,0 +1,31 @@
+export const metadata = { title: 'Variant generation' }
+
+# Variant Generation
+
+Ask your agent for several variants of a component, preview them right on the page, and pick the winner. Your agent builds the variants in your actual codebase — not a mockup — so the one you choose is already implemented.
+
+> **Requires the MCP server.** The Variants tab is disabled until a coding agent is connected over MCP. See [MCP Setup](/docs/mcp-setup).
+
+## Workflow
+
+1. Click the component you want to explore and switch to the **Variants** tab
+2. Describe what you want ("three headline layouts", "a denser and a roomier card")
+3. Hand the annotation to your agent. It reads the request over MCP and scaffolds each variant in your code behind a toggle, then reports back
+4. Reopen the extension to **preview** each variant live and select your favorite
+5. Your agent **finalizes** the choice — it inlines the winning variant and strips all the temporary scaffolding, leaving a clean diff
+
+## Lifecycle
+
+A variants annotation moves through states so the agent and extension stay in sync:
+
+- **pending** → you requested variants; the agent generates them
+- **variants-ready** → scaffolding is in place; preview and choose in the extension
+- **variant-chosen** → you picked one; the agent finalizes and cleans up
+- **variants-discarded** → you dismissed them; the agent removes the leftover scaffolding
+
+The agent follows the `variant_instructions` carried on the annotation exactly and writes progress back with the `update_annotation` MCP tool. You don't manage any of this by hand — just request, preview, and pick.
+
+## Tips
+
+- Keep the requested count small (2–4). Each variant is real code the agent has to build and later remove.
+- If you change your mind, discard the annotation — the agent will clean up the scaffolding on its next pass rather than leaving dead code behind.
