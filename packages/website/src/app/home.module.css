@@ -221,7 +221,13 @@
     gap: 12px;
     padding: 14px;
   }
-  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: 20px; }
+  /* .demo's radius is transform-scaled (→ 18px·ds on screen), but the frame and
+     glow that wrap it are NOT scaled — so their radii must track 18px·ds to nest
+     cleanly instead of looking rounder than everything inside them. */
+  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: calc(18px * var(--ds, 1) + 2px); }
+  .dframe::before { border-radius: calc(18px * var(--ds, 1)); }
+  .dframe::after { border-radius: calc(18px * var(--ds, 1) + 2px); }
+  .dglow { border-radius: calc(18px * var(--ds, 1) + 2px); }
   .dmain { flex-direction: column; gap: 12px; }
   .dbrowser { flex: none; height: 470px; }
   .dright { width: 100%; flex: none; }
@@ -311,11 +317,20 @@
    (hidden here, revealed in the mobile block below) so no on-screen keyboard pops */
 .deStep, .deNum { display: none; }
 
+/* the mobile thread path is only shown once the card stacks (see below) */
+.deThreadMobile { display: none; }
+
 /* --- design-edits reflow once the card stacks (viz no longer has the text column
    beside it, so the skeleton's negative offset would sit off-card) --- */
 @media (max-width: 1023px) {
-  .deSkel { left: 20px; bottom: 24px; z-index: 3; }
-  .deThread { display: none; } /* the thread's curve was tuned to the off-card position */
+  /* narrow the panel so the skeleton has a clear left column to live in */
+  .dePanel { width: min(100%, 224px); }
+  .deSkel { left: 14px; top: 84px; bottom: auto; width: 84px; z-index: 4; }
+  /* bring the thread back on-card, above the panel (so the short panel→badge
+     connector isn't hidden behind it), and swap to the mobile path */
+  .deThread { left: 0; width: 100%; z-index: 3; }
+  .deThreadWide { display: none; }
+  .deThreadMobile { display: inline; }
 }
 @media (max-width: 640px) {
   .deVal { cursor: default; }
