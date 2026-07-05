@@ -235,6 +235,43 @@
   .cur { display: none; }
 }
 
+/* mobile hero art — a single static image replacing the desktop split-scene.
+   The background-image lives ONLY inside the media query, so desktop (where this
+   element is display:none) never fetches it — a display:none element's own inline
+   background still gets requested by Chrome, an undeclared one does not. */
+/* the desktop split-scene images are declared only at ≥md, so mobile — where the
+   scene is display:none anyway — never fetches these two large jpgs. */
+@media (min-width: 768px) {
+  .heroHalfLeft { background-image: url(/hero-left.jpg); }
+  .heroHalfRight { background-image: url(/hero-right.jpg); }
+}
+
+.heroMobileBg { display: none; }
+@media (max-width: 767px) {
+  .heroMobileBg {
+    display: block;
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    z-index: 1;
+    pointer-events: none;
+    aspect-ratio: 1080 / 1918;
+    background-image: url(/hero-mobile.jpg);
+    background-size: cover;
+    background-position: top center;
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+  }
+}
+
+/* Touch devices can't hover, so the cursor-driven decorations only ever sit idle
+   as composited layers — drop them entirely rather than pay to render nothing.
+   (The desktop hero split-scene is already display:none below md; this also covers
+   the demo's cursor glow/shimmer and any touchscreen-desktop.) */
+@media (hover: none) {
+  .dglow, .dframe::after, .holo, .holoChroma { display: none; }
+}
+
 /* ===== features bento — card shell + split layout (reference: 2 wide on top, 3-col below) ===== */
 .fcard { position: relative; background: var(--ink-2); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 14px 34px rgba(0,0,0,0.4); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
 .fcard:hover { transform: translateY(-3px); box-shadow: 0 20px 44px rgba(0,0,0,0.55); }

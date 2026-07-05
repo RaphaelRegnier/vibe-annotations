@@ -602,21 +602,27 @@ export default function Home() {
         onMouseMove={trackShimmer}
         onMouseLeave={endShimmer}
       >
+        {/* mobile hero art — a single static image. Touch can't hover, so we skip the
+            desktop split-scene + holo sheen + parallax entirely. The image is declared
+            only inside the mobile media query (see .heroMobileBg) so desktop never
+            fetches it, and the split-scene below is display:none on mobile so its
+            hero-left/right.jpg + blend layers never load there. */}
+        <div aria-hidden className={s.heroMobileBg} />
+
         {/* floating cards scene — split into two edge-anchored halves so the center stays
             open. Each half hugs its side and fades toward the middle + bottom. Tune the
             widths / max-w below to spread them further apart or pull them in. */}
         <div
           ref={heroSceneRef}
           aria-hidden
-          className={`${s.heroScene} absolute top-0 left-1/2 w-full max-w-[1700px] h-full pointer-events-none z-[1]`}
+          className={`${s.heroScene} hidden md:block absolute top-0 left-1/2 w-full max-w-[1700px] h-full pointer-events-none z-[1]`}
         >
           {/* left — mascot + comment cards, hugging the left edge (nudged further out) */}
           <div
             ref={heroLeftRef}
-            className="absolute top-0 left-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-left-top"
+            className={`${s.heroHalfLeft} absolute top-0 left-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-left-top`}
             style={{
               isolation: 'isolate',
-              backgroundImage: 'url(/hero-left.jpg)',
               WebkitMaskImage:
                 'linear-gradient(90deg, rgba(0,0,0,0.72) 0%, #000 9%, #000 60%, transparent 100%), linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.55) 84%, rgba(0,0,0,0.2) 93%, transparent 100%)',
               WebkitMaskComposite: 'source-in',
@@ -631,10 +637,9 @@ export default function Home() {
           {/* right — stacked cards, hugging the right edge (nudged further out) */}
           <div
             ref={heroRightRef}
-            className="absolute top-0 right-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-right-top"
+            className={`${s.heroHalfRight} absolute top-0 right-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-right-top`}
             style={{
               isolation: 'isolate',
-              backgroundImage: 'url(/hero-right.jpg)',
               WebkitMaskImage:
                 'linear-gradient(90deg, transparent 0%, #000 40%, #000 91%, rgba(0,0,0,0.72) 100%), linear-gradient(180deg, #000 0%, #000 78%, rgba(0,0,0,0.45) 91%, transparent 100%)',
               WebkitMaskComposite: 'source-in',
