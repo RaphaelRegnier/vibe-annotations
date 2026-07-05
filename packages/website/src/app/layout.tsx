@@ -22,6 +22,8 @@ const cabinetGrotesk = localFont({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // tint the mobile browser UI (status/address bar) to match the dark sections
+  themeColor: '#000114',
 }
 
 export const metadata: Metadata = {

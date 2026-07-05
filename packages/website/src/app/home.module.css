@@ -255,7 +255,7 @@
     display: block;
     position: absolute;
     inset-inline: 0;
-    top: -80px; /* shave the empty space above the mascot so it sits higher */
+    top: -40px; /* shave a little of the empty space above the mascot so it sits higher */
     z-index: 1;
     pointer-events: none;
     aspect-ratio: 1080 / 1918;
