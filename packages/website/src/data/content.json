@@ -1,81 +1,76 @@
 {
   "hero": {
-    "badges": [
-      "100% Free",
-      "No Account & Subscription", 
-      "Open Source"
-    ],
-    "title": [
-      "Get all your AI feedbacks",
-      "implemented at once"
-    ],
-    "description": "Drop visual annotations on your site and watch AI coding agents handle every fix instantly. Never leave your browser, everything runs locally and stays secure.",
-    "cta": "Get The Free Extension"
+    "eyebrow": "The devil is in the details",
+    "title": "Visual feedback for AI coding agents",
+    "description": "Annotate anything on your localhost, across pages, and let your coding agent implement every fix in one batch. Free, open source, 100% local.",
+    "command": "npx vibe-annotations-server init",
+    "commandHint": "1 min and you're set",
+    "proof": ["Free & open source", "100% local · no cloud", "MIT licensed"]
   },
   "howItWorks": {
     "subtitle": "How it works",
-    "title": "Visual feedback meets AI automation",
-    "description": {
-      "problem": "Here's the problem: Your AI is smart, but your feedback workflow isn't keeping up.",
-      "details": "You're spending hours explaining UI issues one element at a time, taking screenshots to show what needs fixing, copy-pasting HTML selectors, and describing vague locations like \"the button in the top right\" which only leads to more confusion.",
-      "solution": "Vibe Annotations is a better way to streamline this process and make your feedback workflow as intelligent as your AI."
-    },
-    "demoButton": "Play The Demo (1min)",
+    "title": "Keep up with your AI coding agent",
+    "builtFor": ["Claude Code", "Cursor", "Windsurf", "Copilot"],
     "steps": [
       {
-        "title": "1. Click & Comment",
-        "description": "Drop annotations directly on any element. No selectors. No screenshots. Just click and type."
+        "title": "Pin it",
+        "icon": "heroicons:cursor-arrow-rays-solid",
+        "description": "Click any element on any local page. No selectors, no setup."
       },
       {
-        "title": "2. Batch Everything", 
-        "description": "Annotate across multiple pages, multiple elements. Build your complete feedback queue in seconds."
+        "title": "Describe it",
+        "icon": "heroicons:chat-bubble-left-right-solid",
+        "description": "Leave a quick note on what needs fixing, add a design edit or a screenshot."
       },
       {
-        "title": "3. AI Implements All",
-        "description": "Send everything to Claude Code, Cursor, GitHub Copilot, or Windsurf. Watch as every annotation becomes working code."
+        "title": "Ship it",
+        "icon": "heroicons:rocket-launch-solid",
+        "description": "Hand the queue to your agent and watch every fix land in one batch."
       }
     ]
   },
-  "features": {
+  "toolset": {
     "subtitle": "Features",
-    "title": "Everything you need, nothing you don't",
-    "cta": "Get The Free Extension",
-    "items": [
-      {
-        "title": "Precision Inspector",
-        "description": "Click any element to annotate. Your AI gets exact context via the API: DOM structure, styles, zoned-screenshot (optional) and your instructions.",
-        "icon": "heroicons:cursor-arrow-rays-20-solid"
+    "title": "A toolset, not just a pin",
+    "items": {
+      "context": {
+        "lead": "Pixel-perfect context.",
+        "rest": "Every pin captures the exact DOM selector, the React (or Vue) component and source file behind it."
       },
-      {
-        "title": "Multi-Page Annotations",
-        "description": "Drop feedback across your entire app. Process all pages and routes in a single AI session. You can go up to 200 annotations at once!",
-        "icon": "heroicons:globe-alt"
+      "designEdits": {
+        "lead": "Direct design edits.",
+        "rest": "Change size, spacing, color and text in a Figma-like panel. Live preview before handing-off to your agent."
       },
-      {
-        "title": "Universal AI Support",
-        "description": "Works with Claude Code, Cursor, Windsurf, and any MCP-compatible coding agent. Just copy-paste the given lines on installation.",
-        "icon": "heroicons:sparkles"
+      "variants": {
+        "lead": "Variants preview.",
+        "rest": "Ask your agent for variants of any component, then pick the winner right on the page."
       },
-      {
-        "title": "Local-First Architecture",
-        "description": "Vibe Annotations works on localhost and local files. Your data never leaves your machine. No cloud. No tracking. Complete privacy.",
-        "icon": "heroicons:lock-closed-20-solid"
+      "share": {
+        "lead": "Share in one file.",
+        "rest": "Export annotations as one self-contained HTML with images embedded, or a lighter .md file."
       },
-      {
-        "title": "Zero Configuration",
-        "description": "Install extension. Start server. Add MCP. Annotate. That's it. No API keys, no accounts, 1min and you're set.",
-        "icon": "heroicons:cog-6-tooth"
+      "screenshots": {
+        "lead": "Auto-screenshots,",
+        "rest": "and attach your own reference images."
       },
-      {
-        "title": "Developer-Friendly",
-        "description": "Light/dark themes. Keyboard shortcuts. Designed by developers, for developers.",
-        "icon": "heroicons:command-line"
+      "install": {
+        "lead": "Install once, use everywhere.",
+        "rest": "One chromium browser extension, one local server. Zero switch cost."
+      },
+      "more": {
+        "lead": "And more...",
+        "features": [
+          { "icon": "heroicons:adjustments-horizontal", "label": "Customizable" },
+          { "icon": "heroicons:eye", "label": "Code as you go" },
+          { "icon": "heroicons:lock-closed", "label": "Secure by design" },
+          { "icon": "heroicons:plus", "label": "Always improving!" }
+        ]
       }
-    ]
+    }
   },
   "faq": {
     "subtitle": "Some extra info",
-    "title": "Frequently Asked Questions",
+    "title": "Frequently asked questions",
     "items": [
       {
         "question": "What browsers are compatible?",
@@ -102,17 +97,5 @@
         "answer": "Yes! We offer several support channels: GitHub Issues for bug reports, comprehensive documentation, and video tutorials. Most setup issues are resolved within minutes with our troubleshooting guide."
       }
     ]
-  },
-  "footer": {
-    "logo": "Vibe Annotations",
-    "links": [
-      "Get the extension",
-      "Demo", 
-      "How it works",
-      "Features",
-      "FAQ",
-      "Terms and services"
-    ],
-    "copyright": "©2025 Spellbind Creative Studio"
   }
 }

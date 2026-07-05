@@ -9,14 +9,52 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand accent ramp (gradient stops, left → right)
         accent: {
-          DEFAULT: '#FF6B35',
-          dark: '#E55A2B',
-          light: '#FF8055',
+          orange: '#FF6A00',
+          red: '#FF4432',
+          pink: '#FF2D6B',
+          magenta: '#F500A4',
+          purple: '#A026DC',
+          violet: '#A82BFF',
+          DEFAULT: '#FF2D6B',
+        },
+        // Dark marketing surfaces
+        ink: {
+          DEFAULT: '#000114',
+          1: '#111022',
+          2: '#181631',
+          3: '#221F40',
+        },
+        'on-dark': {
+          DEFAULT: '#FFFFFF',
+          body: '#C7C7F2',
+          muted: 'rgba(255,255,255,0.46)',
         },
       },
+      backgroundImage: {
+        'gradient-brand':
+          'linear-gradient(90deg, #FF4432 0%, #FF2D6B 39.51%, #F500A4 67.44%, #A026DC 100.01%)',
+        'gradient-brand-135':
+          'linear-gradient(135deg, #FF4432 0%, #FF2D6B 39.51%, #F500A4 67.44%, #A026DC 100.01%)',
+        'gradient-brand-hover':
+          'linear-gradient(90deg, #ED3422 0%, #ED1D5B 39.51%, #DC0094 67.44%, #8E16C8 100.01%)',
+      },
+      boxShadow: {
+        glow: '0 8px 28px rgba(255, 45, 107, 0.32)',
+        'glow-hover': '0 12px 36px rgba(255, 45, 107, 0.42)',
+        'glow-purple': '0 8px 28px rgba(160, 38, 220, 0.30)',
+        'card-dark': '0 14px 34px rgba(0, 0, 0, 0.4)',
+        'card-dark-hover': '0 20px 44px rgba(0, 0, 0, 0.55)',
+      },
       fontFamily: {
-        sans: ['"General Sans"', 'var(--font-general-sans)', 'system-ui', 'sans-serif'],
+        sans: ['"Satoshi"', 'var(--font-satoshi)', 'system-ui', 'sans-serif'],
+        display: ['"Cabinet Grotesk"', 'var(--font-cabinet)', '"Satoshi"', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', '"SF Mono"', 'Menlo', 'Consolas', 'monospace'],
+      },
+      borderRadius: {
+        card: '18px',
+        panel: '24px',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

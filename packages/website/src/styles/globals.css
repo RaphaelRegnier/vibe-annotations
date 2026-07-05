@@ -3,8 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Vibe Annotations brand tokens (from design system) */
+    --accent-orange: #FF6A00;
+    --accent-red: #FF4432;
+    --accent-pink: #FF2D6B;
+    --accent-magenta: #F500A4;
+    --accent-purple: #A026DC;
+    --gradient-brand: linear-gradient(90deg, #FF4432 0%, #FF2D6B 39.51%, #F500A4 67.44%, #A026DC 100.01%);
+    --gradient-brand-135: linear-gradient(135deg, #FF4432 0%, #FF2D6B 39.51%, #F500A4 67.44%, #A026DC 100.01%);
+    --gradient-brand-hover: linear-gradient(90deg, #ED3422 0%, #ED1D5B 39.51%, #DC0094 67.44%, #8E16C8 100.01%);
+    --ink-base: #0B0A14;
+    --ink-1: #111022;
+    --ink-2: #181631;
+    --ink-3: #221F40;
+    --shadow-glow: 0 8px 28px rgba(255, 45, 107, 0.32);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
   html {
-    font-family: var(--font-general-sans), system-ui, sans-serif;
+    font-family: var(--font-satoshi), system-ui, sans-serif;
+    /* overscroll (rubber-band) reveals the document canvas — keep it on-brand dark */
+    background-color: #000114;
   }
   
   body {

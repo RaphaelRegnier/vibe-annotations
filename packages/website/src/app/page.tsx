@@ -1,1032 +1,805 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
-import { Icon } from '@iconify/react'
 import { motion } from 'framer-motion'
-import content from '@/data/content.json'
+import { Icon } from '@iconify/react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import Button from '@/components/Button'
+import content from '@/data/content.json'
+import s from './home.module.css'
+
+const CHROME_STORE_URL =
+  'https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb'
+const GITHUB_URL = 'https://github.com/RaphaelRegnier/vibe-annotations'
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
+}
+
+const scrollFadeInUp = {
+  initial: { opacity: 0, y: 30 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-80px' },
+  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
+}
+
+/* ============ animated hero demo (16s CSS loop, see home.module.css) ============ */
+function HeroDemo({ wrapRef }: { wrapRef: React.RefObject<HTMLDivElement | null> }) {
+  return (
+    <div ref={wrapRef} className={s.dwrap}>
+      <div className={s.dglow} aria-hidden />
+      <div className={s.dframe}>
+        <div className={s.demo}>
+        <div className={s.dmain}>
+          {/* browser mockup */}
+          <div className={s.dbrowser}>
+            <div className={s.dtop}>
+              <span className={s.ddot} style={{ background: '#ff5f57' }} />
+              <span className={s.ddot} style={{ background: '#febc2e' }} />
+              <span className={s.ddot} style={{ background: '#28c840' }} />
+              <div className={s.durl}>localhost:3000</div>
+            </div>
+            <div className={s.dpage}>
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className={s.skl} style={{ width: 34, height: 34, borderRadius: '50%' }} />
+                <div className="flex gap-3 ml-auto">
+                  <div className={s.skl} style={{ width: 38, height: 8 }} />
+                  <div className={s.skl} style={{ width: 38, height: 8 }} />
+                  <div className={s.skl} style={{ width: 38, height: 8 }} />
+                </div>
+                <div className={s.skl} style={{ width: 80, height: 26, borderRadius: 8, marginLeft: 12 }} />
+              </div>
+              <div className={s.skcard} style={{ display: 'flex', gap: 22, padding: 20, marginBottom: 16 }}>
+                <div className="flex flex-col gap-2.5 justify-center" style={{ flex: 1.2 }}>
+                  <div className={s.skl} style={{ width: '70%', height: 16 }} />
+                  <div className={s.skl} style={{ width: '88%', height: 9 }} />
+                  <div className={s.skl} style={{ width: '62%', height: 9 }} />
+                  <div className="flex gap-2.5 mt-2">
+                    <div className={s.skl} style={{ width: 86, height: 28, borderRadius: 8 }} />
+                    <div className={s.skl} style={{ width: 86, height: 28, borderRadius: 8, opacity: 0.5 }} />
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center rounded-[10px]" style={{ minHeight: 132, background: 'rgba(255,255,255,0.06)' }}>
+                  <Icon icon="heroicons:photo" width={36} style={{ color: 'rgba(255,255,255,0.22)' }} />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                {[
+                  ['84%', '58%'],
+                  ['78%', '52%'],
+                  ['86%', '60%'],
+                ].map(([w1, w2], i) => (
+                  <div key={i} className={s.skcard} style={{ flex: 1, padding: 16 }}>
+                    <div className={s.skl} style={{ width: 30, height: 30, borderRadius: '50%', marginBottom: 12 }} />
+                    <div className={s.skl} style={{ width: w1, height: 8, marginBottom: 8 }} />
+                    <div className={s.skl} style={{ width: w2, height: 8 }} />
+                  </div>
+                ))}
+              </div>
+              {/* annotation pins + bubbles — each message is centered 14px above its badge (consistent) */}
+              <div className={`${s.pin} ${s.p1}`} style={{ left: 130, top: 150 }}>1</div>
+              <div className={`${s.bub} ${s.b1}`} style={{ left: 35, top: 54 }}>
+                <div className={s.meta}><Icon icon="heroicons:code-bracket" width={13} /> .stats-card · @1440w</div>
+                <div className={s.txt}>Padding feels off, tighten to 16px</div>
+              </div>
+              <div className={`${s.pin} ${s.p2}`} style={{ left: 472, top: 300 }}>2</div>
+              <div className={`${s.bub} ${s.b2}`} style={{ left: 377, top: 204 }}>
+                <div className={s.meta}><Icon icon="heroicons:code-bracket" width={13} /> p.lede</div>
+                <div className={s.txt}>This line reads too long, cut it</div>
+              </div>
+              <div className={`${s.pin} ${s.p3}`} style={{ left: 560, top: 128 }}>3</div>
+              <div className={`${s.bub} ${s.b3}`} style={{ left: 465, top: 32 }}>
+                <div className={s.meta}><Icon icon="heroicons:code-bracket" width={13} /> .hero-media</div>
+                <div className={s.txt}>Swap this placeholder for the product shot</div>
+              </div>
+            </div>
+            {/* extension toolbar */}
+            <div className={s.vabar}>
+              <Image src="/mascot.png" width={22} height={22} alt="Vibe Annotations" />
+              <span className={s.vsep} />
+              <span className={`${s.vb} ${s.vba}`}><Icon icon="heroicons:pencil-square" width={16} /> Annotate</span>
+              <span className={s.vb}><Icon icon="heroicons:bars-3" width={16} /> View all</span>
+              <span className={s.vb}><Icon icon="heroicons:cog-6-tooth" width={16} /> Settings</span>
+            </div>
+          </div>
+          {/* right column: queue + prompt */}
+          <div className={s.dright}>
+            <div className={s.dqueue}>
+              <div className={s.qhead}><Image src="/mascot.png" width={20} height={20} alt="" /> Annotation queue</div>
+              <div className={`${s.qi} ${s.q1}`}><span className={s.qn}>1</span><span className={s.qt}>.stats-card · tighten padding</span><span className={`${s.ck} ${s.k1}`}><Icon icon="heroicons:check-circle-solid" width={17} /></span></div>
+              <div className={`${s.qi} ${s.q2}`}><span className={s.qn}>2</span><span className={s.qt}>p.lede · shorten line</span><span className={`${s.ck} ${s.k2}`}><Icon icon="heroicons:check-circle-solid" width={17} /></span></div>
+              <div className={`${s.qi} ${s.q3}`}><span className={s.qn}>3</span><span className={s.qt}>.hero-media · product shot</span><span className={`${s.ck} ${s.k3}`}><Icon icon="heroicons:check-circle-solid" width={17} /></span></div>
+            </div>
+            <div className={s.dpanel}>
+              <div className={s.dbadges}>
+                <span className={s.badge}><Icon icon="simple-icons:claude" width={20} /> Claude Code</span>
+                <span className={s.badge}><Icon icon="simple-icons:githubcopilot" width={20} /> Copilot</span>
+                <span className={s.badge}><Icon icon="simple-icons:windsurf" width={20} /> Windsurf</span>
+                <span className={s.badge}><Icon icon="simple-icons:openai" width={20} /> Codex</span>
+              </div>
+              <div className={s.dprompt}>
+                <span className={s.dph}>Ask anything…</span>
+                <span className={s.tw}>Read my annotations</span>
+                <span className={s.twc} />
+                <span className={s.dsend}><Icon icon="heroicons:arrow-up" width={17} /></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* animated cursor — on-brand gradient pointer */}
+        <div className={s.cur}>
+          <span className={s.curRing} aria-hidden />
+          <Image src="/cursor-brand.png" alt="" width={22} height={28} className={s.curImg} />
+        </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ============ features bento — one component per card, layout from the reference ============ */
+function FeatureText({ item }: { item: { lead: string; rest: string } }) {
+  return (
+    <div className={s.ftxt}>
+      <p><strong>{item.lead}</strong> {item.rest}</p>
+    </div>
+  )
+}
+
+/* numbered annotation badge, sitting directly on the element it marks (like a real pin) */
+function AnnBadge({ n, style }: { n: number; style?: React.CSSProperties }) {
+  return <span className={`${s.pin} ${s.pinStatic} ${s.badgeOn}`} style={style} aria-hidden>{n}</span>
+}
+
+/* card 1 — annotated browser window + DOM-selector popup */
+function ContextCard() {
+  const t = content.toolset.items.context
+  return (
+    <div className={`${s.fcard} lg:col-span-3`}>
+      <div className={s.fsplit}>
+        <FeatureText item={t} />
+        <div className={`${s.fviz} ${s.ctxViz}`}>
+          <div className={s.ctxWin}>
+            <div className={s.ctxBar}><span /><span /><span /></div>
+            <div className={s.ctxBody}>
+              <div className={s.ctxSel}>
+                <div className={s.ctxHeadline}>Get all your AI feedbacks implemented at once</div>
+                <AnnBadge n={1} />
+              </div>
+              <div className={s.sklw} style={{ width: '68%', height: 7, margin: '16px auto 0' }} />
+              <div className={s.sklw} style={{ width: '48%', height: 7, margin: '7px auto 0' }} />
+              <div className="flex gap-2 justify-center" style={{ marginTop: 13 }}>
+                <div className={s.sklw} style={{ width: 60, height: 20, borderRadius: 6 }} />
+                <div className={s.sklw} style={{ width: 60, height: 20, borderRadius: 6, opacity: 0.5 }} />
+              </div>
+            </div>
+          </div>
+          <svg className={s.thread} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <path d="M 56 58 C 83 56, 93 44, 88 25" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <div className={s.selCard}>
+            <div className={s.selHead}>
+              div.home_stepCard__0vB50
+              <Icon icon="heroicons:x-mark" width={13} />
+            </div>
+            <div className={s.selRow}><span>Component</span><b style={{ color: '#c084fc' }}>Home</b></div>
+            <div className={s.selRow}><span>Selector</span><b>div.max-w-4xl.mx-auto &gt; div.text-center</b></div>
+            <div className={s.selRow}><span>Element</span><b><em>div</em> &ldquo;Get all your AI feedbacks…&rdquo;</b></div>
+            <div className={s.selComment}>
+              <Icon icon="heroicons:chat-bubble-left-solid" width={13} className="text-white" />
+              Make this headline pop a bit more
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* card 2 — the Figma-like design panel; the Gap field live-drives the skeleton behind it */
+function DesignEditsCard() {
+  const [gap, setGap] = useState(16)
+  const t = content.toolset.items.designEdits
+  return (
+    <div className={`${s.fcard} lg:col-span-3`}>
+      <div className={s.fsplit}>
+        <FeatureText item={t} />
+        <div className={`${s.fviz} ${s.deViz}`}>
+          <div className={s.deSkel}>
+            <AnnBadge n={2} />
+            <div className={s.deSkelBlock} />
+            <div className={s.deSkelBlock} style={{ marginTop: gap }} />
+          </div>
+          <svg className={`${s.thread} ${s.deThread}`} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <path d="M 43 45 C 34 47, 29 50, 27 55" vectorEffect="non-scaling-stroke" />
+          </svg>
+          <div className={s.dePanel}>
+            <div className={s.deTitle}>Editing <b>div.home_stepCard__0vB50</b></div>
+            <div className={s.deTabs}>
+              <span className={s.deTab}><Icon icon="heroicons:chat-bubble-left" width={12} /> Comment</span>
+              <span className={`${s.deTab} ${s.deTabOn}`}><Icon icon="heroicons:adjustments-horizontal" width={12} /> Design</span>
+              <span className={s.deTab}><Icon icon="heroicons:squares-2x2" width={12} /> Variants</span>
+            </div>
+            <div className={s.deSection}><Icon icon="heroicons:chevron-down" width={11} /> Layout</div>
+            <div className={s.deSeg}>
+              <span><Icon icon="heroicons:stop" width={13} /></span>
+              <span><Icon icon="heroicons:bars-3" width={13} /></span>
+              <span className={s.deSegOn}><Icon icon="heroicons:bars-3" width={13} style={{ transform: 'rotate(90deg)' }} /></span>
+              <span><Icon icon="heroicons:squares-2x2" width={13} /></span>
+            </div>
+            <div className={s.deMid}>
+              <div className={s.dePad}>{Array.from({ length: 9 }).map((_, i) => <span key={i} />)}</div>
+              <div className="flex flex-col gap-2.5">
+                <span className={s.deChk}><i />Reverse order</span>
+                <span className={s.deChk}><i />Wrap items</span>
+                <span className={s.deChk}><i />Space auto</span>
+              </div>
+            </div>
+            <div className={s.deGap}>
+              Gap space
+              <label className={s.deVal}>
+                <span className={s.deTry}>Try it<i /></span>
+                <input
+                  type="number"
+                  min={0}
+                  max={40}
+                  value={gap}
+                  onChange={(e) => setGap(Math.max(0, Math.min(40, Number(e.target.value) || 0)))}
+                  aria-label="Gap space in pixels"
+                />
+                <i>px</i>
+              </label>
+            </div>
+            <div className={s.deFoot}>
+              <span className={s.deVp}><Icon icon="heroicons:computer-desktop" width={13} /> 1512w</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* card 4 — html/md export: file glyph → export panel */
+function ShareCard() {
+  const t = content.toolset.items.share
+  return (
+    <div className={`${s.fcard} lg:col-span-2`}>
+      <FeatureText item={t} />
+      <div className={s.shViz}>
+        <div className={s.shFile}>
+          <div className={s.shDoc}>
+            <span className={s.shFold} />
+            <Icon icon="heroicons:code-bracket" width={28} />
+          </div>
+          <span className={s.shTag}>annotations.html</span>
+        </div>
+        <span className={s.shArrow} />
+        <div className={s.shPanel}>
+          <div className={s.shTitle}>Vibe Annotations</div>
+          <div className={s.shSub}>7 annotations</div>
+          {[1, 2].map((n) => (
+            <div key={n} className={s.shRow}>
+              <span className={`${s.pin} ${s.pinStatic}`} style={{ position: 'static', width: 18, height: 18, fontSize: 10 }}>{n}</span>
+              <span className={s.shThumb}><i /><i /></span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* card 5 — screenshot thumbnail wall (placeholder tiles for now) */
+function ScreenshotsCard() {
+  const t = content.toolset.items.screenshots
+  return (
+    <div className={`${s.fcard} lg:col-span-2`}>
+      <FeatureText item={t} />
+      <div className={s.scViz}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className={`${s.scTile} ${i === 0 ? s.scTileOn : ''}`}>
+            <Icon icon="heroicons:photo" width={18} />
+            {i === 0 && <span className={s.scBadge}><Icon icon="heroicons:camera-solid" width={14} /></span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* card 6 — extension window → local server terminal */
+function InstallCard() {
+  const t = content.toolset.items.install
+  return (
+    <div className={`${s.fcard} lg:col-span-2`}>
+      <FeatureText item={t} />
+      <div className={s.inViz}>
+        <div className={`${s.inWin} ${s.inExt}`}>
+          <div className={`${s.inBar} ${s.inBarLights}`}><i /><i /><i /></div>
+          <div className={s.inExtBody}>
+            <div className="flex flex-col gap-2 flex-1">
+              <span className={s.sklw} style={{ width: '92%', height: 7 }} />
+              <span className={s.sklw} style={{ width: '64%', height: 7 }} />
+              <span className={s.sklw} style={{ width: '80%', height: 7 }} />
+              <span className={s.sklw} style={{ width: '48%', height: 7 }} />
+            </div>
+            <span className={s.inPuzzle}><Icon icon="heroicons:puzzle-piece-solid" width={22} /></span>
+          </div>
+        </div>
+        <span className={s.inLink} />
+        <div className={s.inWin}>
+          <div className={s.inBar}><i /><i /><i /></div>
+          <div className={s.inTermBody}>
+            <div>$ npx vibe-annotations-server</div>
+            <div className={s.inOk}>✓ Server running at<br />&nbsp;&nbsp;http://localhost:3846</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* card 7 — "and more…" icon grid */
+function MoreCard() {
+  const t = content.toolset.items.more
+  return (
+    <div className={`${s.fcard} lg:col-span-2`}>
+      <div className={s.ftxt}>
+        <p><strong>{t.lead}</strong></p>
+      </div>
+      <div className={s.moreGrid}>
+        {t.features.map((f) => (
+          <div key={f.label} className={s.moreItem}>
+            <span className={s.moreIco}><Icon icon={f.icon} width={18} /></span>
+            {f.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* card 3 — interactive variants preview: picking an option switches the skeleton below */
+const VARIANT_OPTIONS = [
+  {
+    label: 'Left and right',
+    glyph: <span className={`${s.vIco} ${s.vIcoCols}`}><i /><i /></span>,
+    preview: (
+      <div className="flex gap-3">
+        {[0, 1].map((c) => (
+          <div key={c} className="flex-1 flex flex-col gap-2">
+            <div className={s.sklw} style={{ height: 64, borderRadius: 8, background: 'rgba(255,255,255,0.14)' }} />
+            <div className={s.sklw} style={{ width: '86%', height: 7 }} />
+            <div className={s.sklw} style={{ width: '58%', height: 7 }} />
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    label: 'Centered title',
+    glyph: <span className={`${s.vIco} ${s.vIcoCenter}`}><i /><i /></span>,
+    preview: (
+      <div className="flex flex-col items-center gap-2">
+        <div style={{ width: '58%', height: 26, borderRadius: 7, background: 'rgba(160,38,220,0.55)' }} />
+        <div className={s.sklw} style={{ width: '74%', height: 7 }} />
+        <div className={s.sklw} style={{ width: '48%', height: 7 }} />
+        <div className="flex gap-2 w-full" style={{ marginTop: 8 }}>
+          {[0, 1, 2].map((c) => (
+            <div key={c} className={s.sklw} style={{ flex: 1, height: 34, borderRadius: 7, background: 'rgba(255,255,255,0.1)' }} />
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    label: 'Creative grid',
+    glyph: <span className={`${s.vIco} ${s.vIcoGrid}`}><i /><i /><i /><i /></span>,
+    preview: (
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className={s.sklw} style={{ height: 68, borderRadius: 8, background: 'rgba(160,38,220,0.4)' }} />
+        <div className={s.sklw} style={{ height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.14)', alignSelf: 'end' }} />
+        <div className={s.sklw} style={{ height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.14)' }} />
+        <div className={s.sklw} style={{ height: 68, borderRadius: 8, background: 'rgba(255,255,255,0.09)' }} />
+      </div>
+    ),
+  },
+]
+
+/* the rest of the mock page below the variant zone — taller than the preview box
+   on purpose, so it crops at the bottom edge like a real page would */
+const VARIANT_PAGE_FILLER = (
+  <>
+    <div className={s.sklw} style={{ width: '100%', height: 8 }} />
+    <div className={s.sklw} style={{ width: '82%', height: 8 }} />
+    <div className="flex gap-2.5" style={{ marginTop: 4 }}>
+      <div className={s.sklw} style={{ flex: 1, height: 96, borderRadius: 8 }} />
+      <div className={s.sklw} style={{ flex: 1, height: 96, borderRadius: 8 }} />
+    </div>
+    <div className={s.sklw} style={{ width: '64%', height: 8, marginTop: 4 }} />
+    <div className={s.sklw} style={{ width: '90%', height: 8 }} />
+  </>
+)
+
+function VariantsCard() {
+  const [variant, setVariant] = useState(1)
+  const t = content.toolset.items.variants
+  return (
+    <div className={`${s.fcard} lg:col-span-2 lg:row-span-2`}>
+      <FeatureText item={t} />
+      <div className={s.vViz} role="radiogroup" aria-label="Component variants">
+        {VARIANT_OPTIONS.map((opt, i) => (
+          <button
+            key={opt.label}
+            type="button"
+            className={`${s.vOpt} ${variant === i ? s.vOptOn : ''}`}
+            onClick={() => setVariant(i)}
+            role="radio"
+            aria-checked={variant === i}
+          >
+            <span className={s.vdot}>{variant === i && <span className={s.vfill} />}</span>
+            <span className={s.vChip}>{opt.glyph}{opt.label}</span>
+          </button>
+        ))}
+        <div className={s.vThreadWrap} aria-hidden>
+          <svg className={s.vThread} viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path d="M 22 0 C 30 46, 46 74, 50 100" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </div>
+        <div className={s.vPrevWrap}>
+          <AnnBadge n={3} style={{ left: '50%', right: 'auto', top: -11, transform: 'translateX(-50%)' }} />
+          <div className={s.vPrev}>
+            <div key={variant} className={s.vPrevIn}>
+              {VARIANT_OPTIONS[variant].preview}
+              {VARIANT_PAGE_FILLER}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* the assembled grid — top: two wide cards; below: variants spans two rows on the left */
+function FeaturesBento() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-6 gap-5">
+      <ContextCard />
+      <DesignEditsCard />
+      <VariantsCard />
+      <ShareCard />
+      <ScreenshotsCard />
+      <InstallCard />
+      <MoreCard />
+    </div>
+  )
+}
+
+/* ============ npx command chip with copy-to-clipboard ============ */
+function CommandChip() {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(content.hero.command)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+  return (
+    <div className="inline-flex items-center gap-2.5 pl-5 pr-2 py-1.5 rounded-full bg-white/5 border border-white/[0.12] font-mono text-[15px] text-white/85">
+      <span className="text-accent-pink">$</span>
+      <span className="whitespace-nowrap">{content.hero.command}</span>
+      <span className="hidden sm:inline text-white/40 font-sans text-[14px] whitespace-nowrap">· {content.hero.commandHint}</span>
+      <button
+        onClick={copy}
+        aria-label={copied ? 'Copied' : 'Copy command'}
+        className="ml-0.5 w-8 h-8 rounded-full flex items-center justify-center text-white/55 hover:text-white hover:bg-white/10 transition-colors"
+      >
+        <Icon icon={copied ? 'heroicons:check' : 'heroicons:clipboard-document'} width={16} />
+      </button>
+    </div>
+  )
+}
+
+/* shared section overline — dark pill, hairline border, gradient uppercase text */
+function Overline({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={`relative z-10 inline-flex items-center rounded-[10px] border border-white/10 bg-[#0b0a16] px-4 py-1.5 ${className}`}>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] bg-gradient-brand bg-clip-text text-transparent">
+        {children}
+      </span>
+    </span>
+  )
+}
 
 export default function Home() {
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
-  const [currentTextIndex, setCurrentTextIndex] = useState(0)
-  const [displayedText, setDisplayedText] = useState("")
-  const [isTyping, setIsTyping] = useState(true)
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Check if mobile on mount and resize
+  const demoWrapRef = useRef<HTMLDivElement>(null)
+  // the demo's internal layout (pins, bubbles, cursor keyframes) is authored in px
+  // at a fixed 1076×600 design size — below that width we scale the whole scene
+  // uniformly instead of reflowing it (--ds consumed by .demo/.dframe in the CSS)
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768) // md breakpoint
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    const el = demoWrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      el.style.setProperty('--ds', String(Math.min(1, (el.clientWidth - 4) / 1076)))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
-
-  const animatedTexts = useMemo(() => [
-    "Read my feedbacks and code away!",
-    "Implement my annotations instantly!",
-    "Fix all UI issues in one go!"
-  ], [])
-
-  // Animation variants - static visible styles on mobile
-  const fadeInUp = isMobile ? {
-    initial: { opacity: 1, y: 0 },
-    animate: { opacity: 1, y: 0 }
-  } : {
-    initial: { opacity: 0, y: 30 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6, ease: "easeOut" }
+  const heroSceneRef = useRef<HTMLDivElement>(null)
+  const heroLeftRef = useRef<HTMLDivElement>(null)
+  const heroRightRef = useRef<HTMLDivElement>(null)
+  // holo sheen: publish the cursor position (local px) + a proximity engagement (0→1)
+  // onto each hero half, so the light grazes strongest when the cursor is over/near it
+  const setHolo = (el: HTMLDivElement | null, e: React.MouseEvent<HTMLElement>) => {
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    el.style.setProperty('--mx', `${e.clientX - r.left}px`)
+    el.style.setProperty('--my', `${e.clientY - r.top}px`)
+    const fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
+    el.style.setProperty('--hue', `${(fx - 0.5) * 90}deg`)
+    const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right)
+    const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom)
+    el.style.setProperty('--holo', String(Math.max(0, 1 - Math.hypot(dx, dy) / 900)))
   }
-
-  const fadeInUpDelayed = (delay: number) => isMobile ? ({
-    initial: { opacity: 1, y: 0 },
-    animate: { opacity: 1, y: 0 }
-  }) : ({
-    initial: { opacity: 0, y: 30 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6, delay, ease: "easeOut" }
-  })
-
-  const staggerContainer = isMobile ? {
-    initial: { opacity: 1 },
-    animate: { opacity: 1 }
-  } : {
-    initial: { opacity: 1 },
-    animate: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+  // shimmer + glow engage as the cursor nears the demo frame — even from outside it
+  const trackShimmer = (e: React.MouseEvent<HTMLElement>) => {
+    setHolo(heroLeftRef.current, e)
+    setHolo(heroRightRef.current, e)
+    // subtle whole-scene parallax tilt from the cursor's offset to the scene centre
+    const scene = heroSceneRef.current
+    if (scene) {
+      const sr = scene.getBoundingClientRect()
+      const nx = Math.max(-1, Math.min(1, ((e.clientX - sr.left) / sr.width - 0.5) * 2))
+      const ny = Math.max(-1, Math.min(1, ((e.clientY - sr.top) / sr.height - 0.5) * 2))
+      // reversed: the side nearest the cursor tilts toward the viewer (surfaces into the light)
+      scene.style.setProperty('--ry', `${-nx * 0.5}deg`)
+      scene.style.setProperty('--rx', `${ny * 0.35}deg`)
     }
+    const el = demoWrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const cx = Math.max(r.left, Math.min(e.clientX, r.right))
+    const cy = Math.max(r.top, Math.min(e.clientY, r.bottom))
+    el.style.setProperty('--sx', `${cx - r.left}px`)
+    el.style.setProperty('--sy', `${cy - r.top}px`)
+    const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right)
+    const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom)
+    const dist = Math.hypot(dx, dy)
+    el.style.setProperty('--shimmer', String(Math.max(0, 1 - dist / 260)))
   }
-
-  const scrollFadeInUp = isMobile ? {
-    initial: { opacity: 1, y: 0 },
-    whileInView: { opacity: 1, y: 0 }
-  } : {
-    initial: { opacity: 0, y: 60 },
-    whileInView: { opacity: 1, y: 0 },
-    transition: { duration: 0.8, ease: "easeOut" },
-    viewport: { once: true, amount: 0.3 }
+  const endShimmer = () => {
+    demoWrapRef.current?.style.setProperty('--shimmer', '0')
+    heroLeftRef.current?.style.setProperty('--holo', '0')
+    heroRightRef.current?.style.setProperty('--holo', '0')
+    heroSceneRef.current?.style.setProperty('--ry', '0deg')
+    heroSceneRef.current?.style.setProperty('--rx', '0deg')
   }
-
-  const popInDelayed = (delay: number) => isMobile ? ({
-    initial: { opacity: 1, scale: 1 },
-    animate: { opacity: 1, scale: 1 }
-  }) : ({
-    initial: { opacity: 0, scale: 0 },
-    animate: { opacity: 1, scale: 1 },
-    transition: { 
-      delay: 1.5 + delay, // Start after main content (1.5s base delay + stagger)
-      type: "spring",
-      stiffness: 300,
-      damping: 25,
-      mass: 1
-    }
-  })
-
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout
-    const currentText = animatedTexts[currentTextIndex]
-    
-    if (isTyping) {
-      // Typing effect
-      if (displayedText.length < currentText.length) {
-        timeoutId = setTimeout(() => {
-          setDisplayedText(currentText.slice(0, displayedText.length + 1))
-        }, 50) // Typing speed
-      } else {
-        // Pause before starting to delete
-        timeoutId = setTimeout(() => {
-          setIsTyping(false)
-        }, 2000) // Pause duration
-      }
-    } else {
-      // Deleting effect
-      if (displayedText.length > 0) {
-        timeoutId = setTimeout(() => {
-          setDisplayedText(displayedText.slice(0, -1))
-        }, 30) // Delete speed
-      } else {
-        // Move to next text
-        setCurrentTextIndex((prev) => (prev + 1) % animatedTexts.length)
-        setIsTyping(true)
-      }
-    }
-
-    return () => clearTimeout(timeoutId)
-  }, [currentTextIndex, displayedText, isTyping, animatedTexts])
-
-  const toggleFaq = (index: number) => {
-    setOpenFaqIndex(openFaqIndex === index ? null : index)
-  }
-
   return (
-    <>
-      <Navbar />
-
-      <main className="relative">
-        {/* Hero + How it Works Background */}
-        <div className="relative bg-cover bg-no-repeat" style={{ 
-          backgroundImage: 'url(/hero-bg.webp)', 
-          backgroundPosition: isMobile ? 'center -1000px' : 'center -720px' 
-        }}>
-          {/* Hero Section */}
-          <section id="demo" className="relative min-h-screen flex items-center justify-center overflow-hidden pb-[3.25rem]">
-          
-          {/* Annotation Images - Hidden on lg and below */}
-          <div className="hidden xl:block">
-            {/* Annotation 1 - Top right */}
-            <motion.div
-              className="absolute top-[80px] right-[150px] z-20 cursor-grab active:cursor-grabbing"
-              {...popInDelayed(0)}
-              drag
-              dragConstraints={{
-                left: -300,
-                right: 300,
-                top: -300,
-                bottom: 300
-              }}
-              dragElastic={0.2}
-              whileDrag={{ scale: 1.05, zIndex: 30 }}
-            >
-              <Image
-                src="/e42701539f37cc348e62bfb09df021597a8cd0c4.png"
-                alt=""
-                width={298}
-                height={139}
-                draggable={false}
-              />
-            </motion.div>
-            
-            {/* Annotation 2 - Left side */}
-            <motion.div
-              className="absolute left-[75px] top-[433px] z-20 cursor-grab active:cursor-grabbing"
-              {...popInDelayed(0.3)}
-              drag
-              dragConstraints={{
-                left: -300,
-                right: 300,
-                top: -300,
-                bottom: 300
-              }}
-              dragElastic={0.2}
-              whileDrag={{ scale: 1.05, zIndex: 30 }}
-            >
-              <Image
-                src="/f68e4e44b6ac03bf7cd5d64c8490205de8b3845b.png"
-                alt=""
-                width={298}
-                height={136}
-                draggable={false}
-              />
-            </motion.div>
-            
-            {/* Annotation 3 - Right side */}
-            <motion.div
-              className="absolute right-[75px] top-[457px] z-20 cursor-grab active:cursor-grabbing"
-              {...popInDelayed(0.6)}
-              drag
-              dragConstraints={{
-                left: -300,
-                right: 300,
-                top: -300,
-                bottom: 300
-              }}
-              dragElastic={0.2}
-              whileDrag={{ scale: 1.05, zIndex: 30 }}
-            >
-              <Image
-                src="/8750e188760854ee01d5965e53f8b3fb33d77e11.png"
-                alt=""
-                width={298}
-                height={187}
-                draggable={false}
-              />
-            </motion.div>
+    <div className="bg-ink text-white font-sans">
+      {/* ============ HERO ============ */}
+      <section
+        className="relative overflow-hidden"
+        style={{ background: '#000114' }}
+        onMouseMove={trackShimmer}
+        onMouseLeave={endShimmer}
+      >
+        {/* floating cards scene — split into two edge-anchored halves so the center stays
+            open. Each half hugs its side and fades toward the middle + bottom. Tune the
+            widths / max-w below to spread them further apart or pull them in. */}
+        <div
+          ref={heroSceneRef}
+          aria-hidden
+          className={`${s.heroScene} absolute top-0 left-1/2 w-full max-w-[1700px] h-full pointer-events-none z-[1]`}
+        >
+          {/* left — mascot + comment cards, hugging the left edge (nudged further out) */}
+          <div
+            ref={heroLeftRef}
+            className="absolute top-0 left-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-left-top"
+            style={{
+              isolation: 'isolate',
+              backgroundImage: 'url(/hero-left.jpg)',
+              WebkitMaskImage:
+                'linear-gradient(90deg, rgba(0,0,0,0.72) 0%, #000 9%, #000 60%, transparent 100%), linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.55) 84%, rgba(0,0,0,0.2) 93%, transparent 100%)',
+              WebkitMaskComposite: 'source-in',
+              maskImage:
+                'linear-gradient(90deg, rgba(0,0,0,0.72) 0%, #000 9%, #000 60%, transparent 100%), linear-gradient(180deg, #000 0%, #000 72%, rgba(0,0,0,0.55) 84%, rgba(0,0,0,0.2) 93%, transparent 100%)',
+              maskComposite: 'intersect',
+            }}
+          >
+            <div className={s.holoChroma} />
+            <div className={s.holo} />
           </div>
-          
-          <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            {/* Status badges */}
-            <motion.div 
-              className="flex flex-wrap items-center justify-center gap-3 mb-12"
-              {...staggerContainer}
-            >
-              <motion.span 
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
-                {...fadeInUp}
-              >
-                100% Free
-              </motion.span>
-              <motion.span 
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200"
-                {...fadeInUp}
-              >
-                No Account & Subscription
-              </motion.span>
-              <motion.span 
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200"
-                {...fadeInUp}
-              >
-                Open Source
-              </motion.span>
-            </motion.div>
-
-            {/* Main heading */}
-            <div className="text-center">
-              <motion.h1 
-                className="text-[2.5rem] md:text-[3.5rem] font-[550] text-gray-900 leading-tight tracking-tight mb-8"
-                {...fadeInUpDelayed(0.2)}
-              >
-                Get all your AI feedbacks implemented at once
-              </motion.h1>
-              
-              <motion.p 
-                className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-12 leading-relaxed"
-                {...fadeInUpDelayed(0.6)}
-              >
-                Drop visual annotations on your site and watch AI coding agents handle every fix instantly. Never leave your browser, everything runs locally and stays secure.
-              </motion.p>
-
-              {/* CTA Section with Product Hunt Badge */}
-              <motion.div 
-                className="flex flex-col sm:flex-row items-center justify-center gap-4"
-                {...fadeInUpDelayed(0.8)}
-              >
-                {/* Product Hunt Badge */}
-                <a 
-                  href="https://www.producthunt.com/products/vibe-annotations?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-vibe&#0045;annotations" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img 
-                    src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1008428&theme=light&t=1755885593795" 
-                    alt="Vibe&#0032;Annotations - 10x&#0032;your&#0032;vibe&#0045;coding&#0032;workflow&#0032;writing&#0032;visual&#0032;annotations | Product Hunt" 
-                    className="h-[44px] w-auto" 
-                  />
-                </a>
-                
-                {/* CTA Button */}
-                <motion.a 
-                  href="https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white pl-3 pr-4 py-2.5 rounded-xl text-base font-medium shadow-lg hover:shadow-xl"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Icon icon="heroicons:arrow-down-tray" className="w-5 h-5" />
-                  Get The Free Extension
-                </motion.a>
-              </motion.div>
-            </div>
-
-            {/* Demo Component */}
-            <motion.div 
-              className="mt-20 flex justify-center"
-              {...fadeInUpDelayed(1.0)}
-            >
-              <div className="backdrop-blur-[10px] backdrop-filter relative rounded-[24px] w-full max-w-[614px] overflow-hidden" style={{ background: 'rgba(189, 185, 198, 0.12)' }}>
-                <div className="box-border content-stretch flex flex-col gap-6 items-center justify-end pb-8 pt-8 px-8 relative">
-                  <div className="box-border content-stretch flex flex-col gap-5 items-start justify-start p-0 relative shrink-0 w-full">
-                    <div className="flex flex-col font-sans justify-center leading-[0] not-italic relative shrink-0 text-black text-[0px] w-full">
-                      <p className="leading-[1.5] text-[16px]">
-                        <span>Compatible with </span>
-                        <span className="font-semibold not-italic">top AI coding agents</span>
-                        <span> and more:</span>
-                      </p>
-                    </div>
-                    <div className="box-border content-center flex flex-wrap gap-5 items-center justify-start p-0 relative shrink-0 w-full">
-                      <div className="h-[18.973px] relative shrink-0 w-[87.567px]">
-                        <Image alt="" src="/a1f9aa024cbc98b1b3521aa6bd8b4374b08bb166.svg" width={88} height={19} className="block max-w-none size-full" />
-                      </div>
-                      <div className="h-[13.799px] relative shrink-0 w-[103.136px]">
-                        <Image alt="" src="/c5316f8f27773261da24c19714d0753f34d29ba4.svg" width={103} height={14} className="block max-w-none size-full" />
-                      </div>
-                      <div className="box-border content-stretch flex gap-[0.862px] items-center justify-start p-0 relative shrink-0">
-                        <div className="bg-center bg-contain bg-no-repeat rounded-[1.725px] shrink-0 size-[22.422px]" style={{ backgroundImage: `url('/a2bb8e6a60f530cb07b4c7363301206597b5e8b5.png')` }} />
-                        <div className="h-[17.248px] relative shrink-0 w-[90.779px]">
-                          <Image alt="" src="/ff2cd50f171888af357c1be60a59999319f1e022.svg" width={91} height={17} className="block max-w-none size-full" />
-                        </div>
-                      </div>
-                      <div className="box-border content-stretch flex gap-[5.174px] items-center justify-start p-0 relative shrink-0">
-                        <div className="h-[21.56px] relative shrink-0 w-[26.535px]">
-                          <Image alt="" src="/4e8d20ceb09d50bb803dc9431880f21ec356a774.svg" width={27} height={22} className="block max-w-none size-full" />
-                        </div>
-                        <div className="flex flex-col font-semibold justify-center leading-[0] not-italic relative shrink-0 text-black text-[15.523px] text-nowrap">
-                          <p className="block leading-[1.46] whitespace-pre">Copilot</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="backdrop-blur-[10px] backdrop-filter bg-gradient-to-b from-[#bdb9c608] to-[#bdb9c618] h-[114px] relative rounded-[17.716px] shrink-0 w-full overflow-hidden">
-                    <div className="box-border content-stretch flex flex-col gap-[8.858px] h-[114px] items-center justify-end px-3 py-0 relative w-full">
-                      <div className="basis-0 box-border content-stretch flex gap-2 grow items-start justify-start min-h-px min-w-px overflow-clip pb-0 pt-3 px-1.5 relative shrink-0 w-full">
-                        <div className="basis-0 font-sans grow leading-[0] min-h-px min-w-px not-italic relative shrink-0 text-black text-[15px]">
-                          <div className="block leading-[1.5] h-[22.5px] relative">
-                            <p className="block">
-                              {displayedText}
-                              <span className="animate-pulse">|</span>
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="box-border content-stretch flex items-center justify-between overflow-clip px-1 py-2 relative shrink-0 w-full">
-                        <div className="box-border content-stretch flex gap-2 items-center justify-center p-0 relative shrink-0">
-                          <div className="bg-center bg-cover bg-no-repeat shrink-0 size-5" style={{ backgroundImage: `url('/7abc3cfe8eddf5deb9ba63f8c454c1235fbc33c4.png')` }} />
-                          <div className="font-medium leading-[0] not-italic relative shrink-0 text-[#c5266b] text-[13px] w-[173px]">
-                            <p className="block leading-[1.5]">Vibe annotations connected</p>
-                          </div>
-                        </div>
-                        <div className="bg-[rgba(255,255,255,0.9)] box-border content-stretch flex flex-col gap-[8.727px] items-center justify-center overflow-clip p-0 relative rounded-[26.182px] shrink-0 size-6">
-                          <div className="overflow-clip relative shrink-0 size-[15px]">
-                            <div className="absolute inset-[9.38%_15.63%]">
-                              <Image alt="" src="/f706da41c0d992318bde53fd0f824c0dd05916de.svg" width={15} height={15} className="block max-w-none size-full brightness-0" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="absolute inset-0 pointer-events-none shadow-[1.107px_1.107px_8.858px_0px_inset_rgba(0,0,0,0.06),-2.215px_-2.215px_5.536px_0px_inset_rgba(255,255,255,0.8)]" />
-                    <div className="absolute border-[#ffffff] border-[1.107px] border-solid inset-0 pointer-events-none rounded-[17.716px]" />
-                  </div>
-                </div>
-                <div className="absolute inset-0 pointer-events-none shadow-[1.107px_1.107px_8.858px_0px_inset_rgba(0,0,0,0.06),-2.215px_-2.215px_5.536px_0px_inset_rgba(255,255,255,0.8)]" />
-                <div className="absolute border-[#ffffff] border-[1.107px] border-solid inset-0 pointer-events-none rounded-[24px]" />
-              </div>
-            </motion.div>
+          {/* right — stacked cards, hugging the right edge (nudged further out) */}
+          <div
+            ref={heroRightRef}
+            className="absolute top-0 right-[-4%] w-[42%] max-w-[600px] aspect-[900/1405] bg-cover bg-right-top"
+            style={{
+              isolation: 'isolate',
+              backgroundImage: 'url(/hero-right.jpg)',
+              WebkitMaskImage:
+                'linear-gradient(90deg, transparent 0%, #000 40%, #000 91%, rgba(0,0,0,0.72) 100%), linear-gradient(180deg, #000 0%, #000 78%, rgba(0,0,0,0.45) 91%, transparent 100%)',
+              WebkitMaskComposite: 'source-in',
+              maskImage:
+                'linear-gradient(90deg, transparent 0%, #000 40%, #000 91%, rgba(0,0,0,0.72) 100%), linear-gradient(180deg, #000 0%, #000 78%, rgba(0,0,0,0.45) 91%, transparent 100%)',
+              maskComposite: 'intersect',
+            }}
+          >
+            <div className={s.holoChroma} />
+            <div className={s.holo} />
           </div>
-        </section>
-
-        {/* How it Works Section */}
-        <section id="how-it-works" className="py-16 md:py-[6.5rem]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20 flex flex-col gap-16 md:gap-[104px]">
-            {/* Header Section */}
-            <motion.div {...scrollFadeInUp}>
-              <p className="text-gray-500 text-base mb-4">How it works</p>
-              <div className="flex flex-col lg:flex-row justify-between items-start gap-16">
-                <div className="w-full lg:w-1/2">
-                  <h2 className="text-[28px] md:text-[42px] font-[550] text-gray-900 leading-tight tracking-tight mb-10">
-                    Visual feedback meets AI automation
-                  </h2>
-                  <button 
-                    onClick={() => setIsVideoModalOpen(true)}
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all"
-                  >
-                    <Icon icon="heroicons:play-solid" className="w-5 h-5" />
-                    Play The Demo (1min)
-                  </button>
-                </div>
-                <div className="w-full lg:w-1/2">
-                  <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-                    <span className="font-semibold text-gray-900">Here&apos;s the problem:</span> Your AI is smart, but your feedback workflow isn&apos;t keeping up.
-                  </p>
-                  <p className="text-lg md:text-xl text-gray-600 leading-relaxed mt-6">
-                    You&apos;re spending hours explaining UI issues one element at a time, taking screenshots to show what needs fixing, copy-pasting HTML selectors, and describing vague locations like &quot;the button in the top right&quot; which only leads to more confusion.
-                  </p>
-                  <p className="text-lg md:text-xl leading-relaxed mt-6">
-                    <span className="font-semibold text-gray-900">Vibe Annotations is a better way</span>
-                    <span className="text-gray-900"> to streamline this process and make your feedback workflow as intelligent as your AI.</span>
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Step 1: Click & Comment */}
-            <motion.div className="flex flex-col lg:flex-row items-center justify-between gap-20" {...scrollFadeInUp}>
-              <div className="w-full lg:w-1/2">
-                <div className="bg-gradient-to-r from-[#f1eadc] to-[#d7dced] via-[#ddeae6] via-[75.696%] overflow-clip relative rounded-xl w-full aspect-[560/358]">
-                  {/* Main website background image */}
-                  {isMobile ? (
-                    <div
-                      className="absolute bg-center bg-cover bg-no-repeat inset-0"
-                      style={{ 
-                        backgroundImage: `url('/7939ea609b264970607c40d27b6b21829724c9d1.png')`,
-                        left: '0.5%',
-                        top: '5%',
-                        width: '119%',
-                        height: '127%'
-                      }}
-                    />
-                  ) : (
-                    <motion.div
-                      className="absolute bg-center bg-cover bg-no-repeat inset-0"
-                      style={{ 
-                        backgroundImage: `url('/7939ea609b264970607c40d27b6b21829724c9d1.png')`,
-                        left: '0.5%',
-                        top: '5%',
-                        width: '119%',
-                        height: '127%'
-                      }}
-                      initial={{ opacity: 0, x: 20, y: 20 }}
-                      whileInView={{ opacity: 1, x: 0, y: 0 }}
-                      transition={{ duration: 1.0, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    />
-                  )}
-                  
-                  {/* Annotation Circle 1 */}
-                  <motion.div 
-                    className="absolute bg-white rounded-full flex items-center justify-center"
-                    style={{ 
-                      left: '85.7%', 
-                      top: '43.6%', 
-                      width: '5.4%', 
-                      height: '8.4%' 
-                    }}
-                    initial={isMobile ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-                    whileInView={isMobile ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                    transition={isMobile ? {} : { duration: 0.5, delay: 1.2, type: "spring", stiffness: 300, damping: 25 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  >
-                    <div className="font-semibold text-black text-[0.8rem]">
-                      1
-                    </div>
-                  </motion.div>
-                  
-                  {/* Annotation Circle 2 */}
-                  <motion.div 
-                    className="absolute bg-white rounded-full flex items-center justify-center"
-                    style={{ 
-                      left: '14.1%', 
-                      top: '74.6%', 
-                      width: '5.4%', 
-                      height: '8.4%' 
-                    }}
-                    initial={isMobile ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-                    whileInView={isMobile ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                    transition={isMobile ? {} : { duration: 0.5, delay: 2.2, type: "spring", stiffness: 300, damping: 25 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  >
-                    <div className="font-semibold text-black text-[0.8rem]">
-                      2
-                    </div>
-                  </motion.div>
-                  
-                  {/* Cursor with Comment 1 */}
-                  <motion.div
-                    className="absolute bg-center bg-contain bg-no-repeat"
-                    style={{ 
-                      backgroundImage: `url('/81df89795bc275781a2fc1f1920878b707e934d7.png')`,
-                      left: '40.5%',
-                      top: '25.4%',
-                      width: '45.2%',
-                      height: '18.2%'
-                    }}
-                    initial={isMobile ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-                    whileInView={isMobile ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                    transition={isMobile ? {} : { duration: 0.5, delay: 1.4, type: "spring", stiffness: 300, damping: 25 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  />
-                  
-                  {/* Cursor with Comment 2 */}
-                  <motion.div
-                    className="absolute bg-center bg-contain bg-no-repeat"
-                    style={{ 
-                      backgroundImage: `url('/bb2758df12dd2679673352872f6bfa5e6da2f130.png')`,
-                      left: '19.5%',
-                      top: '56.4%',
-                      width: '35.5%',
-                      height: '18.2%'
-                    }}
-                    initial={isMobile ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
-                    whileInView={isMobile ? { opacity: 1, scale: 1 } : { opacity: 1, scale: 1 }}
-                    transition={isMobile ? {} : { duration: 0.5, delay: 2.4, type: "spring", stiffness: 300, damping: 25 }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  />
-                </div>
-              </div>
-              <div className="w-full lg:w-1/2">
-                <h3 className="text-[24px] md:text-[34px] font-[550] text-gray-900 mb-10 tracking-tight">1. Click & Comment</h3>
-                <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-                  Drop annotations directly on any element. No selectors. No screenshots. Just click and type.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Step 2: Batch Everything */}
-            <motion.div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-20" {...scrollFadeInUp}>
-              <div className="w-full lg:w-1/2">
-                <h3 className="text-[24px] md:text-[34px] font-[550] text-gray-900 mb-10 tracking-tight">2. Batch Everything</h3>
-                <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-                  Annotate across multiple pages, multiple elements. Build your complete feedback queue in seconds.
-                </p>
-              </div>
-              <div className="w-full lg:w-1/2">
-                <div className="bg-white relative w-full aspect-[560/357] rounded-[1.5%]">
-                  {/* Background area with gradient */}
-                  <div 
-                    className="absolute bg-gradient-to-br from-[#ffb5a7] via-[#ffc4a2] to-[#ffd1a3] rounded-[1.5%]"
-                    style={{
-                      left: '14.8%',
-                      top: '15.7%',
-                      width: '71.6%',
-                      height: '77.6%'
-                    }}
-                  />
-                  
-                  {/* Extension popup image */}
-                  <motion.div
-                    className="absolute bg-center bg-contain bg-no-repeat shadow-md rounded-lg"
-                    style={{ 
-                      backgroundImage: `url('/9e3943358b2f520b86a6925b132151ed4ccc673b.png')`,
-                      left: '47.6%',
-                      top: '32.5%',
-                      width: '50.1%',
-                      height: '63.6%'
-                    }}
-                    initial={isMobile ? { opacity: 1, x: 0 } : { opacity: 0, x: 50 }}
-                    whileInView={isMobile ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
-                    transition={isMobile ? {} : { duration: 0.8, delay: 0.5, ease: "easeOut" }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  />
-                  
-                  {/* Annotation list on the left */}
-                  <div 
-                    className="absolute flex flex-col gap-[3.2%]"
-                    style={{
-                      left: '3.4%',
-                      top: '7.2%',
-                      width: '41.1%',
-                      height: '80%'
-                    }}
-                  >
-                    {/* localhost:3000/home - 2 annotations */}
-                    <motion.div 
-                      className="bg-[#fcfcfd] rounded-2xl w-full shadow-sm"
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.1, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    >
-                      <div className="flex items-center justify-between px-[6.3%] py-[4.9%]">
-                        <div className="text-[#697586] text-[0.65rem] font-medium">
-                          localhost:3000/home
-                        </div>
-                        <div className="bg-[#5c7b9e] rounded-full aspect-square w-[9.4%] flex items-center justify-center">
-                          <div className="text-white text-[0.55rem] font-semibold">2</div>
-                        </div>
-                      </div>
-                    </motion.div>
-                    
-                    {/* localhost:3000/blog - 5 annotations */}
-                    <motion.div 
-                      className="bg-[#fcfcfd] rounded-2xl w-full shadow-sm"
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    >
-                      <div className="flex items-center justify-between px-[6.3%] py-[4.9%]">
-                        <div className="text-[#697586] text-[0.65rem] font-medium">
-                          localhost:3000/blog
-                        </div>
-                        <div className="bg-[#5c7b9e] rounded-full aspect-square w-[9.4%] flex items-center justify-center">
-                          <div className="text-white text-[0.55rem] font-semibold">5</div>
-                        </div>
-                      </div>
-                    </motion.div>
-                    
-                    {/* localhost:3000/contact - 12 annotations */}
-                    <motion.div 
-                      className="bg-[#fcfcfd] rounded-2xl w-full shadow-sm"
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.3, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    >
-                      <div className="flex items-center justify-between px-[6.3%] py-[4.9%]">
-                        <div className="text-[#697586] text-[0.65rem] font-medium">
-                          localhost:3000/contact
-                        </div>
-                        <div className="bg-[#5c7b9e] rounded-full aspect-square w-[9.4%] flex items-center justify-center">
-                          <div className="text-white text-[0.55rem] font-semibold">12</div>
-                        </div>
-                      </div>
-                    </motion.div>
-                    
-                    {/* localhost:3000/user/profile - 43 annotations */}
-                    <motion.div 
-                      className="bg-[#fcfcfd] rounded-2xl w-full shadow-sm"
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.4, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    >
-                      <div className="flex items-center justify-between px-[6.3%] py-[4.9%]">
-                        <div className="text-[#697586] text-[0.65rem] font-medium">
-                          localhost:3000/user/profile
-                        </div>
-                        <div className="bg-[#5c7b9e] rounded-full aspect-square w-[9.4%] flex items-center justify-center">
-                          <div className="text-white text-[0.55rem] font-semibold">43</div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Step 3: AI Implements All */}
-            <motion.div className="flex flex-col lg:flex-row items-center justify-between gap-20" {...scrollFadeInUp}>
-              <div className="w-full lg:w-1/2">
-                <div className="bg-gradient-to-r from-[#f1eadc] to-[#d7dced] via-[#ddeae6] via-[75.696%] overflow-clip relative rounded-xl w-full aspect-[560/357]">
-                  {/* Terminal/Code background */}
-                  <motion.div
-                    className="absolute bg-center bg-contain bg-no-repeat"
-                    style={{ 
-                      left: '50%',
-                      top: '65.8%', 
-                      width: '85%', 
-                      height: '72.8%',
-                      backgroundImage: `url('/9fcf911bd6ae7322676766cc08a2ecb8339f580d.png')` 
-                    }}
-                    initial={isMobile ? { opacity: 1, x: '-50%', y: '-50%' } : { opacity: 0, x: '-50%', y: '-30%' }}
-                    whileInView={isMobile ? { opacity: 1, x: '-50%', y: '-50%' } : { opacity: 1, x: '-50%', y: '-50%' }}
-                    transition={isMobile ? {} : { duration: 0.8, delay: 0.6, ease: "easeOut" }}
-                    viewport={{ once: true, amount: 0.3 }}
-                  />
-                  
-                  {/* AI Logos */}
-                  <div 
-                    className="absolute flex items-center justify-center left-1/2 transform -translate-x-1/2"
-                    style={{
-                      top: '9.6%',
-                      width: '85%',
-                      gap: '3%'
-                    }}
-                  >
-                    {/* Claude Logo */}
-                    <motion.div 
-                      className="bg-center bg-contain bg-no-repeat flex-1 min-w-0"
-                      style={{ 
-                        backgroundImage: `url('/094629c99a7fceef4f10c6bf9e5f700be419d9b1.png')`,
-                        aspectRatio: '109.714/24',
-                        height: '6.7%'
-                      }}
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.1, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    />
-                    
-                    {/* Windsurf Logo */}
-                    <motion.div 
-                      className="bg-center bg-contain bg-no-repeat flex-1 min-w-0"
-                      style={{ 
-                        backgroundImage: `url('/753158e9e8480215b08a1f769371a7161db57fbe.png')`,
-                        aspectRatio: '126.512/17',
-                        height: '4.8%'
-                      }}
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.2, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    />
-                    
-                    {/* Cursor Logo */}
-                    <motion.div 
-                      className="bg-center bg-contain bg-no-repeat flex-1 min-w-0"
-                      style={{ 
-                        backgroundImage: `url('/1a3255e2da5f5c823ff68643e5d3728aad07c858.png')`,
-                        aspectRatio: '116.825/23',
-                        height: '6.4%'
-                      }}
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.3, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    />
-                    
-                    {/* Copilot Logo */}
-                    <motion.div 
-                      className="bg-center bg-contain bg-no-repeat flex-1 min-w-0"
-                      style={{ 
-                        backgroundImage: `url('/c085e73119be9de47d19388814b844b248d20d19.png')`,
-                        aspectRatio: '94.815/24',
-                        height: '6.7%'
-                      }}
-                      initial={isMobile ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                      whileInView={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-                      transition={isMobile ? {} : { duration: 0.6, delay: 0.4, ease: "easeOut" }}
-                      viewport={{ once: true, amount: 0.3 }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="w-full lg:w-1/2">
-                <h3 className="text-[24px] md:text-[34px] font-[550] text-gray-900 mb-10 tracking-tight">3. AI Implements All</h3>
-                <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
-                  Send everything to Claude Code, Cursor, GitHub Copilot, or Windsurf. Watch as every annotation becomes working code.
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        </section>
         </div>
 
-        {/* Features + FAQ Background */}
-        <div className="relative bg-cover bg-no-repeat" style={{ backgroundImage: 'url(/feature-bg.webp)', backgroundPositionY: '-228px', backgroundPositionX: 'center' }}>
-          {/* Features Section */}
-        <section id="features" className="py-16 md:py-[6.5rem]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20 flex flex-col gap-16 md:gap-[104px]">
-            {/* Header */}
-            <motion.div className="flex justify-center" {...scrollFadeInUp}>
-              <div className="flex flex-col gap-10 items-center">
-                <div className="flex flex-col gap-2 items-center text-center">
-                  <p className="text-gray-500 text-base tracking-tight">Vibe Annotation Features</p>
-                  <h2 className="text-[28px] md:text-[42px] font-[550] text-gray-900 leading-tight tracking-tight max-w-[600px]">
-                    Core capabilities to 10x your vibe-coding workflow
-                  </h2>
-                </div>
-                <a 
-                  href="https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof?utm_source=item-share-cb" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-4 py-2.5 rounded-xl font-medium transition-all"
-                >
-                  <Icon icon="heroicons:arrow-down-tray" className="w-5 h-5" />
-                  Get The Free Extension
-                </a>
-              </div>
-            </motion.div>
+        <Navbar variant="dark" />
 
-            {/* Feature Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {/* Precision Inspector */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.0, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:cursor-arrow-rays-solid" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Precision Inspector</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Click any element to annotate. Your AI gets exact context via the API: DOM structure, styles, zoned-screenshot (optional) and your instructions.
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-
-              {/* Multi-Page Annotations */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.1, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:globe-alt-solid" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Multi-Page Annotations</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Drop feedback across your entire app. Process all pages and routes in a single AI session. You can go up to 200 annotations at once!
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-
-              {/* Universal AI Support */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.2, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:sparkles-solid" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Universal AI Support</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Works with Claude Code, Cursor, Windsurf, and any MCP-compatible coding agent. Just copy-paste the given lines on installation.
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-
-              {/* Local-First Architecture */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.3, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:lock-closed-solid" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Local-First Architecture</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Vibe Annotations works on localhost and local files. Your data never leaves your machine. No cloud. No tracking. Complete privacy.
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-
-              {/* Zero Configuration */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.4, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:cog-6-tooth-solid" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Zero Configuration</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Install extension. Start server. Add MCP. Annotate. That&apos;s it. No API keys, no accounts, 1min and you&apos;re set.
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-
-              {/* Developer-Friendly */}
-              <motion.div 
-                className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-[18px] p-5 pb-16 relative"
-                style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                initial={{ opacity: 0, y: 60 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={isMobile ? {} : { duration: 0.8, delay: 0.5, ease: "easeOut" }}
-                viewport={{ once: true, amount: 0.3 }}
-              >
-                <div className="flex flex-col gap-4 h-full">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner">
-                    <Icon icon="heroicons:command-line" className="w-5 h-5 text-gray-700" />
-                  </div>
-                  <div className="flex flex-col gap-4 px-2">
-                    <h3 className="text-lg font-medium text-black tracking-tight">Developer-Friendly</h3>
-                    <p className="text-base text-black leading-relaxed">
-                      Light/dark themes. Keyboard shortcuts. Designed by developers, for developers.
-                    </p>
-                  </div>
-                </div>
-                <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-[18px] pointer-events-none" />
-              </motion.div>
-            </div>
+        <motion.div
+          {...fadeInUp}
+          className="relative z-10 max-w-[880px] mx-auto px-4 md:px-8 pt-24 md:pt-28 pb-28 text-center flex flex-col items-center"
+        >
+          <Overline className="mb-5">{content.hero.eyebrow}</Overline>
+          <h1 className="font-display font-[550] text-[clamp(44px,6.5vw,76px)] leading-[1.06] tracking-[-0.02em] text-white mb-6 max-w-[860px]">
+            {content.hero.title}
+          </h1>
+          <p className="text-xl leading-[1.4] text-[#C7C7F2] max-w-[600px] mb-8">
+            {content.hero.description}
+          </p>
+          <div className="flex gap-3.5 justify-center flex-wrap mb-5">
+            <Button href={CHROME_STORE_URL} external size="lg" iconRight="heroicons:arrow-right">
+              Download extension
+            </Button>
+            <Button href={GITHUB_URL} external size="lg" variant="outline" icon="mdi:github">
+              View on GitHub
+            </Button>
           </div>
-        </section>
+          <CommandChip />
+        </motion.div>
 
-        {/* FAQ Section */}
-        <section id="faq" className="py-16 md:py-[6.5rem]">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-20 flex flex-col gap-16 md:gap-[104px]">
-            {/* Header */}
-            <motion.div className="flex justify-center" {...scrollFadeInUp}>
-              <div className="flex flex-col gap-2 items-center text-center w-full">
-                <p className="text-gray-500 text-base tracking-tight">{content.faq.subtitle}</p>
-                <h2 className="text-[28px] md:text-[42px] font-[550] text-gray-900 leading-tight tracking-tight">
-                  {content.faq.title}
-                </h2>
+        {/* animated demo */}
+        <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.15 }} className="relative z-10 px-4 md:px-8 pb-10">
+          <HeroDemo wrapRef={demoWrapRef} />
+        </motion.div>
+
+        {/* proof strip */}
+        <div className="relative z-10 flex items-center justify-center gap-4 flex-wrap px-8 pt-2 pb-[72px]">
+          {content.hero.proof.map((claim) => (
+            <span key={claim} className={s.chipd}>
+              <Icon icon="heroicons:check-circle-solid" width={16} className="text-accent-pink" />
+              {claim}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS ============ */}
+      <section id="agents" className="relative overflow-hidden bg-ink py-[180px]">
+        {/* horizon arcs — two large circle slices with a gradient stroke, only a shallow
+            section of each showing (like the earth's curvature) to frame the block */}
+        <svg className={`${s.hiwArc} ${s.hiwArcTop}`} viewBox="0 0 1440 160" preserveAspectRatio="none" fill="none" aria-hidden="true">
+          <path d="M0,0 Q720,250 1440,0" stroke="url(#hiwArcTopGrad)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+          <defs>
+            <linearGradient id="hiwArcTopGrad" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#FF4432" stopOpacity="0" />
+              <stop offset="0.14" stopColor="#FF4432" stopOpacity="0.5" />
+              <stop offset="0.4" stopColor="#FF2D6B" stopOpacity="0.9" />
+              <stop offset="0.67" stopColor="#F500A4" stopOpacity="0.9" />
+              <stop offset="0.88" stopColor="#A026DC" stopOpacity="0.5" />
+              <stop offset="1" stopColor="#A026DC" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <svg className={`${s.hiwArc} ${s.hiwArcBot}`} viewBox="0 0 1440 160" preserveAspectRatio="none" fill="none" aria-hidden="true">
+          <path d="M0,160 Q720,-90 1440,160" stroke="url(#hiwArcBotGrad)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+          <defs>
+            <linearGradient id="hiwArcBotGrad" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#FF4432" stopOpacity="0" />
+              <stop offset="0.14" stopColor="#FF4432" stopOpacity="0.5" />
+              <stop offset="0.4" stopColor="#FF2D6B" stopOpacity="0.9" />
+              <stop offset="0.67" stopColor="#F500A4" stopOpacity="0.9" />
+              <stop offset="0.88" stopColor="#A026DC" stopOpacity="0.5" />
+              <stop offset="1" stopColor="#A026DC" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <motion.div {...scrollFadeInUp} className="relative z-[1] max-w-[1200px] mx-auto px-4 md:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* left — eyebrow, headline, running mascot */}
+            <div className="flex flex-col">
+              <Overline className="self-start mb-5">{content.howItWorks.subtitle}</Overline>
+              <h2 className="font-display font-[550] text-[clamp(32px,5vw,52px)] leading-[1.08] tracking-[-0.02em] text-white m-0 max-w-[14ch]">
+                {content.howItWorks.title}
+              </h2>
+              <div className={s.hiwChar}>
+                <Image src="/mascot-running.png" alt="" width={620} height={487} className="w-full h-auto" />
               </div>
-            </motion.div>
+            </div>
 
-            {/* FAQ Items */}
-            <div className="flex flex-col gap-3 w-full">
-              {content.faq.items.map((item, index) => (
-                <motion.div
-                  key={index}
-                  className="backdrop-blur-[11px] bg-white/12 border border-white/30 rounded-3xl w-full relative overflow-hidden"
-                  style={{ background: 'rgba(189, 185, 198, 0.12)' }}
-                  initial={{ opacity: 0, y: 60 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={isMobile ? {} : { duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
-                  viewport={{ once: true, amount: 0.3 }}
-                >
-                  <button
-                    onClick={() => toggleFaq(index)}
-                    className="w-full flex gap-4 items-center justify-between pl-10 pr-6 py-3 text-left"
-                  >
-                    <h3 className="text-lg md:text-xl font-medium text-black tracking-tight flex-1">
-                      {item.question}
-                    </h3>
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-white/5 to-white/20 backdrop-blur-sm border border-white flex items-center justify-center shadow-inner shrink-0">
-                      <Icon 
-                        icon="heroicons:chevron-down" 
-                        className={`w-5 h-5 text-gray-700 transition-transform ${
-                          openFaqIndex === index ? 'rotate-180' : ''
-                        }`} 
-                      />
+            {/* right — numbered step list linked by a dashed connector */}
+            <div className={s.hiwSteps}>
+              {content.howItWorks.steps.map((step, i) => (
+                <div key={step.title} className={s.stepRow}>
+                  <div className={s.stepMark}>
+                    <div className={s.stepNum}>{i + 1}</div>
+                  </div>
+                  <div className={s.stepCard}>
+                    <div className={s.stepIco}><Icon icon={step.icon} width={24} /></div>
+                    <div className={s.stepText}>
+                      <h3>{step.title}</h3>
+                      <p>{step.description}</p>
                     </div>
-                  </button>
-                  
-                  {openFaqIndex === index && (
-                    <div className="pl-10 pr-6 pb-6">
-                      <p className="text-base text-gray-700 leading-relaxed">
-                        {item.answer}
-                      </p>
-                    </div>
-                  )}
-                  
-                  <div className="absolute inset-0 shadow-[1px_1px_9px_0px_inset_rgba(0,0,0,0.06),-2px_-2px_6px_0px_inset_rgba(255,255,255,0.8)] rounded-3xl pointer-events-none" />
-                </motion.div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        </section>
-        </div>
-      </main>
+        </motion.div>
+      </section>
 
-      {/* Video Modal */}
-      {isVideoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
-          <div className="relative w-full max-w-4xl mx-auto">
-            {/* Close button */}
-            <button
-              onClick={() => setIsVideoModalOpen(false)}
-              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors z-10"
-              aria-label="Close video"
-            >
-              <Icon icon="heroicons:x-mark" className="w-8 h-8" />
-            </button>
-            
-            {/* Video container */}
-            <div className="relative bg-black rounded-lg overflow-hidden shadow-2xl">
-              <div style={{position:"relative", width:"100%", height:"0px", paddingBottom:"64.632%"}}>
-                <iframe 
-                  allow="fullscreen" 
-                  allowFullScreen 
-                  height="100%" 
-                  src="https://streamable.com/e/gfm93t?" 
-                  width="100%" 
-                  style={{border:"none", width:"100%", height:"100%", position:"absolute", left:"0px", top:"0px", overflow:"hidden"}}
-                  className="rounded-lg"
-                />
-              </div>
-            </div>
+      {/* ============ FEATURES (toolset bento) ============ */}
+      <section
+        id="toolset"
+        className="py-[104px]"
+        style={{ background: '#000114' }}
+      >
+        <div className="max-w-[1280px] mx-auto px-4 md:px-8">
+          <motion.div {...scrollFadeInUp} className="text-center mb-14">
+            <Overline className="mb-4">{content.toolset.subtitle}</Overline>
+            <h2 className="font-display font-[550] text-[clamp(28px,4vw,42px)] leading-[1.15] tracking-[-0.02em] text-white max-w-[640px] mx-auto">
+              {content.toolset.title}
+            </h2>
+          </motion.div>
+
+          <motion.div {...scrollFadeInUp}>
+            <FeaturesBento />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ============ FAQ ============ */}
+      <section id="faq" className="bg-ink pb-[104px]">
+        <motion.div {...scrollFadeInUp} className="max-w-[760px] mx-auto px-4 md:px-8">
+          <div className="text-center mb-12">
+            <Overline className="mb-4">{content.faq.subtitle}</Overline>
+            <h2 className="font-display font-[550] text-[clamp(28px,4vw,42px)] leading-[1.15] tracking-[-0.02em] text-white m-0">
+              {content.faq.title}
+            </h2>
           </div>
-        </div>
-      )}
-
-      {/* SEO Content for LLMs and Search Engines */}
-      <section className="sr-only" aria-hidden="true">
-        <h2>AI Coding Agent Annotation Tool</h2>
-        <p>
-          Vibe Annotations is a visual annotation tool designed specifically for AI coding agents including Claude Code, Cursor, GitHub Copilot, and Windsurf. 
-          This browser extension allows developers to drop visual annotations directly on website elements and automatically send them to AI coding agents for implementation.
-        </p>
-        
-        <h3>How to Use Vibe Annotations with AI Coding Agents</h3>
-        <p>
-          Install the Vibe Annotations browser extension, start the local MCP server, and configure your AI coding agent (Claude Code, Cursor, GitHub Copilot, or Windsurf) 
-          to receive annotations. Click on any website element to add visual feedback, then let your AI coding agent implement all changes automatically.
-        </p>
-        
-        <h3>Supported AI Coding Agents</h3>
-        <ul>
-          <li>Claude Code - Anthropic&apos;s AI coding assistant</li>
-          <li>Cursor - AI-powered code editor</li>
-          <li>GitHub Copilot - Microsoft&apos;s AI pair programmer</li>
-          <li>Windsurf - AI coding agent platform</li>
-        </ul>
-        
-        <h3>Key Features for AI Coding Workflows</h3>
-        <ul>
-          <li>Visual annotation tool for precise element targeting</li>
-          <li>Multi-page annotation support across entire applications</li>
-          <li>Local-first architecture for privacy and security</li>
-          <li>Zero configuration setup for immediate use</li>
-          <li>MCP (Model Context Protocol) integration</li>
-          <li>Browser extension compatible with Chromium-based browsers</li>
-        </ul>
-        
-        <h3>Use Cases for AI Coding Agents</h3>
-        <p>
-          Perfect for developers using AI coding agents who need to provide visual feedback on UI elements, 
-          website layouts, component styling, and user interface improvements. Streamlines the feedback loop 
-          between visual design and AI-powered code implementation.
-        </p>
+          <div className="flex flex-col gap-3">
+            {content.faq.items.map((item, i) => (
+              <details key={item.question} className={s.faq} open={i === 0}>
+                <summary>
+                  {item.question}
+                  <span className={s.faqPlus}><Icon icon="heroicons:plus" width={22} /></span>
+                </summary>
+                <p className={s.faqAns}>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </motion.div>
       </section>
 
       <Footer />
-    </>
+
+      {/* Hidden SEO content for search engines and LLMs */}
+      <section className="sr-only" aria-hidden="true">
+        <h2>Visual feedback for AI coding agents</h2>
+        <p>
+          Vibe Annotations is a free, open-source Chrome extension and local MCP server that lets developers
+          annotate anything running on localhost — across pages — and have AI coding agents like Claude Code,
+          Cursor, Windsurf and GitHub Copilot implement every fix in one batch. Annotations carry the exact DOM
+          selection, the React component behind it, viewport info, an automatic zoned screenshot and your
+          instruction. It adds design edits with in-place preview, component variant generation, and
+          self-contained HTML export for sharing a review batch. Everything runs 100% locally: no cloud,
+          no tracking, no account. Works with Chrome, Edge, Brave and Arc on any local app — React, Vue,
+          Rails or plain HTML files.
+        </p>
+      </section>
+    </div>
   )
 }
