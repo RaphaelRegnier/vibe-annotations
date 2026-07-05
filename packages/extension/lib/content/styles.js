@@ -759,52 +759,80 @@ export const VIBE_STYLES = `
   padding: 10px 14px;
 }
 
+/* the wrapper IS the visual field: the textarea scrolls inside it and the
+   footer row (+ button, kbd hint) sits in flow below — text can never overlap it */
 .vibe-input-wrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--v-outline);
+  border-radius: var(--v-radius-sm);
+  background: var(--v-textarea-bg);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.vibe-input-wrap:focus-within {
+  border-color: var(--v-highlight);
+  background: var(--v-surface-hover);
 }
 
 .vibe-textarea {
   display: block; /* avoid the inline-block baseline gap under the field (misaligns the + button) */
   width: 100%;
-  min-height: 72px;
-  padding: 10px;
-  border: 1px solid var(--v-outline);
-  border-radius: var(--v-radius-sm);
-  background: var(--v-textarea-bg);
+  min-height: 60px;
+  padding: 10px 10px 4px;
+  border: none;
+  background: transparent;
   color: var(--v-text-primary);
   font-family: var(--v-font);
   font-size: 13px;
   line-height: 1.45;
-  resize: vertical;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  resize: none; /* the grip in the footer row is the resize handle */
+  overflow-y: auto;
 }
 
 .vibe-textarea:focus {
   outline: none;
-  border-color: var(--v-highlight);
-  background: var(--v-surface-hover);
 }
 
 .vibe-textarea::placeholder {
   color: var(--v-text-secondary);
 }
 
+.vibe-input-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 5px 5px;
+}
+
 .vibe-kbd-hint {
-  position: absolute;
-  bottom: 6px;
-  right: 8px;
   font-size: 10px;
   color: var(--v-text-secondary);
   opacity: 0.7;
   pointer-events: none;
 }
 
-/* Attachment "+" menu — bottom-left of the comment field */
-.vibe-textarea-add { padding-bottom: 34px; }
+.vibe-foot-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vibe-resize-grip {
+  display: flex;
+  padding: 5px;
+  margin: -5px;
+  color: var(--v-text-secondary);
+  cursor: ns-resize;
+  touch-action: none;
+  transition: color 0.15s ease;
+}
+.vibe-resize-grip:hover { color: var(--v-text-primary); }
+
+/* Attachment "+" menu — in the comment field's footer row */
 .vibe-add-btn {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
   width: 26px;
   height: 26px;
   display: flex;

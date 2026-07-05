@@ -185,12 +185,19 @@ import VibeShadowHost from './shadow-host.js';
       <div class="vibe-mode-panel" data-mode="comment">
         <div class="vibe-input-wrap">
           <textarea class="vibe-textarea vibe-textarea-add" placeholder="Describe the change for your AI agent…" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
-          <button class="vibe-add-btn" type="button" title="Add an attachment">${VIBE_PLUS_ICON}</button>
+          <div class="vibe-input-foot">
+            <button class="vibe-add-btn" type="button" title="Add an attachment">${VIBE_PLUS_ICON}</button>
+            <span class="vibe-foot-right">
+              <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
+              <span class="vibe-resize-grip" title="Drag to resize">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M8 1L1 8M8 5L5 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </span>
+            </span>
+          </div>
           <div class="vibe-add-menu" hidden>
             <button class="vibe-add-opt" data-add="file" type="button">${VIBE_PAPERCLIP_ICON}<span>Attach file</span></button>
             <button class="vibe-add-opt" data-add="shot" type="button">${VIBE_CAMERA_ICON}<span>Take a screenshot</span></button>
           </div>
-          <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
         </div>
         <p class="vibe-variants-explain" hidden>Your agent builds these in your codebase, you'll preview and pick your favorite right here.</p>
         <div class="vibe-attachments empty"></div>
@@ -222,6 +229,39 @@ import VibeShadowHost from './shadow-host.js';
     const cancelBtn = popover.querySelector('.vibe-cancel-btn');
     const deleteBtn = popover.querySelector('.vibe-delete-btn');
     const resetBtn = popover.querySelector('.vibe-design-reset');
+
+    // Auto-grow the comment field with its content, capped at 180px (then it
+    // scrolls). Dragging the grip sets a manual height that sticks and turns
+    // auto-grow off — the user can take it past the cap.
+    const MAX_AUTO_H = 180;
+    let manualH = 0;
+    const autosize = () => {
+      if (manualH) return;
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, MAX_AUTO_H) + 'px';
+    };
+    textarea.addEventListener('input', autosize);
+    requestAnimationFrame(autosize); // initial fit — edit mode preloads a comment
+
+    const grip = popover.querySelector('.vibe-resize-grip');
+    grip.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId);
+      const startY = e.clientY;
+      const startH = textarea.offsetHeight;
+      const onMove = (ev) => {
+        manualH = Math.max(60, startH + (ev.clientY - startY));
+        textarea.style.height = manualH + 'px';
+      };
+      const onUp = () => {
+        grip.removeEventListener('pointermove', onMove);
+        grip.removeEventListener('pointerup', onUp);
+        grip.removeEventListener('pointercancel', onUp);
+      };
+      grip.addEventListener('pointermove', onMove);
+      grip.addEventListener('pointerup', onUp);
+      grip.addEventListener('pointercancel', onUp);
+    });
 
     activeElement = targetElement;
     activeOriginalCssText = targetElement.style.cssText;
