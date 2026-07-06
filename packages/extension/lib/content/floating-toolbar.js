@@ -14,6 +14,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
   let activeRecordingCleanup = null;
   let isAnnotating = false;
   let serverOnline = false;
+  let serverOutdated = false; // connected but older than the extension needs
   let annotationCount = 0;
   let styleAnnotationCount = 0;
   let clearOnCopy = false;
@@ -545,8 +546,8 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     const inLowerHalf = rect.top > window.innerHeight / 2;
     settingsDropdown.className = 'vibe-settings-dropdown' + (inLowerHalf ? ' above' : '');
 
-    const statusColor = serverOnline ? 'var(--v-status-online)' : 'var(--v-status-offline)';
-    const statusLabel = serverOnline ? 'Online' : 'Offline';
+    const statusColor = serverOutdated ? 'var(--v-status-watching)' : (serverOnline ? 'var(--v-status-online)' : 'var(--v-status-offline)');
+    const statusLabel = serverOutdated ? 'Update available' : (serverOnline ? 'Online' : 'Offline');
 
     const route = vibeLocationPath(window.location);
 
@@ -834,6 +835,10 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
         statusEl.innerHTML = ICONS.eye;
         statusEl.style.color = 'var(--v-status-watching)';
         statusEl.title = 'Watching — click to stop';
+      } else if (serverOnline && serverOutdated) {
+        statusEl.innerHTML = ICONS.serverRack;
+        statusEl.style.color = 'var(--v-status-watching)';
+        statusEl.title = 'MCP Server online — update available (npm update -g vibe-annotations-server)';
       } else if (serverOnline) {
         statusEl.innerHTML = ICONS.serverRack;
         statusEl.style.color = 'var(--v-status-online)';
@@ -848,8 +853,9 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
 
   async function refreshServerStatus() {
     const status = await VibeAPI.checkServerStatus();
-    const changed = serverOnline !== status.connected;
+    const changed = serverOnline !== status.connected || serverOutdated !== !!status.outdated;
     serverOnline = status.connected;
+    serverOutdated = !!status.outdated;
     if (changed) updateUI();
   }
 
@@ -1052,7 +1058,14 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     } catch (err) {
       console.warn('[Vibe] export failed:', err);
-      showInfoModal('Export failed', 'Could not reach the annotations server on this page.');
+      // .html needs the server to read + embed the image files. If the server is
+      // reachable but too old to have the export endpoint, point at the fix.
+      const status = await VibeAPI.checkServerStatus().catch(() => null);
+      if (status?.outdated) {
+        showInfoModal('Update your server', 'The .html export needs a newer annotations server. Run "npm update -g vibe-annotations-server" and restart it — or use the .md export, which works offline.');
+      } else {
+        showInfoModal('Export failed', 'The .html export needs the local annotations server running. Start it, or use the .md export instead.');
+      }
     }
   }
 

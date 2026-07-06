@@ -6,6 +6,23 @@ let statusCache = null;
 let statusCacheTime = 0;
 const CACHE_TTL = 2000;
 
+// Oldest server this extension build fully supports (variants MCP contract,
+// image attachments, and the .html export endpoint all landed by here). A
+// connected-but-older server gets a "please update" nudge so new features don't
+// fail silently.
+const MIN_SERVER_VERSION = '0.5.0';
+
+function isServerOutdated(version) {
+  if (!version) return false; // unknown → don't nag
+  const a = String(version).split('.').map(Number);
+  const b = MIN_SERVER_VERSION.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] || 0) < (b[i] || 0)) return true;
+    if ((a[i] || 0) > (b[i] || 0)) return false;
+  }
+  return false;
+}
+
   function isFileProtocol() {
     return window.location.protocol === 'file:';
   }
@@ -35,12 +52,15 @@ const CACHE_TTL = 2000;
           mode: 'cors',
           credentials: 'omit'
         });
-        status = { connected: res.ok };
+        let version = null;
+        if (res.ok) { try { version = (await res.json())?.version || null; } catch { /* older server / bad body */ } }
+        status = { connected: res.ok, version };
       } catch {
         status = await _checkViaBg();
       }
     }
 
+    status.outdated = !!(status.connected && isServerOutdated(status.version));
     statusCache = status;
     statusCacheTime = now;
     return status;
@@ -49,9 +69,10 @@ const CACHE_TTL = 2000;
   async function _checkViaBg() {
     try {
       const r = await chrome.runtime.sendMessage({ action: 'checkMCPStatus' });
-      return { connected: !!(r && r.success && r.status && r.status.connected) };
+      const s = r && r.success && r.status;
+      return { connected: !!(s && s.connected), version: s ? s.server_version : null };
     } catch {
-      return { connected: false };
+      return { connected: false, version: null };
     }
   }
 
