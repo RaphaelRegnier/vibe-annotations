@@ -180,7 +180,6 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       const banner = document.createElement('div');
       banner.className = 'vibe-update-banner';
       banner.innerHTML = `
-        <span class="vibe-update-spark">✦</span>
         <span class="vibe-update-text">
           <strong>Vibe Annotations${version ? ` ${version}` : ''} is here</strong>
           — new mascot, design edits, variants, screenshots &amp; sharing.

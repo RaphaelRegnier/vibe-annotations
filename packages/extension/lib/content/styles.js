@@ -1065,12 +1065,6 @@ export const VIBE_STYLES = `
   animation: vibe-update-banner-out 0.18s ease both;
 }
 
-.vibe-update-spark {
-  flex-shrink: 0;
-  font-size: 13px;
-  color: var(--v-badge-bg);
-}
-
 .vibe-update-text {
   flex: 1;
   color: var(--v-text-secondary);
