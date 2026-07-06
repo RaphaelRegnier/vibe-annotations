@@ -215,7 +215,7 @@ function DesignEditsCard() {
             <div className={s.deSkelBlock} style={{ marginTop: gap }} />
           </div>
           <svg className={`${s.thread} ${s.deThread}`} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-            <path className={s.deThreadWide} d="M 43 45 C 34 47, 29 50, 27 55" vectorEffect="non-scaling-stroke" />
+            <path className={s.deThreadWide} d="M 43 45 C 36 49, 29 57, 25.3 62.5" vectorEffect="non-scaling-stroke" />
             <path className={s.deThreadMobile} d="M 35 30 C 32 27, 30 24, 28.5 22.5" vectorEffect="non-scaling-stroke" />
           </svg>
           <div className={s.dePanel}>
