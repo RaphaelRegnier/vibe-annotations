@@ -61,6 +61,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     globe: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
     robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
     book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+    layers: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12.75l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/><path d="M2 17.25l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/></svg>',
     eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
@@ -162,6 +163,49 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
     wireButtons();
     setupDrag();
     updateUI();
+    injectUpdateBanner();
+  }
+
+  // --- Release banner (shown once after an update, until dismissed) ---
+
+  async function injectUpdateBanner() {
+    try {
+      const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
+      if (!updateInfo || !updateInfo.hasUpdate || !toolbarEl) return;
+
+      const version = updateInfo.currentVersion || '';
+      const releaseUrl = updateInfo.releaseUrl
+        || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
+
+      const banner = document.createElement('div');
+      banner.className = 'vibe-update-banner';
+      banner.innerHTML = `
+        <span class="vibe-update-spark">✦</span>
+        <span class="vibe-update-text">
+          <strong>Vibe Annotations${version ? ` ${version}` : ''} is here</strong>
+          — new mascot, design edits, variants, screenshots &amp; sharing.
+        </span>
+        <a class="vibe-update-link" href="${releaseUrl}" target="_blank" rel="noopener">See what's new</a>
+        <button class="vibe-update-dismiss" title="Dismiss">${ICONS.close}</button>
+      `;
+
+      const dismiss = () => {
+        banner.classList.add('vibe-update-banner-out');
+        setTimeout(() => banner.remove(), 200);
+        chrome.runtime.sendMessage({ action: 'dismissUpdate' }).catch(() => {});
+      };
+
+      banner.querySelector('.vibe-update-dismiss').addEventListener('click', (e) => {
+        e.stopPropagation();
+        dismiss();
+      });
+      // Opening the release note also clears the "NEW" state.
+      banner.querySelector('.vibe-update-link').addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: 'dismissUpdate' }).catch(() => {});
+      });
+
+      toolbarEl.appendChild(banner);
+    } catch (_) { /* storage unavailable — skip banner */ }
   }
 
   function wireButtons() {

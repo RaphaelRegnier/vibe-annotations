@@ -1040,6 +1040,99 @@ export const VIBE_STYLES = `
   box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
 }
 
+/* Release banner — sits just below the toolbar after an update */
+.vibe-update-banner {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  padding: 8px 10px 8px 12px;
+  background: var(--v-toolbar-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 10px;
+  box-shadow: var(--v-toolbar-shadow);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--v-text-primary);
+  cursor: default;
+  animation: vibe-update-banner-in 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.vibe-update-banner.vibe-update-banner-out {
+  animation: vibe-update-banner-out 0.18s ease both;
+}
+
+.vibe-update-spark {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--v-badge-bg);
+}
+
+.vibe-update-text {
+  flex: 1;
+  color: var(--v-text-secondary);
+}
+
+.vibe-update-text strong {
+  color: var(--v-text-primary);
+  font-weight: 600;
+}
+
+.vibe-update-link {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: var(--v-pill-gradient);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.vibe-update-link:hover {
+  filter: brightness(1.08);
+}
+
+.vibe-update-dismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--v-text-tertiary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vibe-update-dismiss:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--v-text-primary);
+}
+
+.vibe-update-dismiss svg {
+  width: 14px;
+  height: 14px;
+}
+
+@keyframes vibe-update-banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vibe-update-banner-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-6px); }
+}
+
 /* Toolbar logo */
 .vibe-toolbar-logo {
   width: 22px;

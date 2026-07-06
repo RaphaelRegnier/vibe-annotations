@@ -67,6 +67,26 @@
         <span>Editing multiple pages</span>
         <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
       </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="design-edits" type="button">
+        ${ICONS.palette}
+        <span>Direct design edits</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="variants" type="button">
+        ${ICONS.layers}
+        <span>Component variants</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="screenshots" type="button">
+        ${ICONS.camera}
+        <span>Screenshots &amp; images</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="sharing" type="button">
+        ${ICONS.download}
+        <span>Sharing a review</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
       <button class="vibe-settings-link vibe-workflow-btn" data-workflow="collaborate" type="button">
         ${ICONS.users}
         <span>Collaborating</span>
@@ -334,6 +354,109 @@
             <p class="vibe-guide-text">1. Navigate your app and annotate elements across as many routes as needed</p>
             <p class="vibe-guide-text">2. Tell your agent: <em>"read vibe annotations and implement the changes"</em></p>
             <p class="vibe-guide-text">3. The agent pulls all pending annotations via MCP, edits your source files, and deletes each one when done</p>
+          </div>
+        `
+      },
+      'design-edits': {
+        title: 'Direct design edits',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Figma-like edits, live on the page</div>
+            <p class="vibe-guide-text">Tweak size, spacing, color, and text in a panel and preview every change in place before handing it to your agent.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. Click an element to open the popover, then switch to the <strong>Design</strong> tab</p>
+            <p class="vibe-guide-text">2. Adjust layout (flex direction, justify, align, gap), size, spacing, colors, or replace the text</p>
+            <p class="vibe-guide-text">3. The page updates <strong>live</strong> so you see the change in context before committing to it</p>
+            <p class="vibe-guide-text">4. Save the annotation, then <strong>Copy</strong> or sync it to your agent like any other</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">What the agent receives</div>
+            <p class="vibe-guide-text">Edits are stored as <code>pending_changes</code> — the original and new value for each property, plus a text change when you edit copy. Your agent gets the exact deltas alongside the selector and element context.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Tips</div>
+            <p class="vibe-guide-text">Edits are <strong>previews</strong>, not committed code — nothing changes in your codebase until your agent implements the annotation.</p>
+            <p class="vibe-guide-text">Ask your agent to map raw values to your design system (Tailwind classes, CSS variables, tokens) rather than literal pixel/hex values. The <code>read_annotations</code> tool hints at this automatically.</p>
+          </div>
+        `
+      },
+      variants: {
+        title: 'Component variants',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Explore options in your real codebase</div>
+            <p class="vibe-guide-text">Ask your agent for several variants of a component, preview them right on the page, and pick the winner. The agent builds them in your actual code — not a mockup — so the one you choose is already implemented.</p>
+            <p class="vibe-guide-text" style="margin-top:8px;color:var(--v-text-secondary);"><strong>Requires the MCP server.</strong> The Variants tab is disabled until a coding agent is connected over MCP.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. Click the component and switch to the <strong>Variants</strong> tab</p>
+            <p class="vibe-guide-text">2. Describe what you want ("three headline layouts", "a denser and a roomier card")</p>
+            <p class="vibe-guide-text">3. Hand the annotation to your agent — it scaffolds each variant behind a toggle, then reports back</p>
+            <p class="vibe-guide-text">4. Reopen the extension to <strong>preview</strong> each variant live and select your favorite</p>
+            <p class="vibe-guide-text">5. The agent <strong>finalizes</strong> your choice — inlining the winner and stripping the scaffolding for a clean diff</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Lifecycle</div>
+            <p class="vibe-guide-text"><strong>pending</strong> → you requested variants; the agent generates them</p>
+            <p class="vibe-guide-text"><strong>variants-ready</strong> → scaffolding is in place; preview and choose</p>
+            <p class="vibe-guide-text"><strong>variant-chosen</strong> → you picked one; the agent finalizes and cleans up</p>
+            <p class="vibe-guide-text"><strong>variants-discarded</strong> → you dismissed them; the agent removes the leftover scaffolding</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Tips</div>
+            <p class="vibe-guide-text">Keep the requested count small (2–4). Each variant is real code the agent has to build and later remove.</p>
+          </div>
+        `
+      },
+      screenshots: {
+        title: 'Screenshots & images',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Every pin can carry images</div>
+            <p class="vibe-guide-text">An automatic screenshot of the element you pinned, plus any reference images you attach. Your agent receives both as real image files.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Two kinds of image</div>
+            <p class="vibe-guide-text"><strong>Auto-screenshot</strong> — a zoned capture of exactly the element you annotated, so the agent sees its <em>current</em> visual state.</p>
+            <p class="vibe-guide-text"><strong>Reference image</strong> — anything you attach or paste, usually a <em>target</em> ("make it look like this"). The agent is told which is which.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text">1. Open the popover on the element you want to annotate</p>
+            <p class="vibe-guide-text">2. Use the <strong>+</strong> menu to <em>Attach file</em> or <em>Take a screenshot</em>, or paste an image straight into the comment field</p>
+            <p class="vibe-guide-text">3. Save — images travel with the annotation to your agent (as local file paths over MCP) and into <code>.md</code> / <code>.html</code> exports</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Enabling auto-screenshots</div>
+            <p class="vibe-guide-text">Auto-capture is <strong>off by default</strong>. Turn it on in the toolbar settings — the extension requests the screenshot permission the first time, since capturing the tab needs broader host access than annotating alone.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Tips</div>
+            <p class="vibe-guide-text">Attachments are deleted automatically when their annotation is deleted, so the on-disk store never bloats with orphans.</p>
+          </div>
+        `
+      },
+      sharing: {
+        title: 'Sharing a review',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Package a batch into one file</div>
+            <p class="vibe-guide-text">Hand off annotations to a teammate or an agent. Open <strong>View all</strong> in the toolbar and use <strong>Share / Export</strong>.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Three formats</div>
+            <p class="vibe-guide-text"><strong>.md</strong> — <em>personal use.</em> A plain-markdown rundown of every annotation. Rendered client-side, works with <strong>no server running</strong>. Same format as the Copy button, saved to a file.</p>
+            <p class="vibe-guide-text"><strong>.html</strong> — <em>share externally.</em> One self-contained page with every image embedded as base64 — opens in any browser. Building it reads the image files, so it <strong>requires the local server</strong>.</p>
+            <p class="vibe-guide-text"><strong>.json</strong> — <em>re-import later.</em> The raw annotation objects for this site. Feed it into another localhost via <strong>Import</strong> to recreate annotations, badges and previews. Client-side, no server.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Which one?</div>
+            <p class="vibe-guide-text">Handing off to your own agent or working offline → <strong>.md</strong></p>
+            <p class="vibe-guide-text">Sending to someone without the extension (design review, sign-off) → <strong>.html</strong>, so images come along</p>
+            <p class="vibe-guide-text">Moving live annotations to another machine's localhost → <strong>.json</strong>, then Import them there</p>
           </div>
         `
       },

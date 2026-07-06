@@ -100,6 +100,16 @@ class VibeAnnotationsBackground {
     }
   }
 
+  async dismissUpdate() {
+    const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
+    if (updateInfo) {
+      await chrome.storage.local.set({
+        updateInfo: { ...updateInfo, hasUpdate: false }
+      });
+    }
+    chrome.action.setBadgeText({ text: '' });
+  }
+
   // --- Message routing ---
 
   setupMessageListener() {
@@ -193,6 +203,11 @@ class VibeAnnotationsBackground {
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
+        case 'dismissUpdate':
+          this.dismissUpdate()
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          return true;
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
