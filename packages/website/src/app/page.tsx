@@ -680,19 +680,9 @@ export default function Home() {
         </motion.div>
 
         {/* animated demo */}
-        <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.15 }} className="relative z-10 px-4 md:px-8 pb-10">
+        <motion.div {...fadeInUp} transition={{ ...fadeInUp.transition, delay: 0.15 }} className="relative z-10 px-4 md:px-8 pb-24">
           <HeroDemo wrapRef={demoWrapRef} />
         </motion.div>
-
-        {/* proof strip */}
-        <div className="relative z-10 flex items-center justify-center gap-4 flex-wrap px-8 pt-2 pb-[72px]">
-          {content.hero.proof.map((claim) => (
-            <span key={claim} className={s.chipd}>
-              <Icon icon="heroicons:check-circle-solid" width={16} className="text-accent-pink" />
-              {claim}
-            </span>
-          ))}
-        </div>
       </section>
 
       {/* ============ HOW IT WORKS ============ */}

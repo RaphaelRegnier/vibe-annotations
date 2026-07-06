@@ -465,9 +465,11 @@
 .inOk { color: #34d399; }
 
 /* --- card 7: and more — icon grid --- */
-.moreGrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; padding: 18px 26px 26px; align-content: center; }
-.moreItem { display: flex; align-items: center; gap: 11px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.85); line-height: 1.25; }
-.moreIco { flex: none; width: 38px; height: 38px; border-radius: 11px; background: rgba(160,38,220,0.12); border: 1px solid rgba(160,38,220,0.3); color: #c084fc; display: flex; align-items: center; justify-content: center; }
+/* 2×2 tiles that stretch to fill the card's height (grid-auto-rows: 1fr) so the
+   four items use the whole space instead of clustering in the middle */
+.moreGrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 12px; padding: 14px 26px 26px; }
+.moreItem { display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.85); line-height: 1.2; }
+.moreIco { flex: none; width: 40px; height: 40px; border-radius: 11px; background: rgba(160,38,220,0.12); border: 1px solid rgba(160,38,220,0.3); color: #c084fc; display: flex; align-items: center; justify-content: center; }
 
 /* ===== "how it works" — running mascot (left) + numbered step list (right) ===== */
 .hiwChar { position: relative; width: 100%; max-width: 400px; margin-top: 12px; }
