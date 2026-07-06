@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://vibe-annotations.com'),
   title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-  description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, open source, 100% local.',
+  description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
   keywords: 'AI annotations, coding agents, Claude Code, Cursor, GitHub Copilot, Windsurf, visual feedback, developer tools, MCP, browser extension, local development, UI feedback, code automation',
   authors: [{ name: 'Vibe Annotations' }],
   alternates: {
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, open source, 100% local.',
+    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
     url: 'https://vibe-annotations.com',
     siteName: 'Vibe Annotations',
     images: [
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, open source, 100% local.',
+    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
     images: ['/og-image.jpg'],
     site: '@Raph_Regnier',
     creator: '@Raph_Regnier',
@@ -99,7 +99,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "Vibe Annotations",
-              "description": "Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, open source, 100% local.",
+              "description": "Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.",
               "url": "https://vibe-annotations.com",
               "applicationCategory": "DeveloperApplication",
               "operatingSystem": "Web Browser",

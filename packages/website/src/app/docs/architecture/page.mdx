@@ -12,15 +12,15 @@ Browser Extension  ← HTTP sync/CRUD →  MCP Server  ← MCP tools →  AI Age
 
 ## Browser Extension
 
-A Chrome MV3 extension built with vanilla JavaScript. No build step — load the directory as an unpacked extension.
+A Chrome MV3 extension built with [WXT](https://wxt.dev/). The content scripts are ES modules that WXT bundles into the MV3 extension — `wxt dev` gives a live-reloading dev build, `wxt build` / `wxt zip` produce the loadable/publishable output.
 
 - **Content scripts** inject a floating toolbar overlay on localhost pages via a Shadow DOM root
-- **Inspection mode** lets users hover and click elements to annotate them
-- **Annotation popover** provides comment input, design property editors (font, spacing, layout, colors), and raw CSS editing
+- **Inspection mode** lets users hover and click elements to annotate them, with a live selector hint on the highlight
+- **Annotation popover** provides comment input, design property editors (font, spacing, layout, colors), raw CSS editing, image attachments, and a variants intent
 - **Badge manager** renders numbered pins on annotated elements and rehydrates pending design changes
 - **Background service worker** handles storage CRUD with a serialization lock, bidirectional sync with the server, and browser action badge updates
 
-The extension works standalone — copy/paste and export/import work without the server.
+The extension works standalone for the basics — **Copy**, `.md`/`.json` export, and import all run client-side with no server. The `.html` export and MCP integration need the server running.
 
 ## MCP Server
 
@@ -30,6 +30,8 @@ A global npm package (`vibe-annotations-server`) that runs as a background proce
 - **MCP endpoint** (`/mcp`) — Streamable HTTP transport for AI coding agents
 - **SSE endpoint** (`/sse`) — Legacy Server-Sent Events transport
 - **Watcher system** — Long-poll mechanism for watch mode, with grace periods and auto-cleanup
+- **Attachments** (`/api/annotations/:id/attachments`) — image files (auto element screenshots + user reference images) stored under `~/.vibe-annotations/attachments/`, deleted with their annotation
+- **Export** (`/api/export`) — renders a single self-contained `.html` with every image embedded as base64 (the `.md`/`.json` formats are produced client-side in the extension)
 - **Storage** — JSON file at `~/.vibe-annotations/annotations.json`, atomic writes with corruption recovery
 
 ## Data Flow
@@ -48,7 +50,10 @@ A global npm package (`vibe-annotations-server`) that runs as a background proce
 - Element context (tag, classes, text, computed styles, position)
 - Optional `pending_changes` (design property diffs like `fontSize: "16px" → "18px"`)
 - Optional `css` field (rules like `:hover`, `::before`, `@media`)
+- Optional `attachments` (auto element screenshots + user-attached reference images)
 - Source mapping hints (file path, line range, framework detection)
+
+**Variant annotations** (`mode: 'variants'`) carry a self-contained `variant_instructions` contract: the agent scaffolds several coexisting, previewable design variants in your codebase, you pick one in the extension, and the agent finalizes it (stripping all scaffolding). See [Variant generation](/docs/workflows/variants).
 
 **Stylesheet annotations** (`type: 'stylesheet'`) apply broad CSS changes:
 - No selector or element context

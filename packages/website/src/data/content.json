@@ -2,10 +2,10 @@
   "hero": {
     "eyebrow": "The devil is in the details",
     "title": "Visual feedback for AI coding agents",
-    "description": "Annotate anything on your localhost, across pages, and let your coding agent implement every fix in one batch. Free, open source, 100% local.",
+    "description": "Annotate anything on your localhost, across pages, and let your coding agent implement every fix in one batch. Free, source-available, 100% local.",
     "command": "npx vibe-annotations-server init",
     "commandHint": "1 min and you're set",
-    "proof": ["Free & open source", "100% local · no cloud", "MIT licensed"]
+    "proof": ["Free & source-available", "100% local · no cloud", "Open to contributions"]
   },
   "howItWorks": {
     "subtitle": "How it works",
@@ -82,15 +82,15 @@
       },
       {
         "question": "How much does it cost?",
-        "answer": "Vibe Annotations is completely free and open source. There are no hidden costs, no subscription fees, and no premium features behind a paywall. We believe powerful developer tools should be accessible to everyone."
+        "answer": "Vibe Annotations is completely free and source-available. There are no hidden costs, no subscription fees, and no premium features behind a paywall. We believe powerful developer tools should be accessible to everyone."
       },
       {
         "question": "What are the upcoming features?",
         "answer": "We're focusing on designer handoff to dev, visual edits, and general improvements. These features will make collaboration between designers and developers even smoother. Join our GitHub community to vote on features and stay updated!"
       },
       {
-        "question": "It's Open Source, can I contribute?",
-        "answer": "Absolutely! Vibe Annotations is open source and we welcome contributions. You can contribute code, documentation, bug reports, or feature requests. Check out our GitHub repository to get started. We have good first issues labeled for new contributors."
+        "question": "It's source-available, can I contribute?",
+        "answer": "Absolutely! Vibe Annotations is source-available and we welcome contributions. You can contribute code, documentation, bug reports, or feature requests. Check out our GitHub repository to get started. We have good first issues labeled for new contributors."
       },
       {
         "question": "I can't make it work, can I get some assistance?",

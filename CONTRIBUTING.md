@@ -49,31 +49,35 @@ Unsure where to begin contributing? You can start by looking through these issue
 
 ### Project Structure
 
+This is a **pnpm workspace** — one `pnpm install` at the root resolves everything.
+
 ```
 vibe-annotations/
-├── extension/          # Chrome extension source code
-├── annotations-server/ # MCP server (npm package)
-├── docs/              # Documentation
-└── README.md          # Main documentation
+├── packages/
+│   ├── extension/   # Chrome extension (WXT build)
+│   ├── server/      # MCP server (npm package: vibe-annotations-server)
+│   └── website/     # Marketing site & docs (Next.js)
+└── README.md
 ```
+
+Each package has its own `CLAUDE.md` with detailed architecture and dev notes.
 
 ### Extension Development
 
-1. Load the extension in Chrome:
+The extension is built with [WXT](https://wxt.dev/).
+
+1. From `packages/extension/`, run `pnpm dev` — WXT serves a live-reloading dev build.
+2. Load it in Chrome the first time:
    - Open `chrome://extensions/`
    - Enable Developer mode
-   - Click "Load unpacked"
-   - Select the `extension/` directory
-
-2. Make your changes
-3. Reload the extension to test
+   - Click "Load unpacked" and select `packages/extension/.output/chrome-mv3`
+3. Make your changes — WXT hot-reloads the content scripts.
 
 ### Server Development
 
-1. Navigate to `annotations-server/`
-2. Install dependencies: `npm install`
-3. Run in development: `node bin/cli.js start`
-4. Test your changes
+1. From `packages/server/`, install deps: `pnpm install` (or `npm install`)
+2. Run it: `node lib/server.js` (or `node bin/cli.js start`)
+3. Test your changes against `http://127.0.0.1:3846`
 
 ### Code Style
 
@@ -97,8 +101,11 @@ The Chrome extension is published to the Chrome Web Store by maintainers only.
 
 ### Server Publishing
 
-The server is published as an npm package from the separate repository:
-https://github.com/RaphaelRegnier/vibe-annotations-server
+The server (`packages/server`) lives in this monorepo and is published to npm automatically by a GitHub Action (`.github/workflows/publish-npm.yml`) when changes to `packages/server/**` land on `main`. Bump `packages/server/package.json`'s version for an intentional release; otherwise the action patches from the latest npm version.
+
+## Licensing
+
+Vibe Annotations is **source-available** under the [PolyForm Shield License 1.0.0](LICENSE) — not an OSI open-source license. You're welcome to read the code and contribute; by submitting a contribution you agree it's licensed under those same terms.
 
 ## Questions?
 

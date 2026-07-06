@@ -28,7 +28,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="pt-7 border-t border-white/[0.12] flex flex-col-reverse gap-5 sm:flex-row sm:justify-between sm:items-center sm:gap-4">
           <span className="text-white/[0.46] text-[15px]">
-            ©2026 <a href="https://www.spellbind.me/" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Spellbind Creative Studio</a> · MIT · runs 100% locally
+            ©2026 <a href="https://www.spellbind.me/" target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Spellbind Creative Studio</a> · <a href={`${GITHUB_URL}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer" className="hover:text-white/70 transition-colors">Source available</a> · runs 100% locally
           </span>
           <span className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <Link href="/#agents" className="text-[#C7C7F2] hover:text-white text-[15px] font-medium transition-colors">How it works</Link>
