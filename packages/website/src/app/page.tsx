@@ -151,13 +151,63 @@ function FeatureText({ item }: { item: { lead: string; rest: string } }) {
 }
 
 /* numbered annotation badge, sitting directly on the element it marks (like a real pin) */
-function AnnBadge({ n, style }: { n: number; style?: React.CSSProperties }) {
-  return <span className={`${s.pin} ${s.pinStatic} ${s.badgeOn}`} style={style} aria-hidden>{n}</span>
+function AnnBadge({ n, style, ref }: { n: number; style?: React.CSSProperties; ref?: React.Ref<HTMLSpanElement> }) {
+  return <span ref={ref} className={`${s.pin} ${s.pinStatic} ${s.badgeOn}`} style={style} aria-hidden>{n}</span>
+}
+
+/* Durable annotation thread: measures the real positions of the source element
+   and the badge (relative to this overlay) and redraws a dotted connector on any
+   reflow via ResizeObserver — so it never desyncs across breakpoints, unlike a
+   hardcoded viewBox path. The line ends at the badge's center; the badge (drawn
+   above) covers the tip, so it reads as connecting without poking through. */
+function TrackedThread({ fromRef, toRef, curve = 0.12 }: {
+  fromRef: React.RefObject<HTMLElement | null>
+  toRef: React.RefObject<HTMLElement | null>
+  curve?: number
+}) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [d, setD] = useState('')
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const compute = () => {
+      const from = fromRef.current, to = toRef.current
+      if (!from || !to) return
+      const o = svg.getBoundingClientRect()
+      const fr = from.getBoundingClientRect(), tr = to.getBoundingClientRect()
+      const badge = { x: tr.left + tr.width / 2 - o.left, y: tr.top + tr.height / 2 - o.top }
+      const fc = { x: fr.left + fr.width / 2 - o.left, y: fr.top + fr.height / 2 - o.top }
+      // start on the source's edge, in the direction of the badge (not its center)
+      const dx = badge.x - fc.x, dy = badge.y - fc.y
+      const s = Math.min(dx ? fr.width / 2 / Math.abs(dx) : Infinity, dy ? fr.height / 2 / Math.abs(dy) : Infinity, 1)
+      const start = { x: fc.x + dx * s, y: fc.y + dy * s }
+      // end on the badge's edge facing the source — never crosses into/through it
+      const ux = start.x - badge.x, uy = start.y - badge.y
+      const ul = Math.hypot(ux, uy) || 1
+      const r = tr.width / 2
+      const end = { x: badge.x + (ux / ul) * r, y: badge.y + (uy / ul) * r }
+      const len = Math.hypot(end.x - start.x, end.y - start.y) || 1
+      const mx = (start.x + end.x) / 2, my = (start.y + end.y) / 2
+      const cx = mx - (end.y - start.y) / len * len * curve
+      const cy = my + (end.x - start.x) / len * len * curve
+      setD(`M ${start.x.toFixed(1)} ${start.y.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`)
+    }
+    const ro = new ResizeObserver(compute)
+    ro.observe(svg)
+    if (fromRef.current) ro.observe(fromRef.current)
+    if (toRef.current) ro.observe(toRef.current)
+    window.addEventListener('resize', compute)
+    const raf = requestAnimationFrame(compute) // settle after fonts/layout
+    return () => { ro.disconnect(); window.removeEventListener('resize', compute); cancelAnimationFrame(raf) }
+  }, [fromRef, toRef, curve])
+  return <svg ref={svgRef} className={s.trackThread} aria-hidden><path d={d} vectorEffect="non-scaling-stroke" /></svg>
 }
 
 /* card 1 — annotated browser window + DOM-selector popup */
 function ContextCard() {
   const t = content.toolset.items.context
+  const badgeRef = useRef<HTMLSpanElement>(null)
+  const selCardRef = useRef<HTMLDivElement>(null)
   return (
     <div className={`${s.fcard} lg:col-span-3`}>
       <div className={s.fsplit}>
@@ -168,7 +218,7 @@ function ContextCard() {
             <div className={s.ctxBody}>
               <div className={s.ctxSel}>
                 <div className={s.ctxHeadline}>Get all your AI feedbacks implemented at once</div>
-                <AnnBadge n={1} />
+                <AnnBadge n={1} ref={badgeRef} />
               </div>
               <div className={s.sklw} style={{ width: '68%', height: 7, margin: '16px auto 0' }} />
               <div className={s.sklw} style={{ width: '48%', height: 7, margin: '7px auto 0' }} />
@@ -178,10 +228,7 @@ function ContextCard() {
               </div>
             </div>
           </div>
-          <svg className={s.thread} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-            <path d="M 56 58 C 83 56, 93 44, 88 25" vectorEffect="non-scaling-stroke" />
-          </svg>
-          <div className={s.selCard}>
+          <div className={s.selCard} ref={selCardRef}>
             <div className={s.selHead}>
               div.home_stepCard__0vB50
               <Icon icon="heroicons:x-mark" width={13} />
@@ -196,6 +243,7 @@ function ContextCard() {
           </div>
         </div>
       </div>
+      <TrackedThread fromRef={selCardRef} toRef={badgeRef} />
     </div>
   )
 }
@@ -204,21 +252,23 @@ function ContextCard() {
 function DesignEditsCard() {
   const [gap, setGap] = useState(16)
   const t = content.toolset.items.designEdits
+  const badgeRef = useRef<HTMLSpanElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   return (
     <div className={`${s.fcard} lg:col-span-3`}>
       <div className={s.fsplit}>
         <FeatureText item={t} />
         <div className={`${s.fviz} ${s.deViz}`}>
           <div className={s.deSkel}>
-            <AnnBadge n={2} />
-            <div className={s.deSkelBlock} />
-            <div className={s.deSkelBlock} style={{ marginTop: gap }} />
+            {/* the badge sits on the container (the edited flex parent), which is
+                top-anchored — so it stays put while the gap grows it downward */}
+            <div className={s.deSkelBox}>
+              <AnnBadge n={2} ref={badgeRef} />
+              <div className={s.deSkelBlock} />
+              <div className={s.deSkelBlock} style={{ marginTop: gap }} />
+            </div>
           </div>
-          <svg className={`${s.thread} ${s.deThread}`} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-            <path className={s.deThreadWide} d="M 43 45 C 36 49, 29 57, 25.3 62.5" vectorEffect="non-scaling-stroke" />
-            <path className={s.deThreadMobile} d="M 35 30 C 32 27, 30 24, 28.5 22.5" vectorEffect="non-scaling-stroke" />
-          </svg>
-          <div className={s.dePanel}>
+          <div className={s.dePanel} ref={panelRef}>
             <div className={s.deTitle}>Editing <b>div.home_stepCard__0vB50</b></div>
             <div className={s.deTabs}>
               <span className={s.deTab}><Icon icon="heroicons:chat-bubble-left" width={12} /> Comment</span>
@@ -228,8 +278,8 @@ function DesignEditsCard() {
             <div className={s.deSection}><Icon icon="heroicons:chevron-down" width={11} /> Layout</div>
             <div className={s.deSeg}>
               <span><Icon icon="heroicons:stop" width={13} /></span>
-              <span><Icon icon="heroicons:bars-3" width={13} /></span>
-              <span className={s.deSegOn}><Icon icon="heroicons:bars-3" width={13} style={{ transform: 'rotate(90deg)' }} /></span>
+              <span className={s.deSegOn}><Icon icon="heroicons:bars-3" width={13} /></span>
+              <span><Icon icon="heroicons:bars-3" width={13} style={{ transform: 'rotate(90deg)' }} /></span>
               <span><Icon icon="heroicons:squares-2x2" width={13} /></span>
             </div>
             <div className={s.deMid}>
@@ -265,6 +315,7 @@ function DesignEditsCard() {
           </div>
         </div>
       </div>
+      <TrackedThread fromRef={panelRef} toRef={badgeRef} />
     </div>
   )
 }
@@ -798,7 +849,7 @@ export default function Home() {
       <section className="sr-only" aria-hidden="true">
         <h2>Visual feedback for AI coding agents</h2>
         <p>
-          Vibe Annotations is a free, open-source Chrome extension and local MCP server that lets developers
+          Vibe Annotations is a free, source-available Chrome extension and local MCP server that lets developers
           annotate anything running on localhost — across pages — and have AI coding agents like Claude Code,
           Cursor, Windsurf and GitHub Copilot implement every fix in one batch. Annotations carry the exact DOM
           selection, the React component behind it, viewport info, an automatic zoned screenshot and your
