@@ -19,7 +19,7 @@ export async function runInit(options = {}) {
   renderEnvironment(env);
 
   if (!env.nodeOk) {
-    p.cancel(`Node.js ${env.node} is too old — requires v16+.`);
+    p.cancel(`Node.js ${env.node} is too old — requires v18+.`);
     process.exit(1);
   }
 
@@ -63,12 +63,30 @@ function normalizeAgentOption(opt) {
   return [opt];
 }
 
+// true when semver `a` is strictly older than `b` (major.minor.patch)
+function isOlderVersion(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) < (pb[i] || 0)) return true;
+    if ((pa[i] || 0) > (pb[i] || 0)) return false;
+  }
+  return false;
+}
+
 async function runServerStep({ env, interactive }) {
   p.log.step('Step 1/3 — Annotation server');
 
   if (env.serverInstalled.installed && env.portState.state === 'ours') {
-    p.log.success(`vibe-annotations-server@${env.serverInstalled.version} already running on http://127.0.0.1:3846`);
-    return { status: 'already-running', version: env.portState.version };
+    const running = env.portState.version;
+    const installed = env.serverInstalled.version;
+    p.log.success(`vibe-annotations-server@${running || installed} already running on http://127.0.0.1:3846`);
+    // A freshly-installed newer server won't take effect until the old process
+    // restarts — surface that instead of leaving the stale one running silently.
+    if (running && installed && isOlderVersion(running, installed)) {
+      p.log.warn(`v${installed} is installed but v${running} is still running. Restart the server (stop the running process, then \`vibe-annotations-server start\`) to pick up the update.`);
+    }
+    return { status: 'already-running', version: running };
   }
 
   if (!env.serverInstalled.installed) {

@@ -11,7 +11,7 @@ export async function checkEnvironment() {
 
   return {
     node: process.versions.node,
-    nodeOk: majorVersion(process.versions.node) >= 16,
+    nodeOk: majorVersion(process.versions.node) >= 18, // matches package.json engines (>=18)
     pkgMgr: detectPackageManager(),
     portState,
     serverInstalled,
