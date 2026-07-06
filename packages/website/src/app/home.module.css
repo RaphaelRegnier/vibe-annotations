@@ -1,0 +1,556 @@
+/* ============================================================
+   Homepage — ported from the Claude Design spec
+   (Vibe Annotations Homepage.dc.html). The hero demo is a pure
+   CSS 16s keyframe loop; bento primitives + FAQ live here too.
+   ============================================================ */
+
+/* ===== animated hero demo — 16s loop ===== */
+/* wrapper matches the frame's box exactly and owns the cursor vars (shared by glow + border) */
+.dwrap {
+  position: relative;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  --sx: 50%;
+  --sy: 50%;
+  --shimmer: 0;
+}
+/* soft brand glow behind the frame, following the cursor, fading in with proximity */
+.dglow {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--shimmer);
+  transition: opacity 0.4s ease;
+  background: radial-gradient(340px circle at var(--sx) var(--sy), rgba(245, 0, 164, 0.38), rgba(160, 38, 220, 0.16) 40%, transparent 70%);
+  filter: blur(36px);
+}
+.dframe {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: calc(600px * var(--ds, 1) + 4px);
+  padding: 2px;
+  border-radius: 28px;
+  /* neutral border by default; the cursor shimmer (::after) colorizes it as the pointer nears */
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.07) 100%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.65), 0 0 46px rgba(160, 38, 220, 0.12);
+}
+.dframe::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 20%);
+  pointer-events: none;
+  z-index: 4;
+}
+/* cursor-following shimmer: brand-colored light that runs along the border near the pointer */
+.dframe::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  padding: 2px;
+  background: radial-gradient(480px circle at var(--sx) var(--sy), #FF2D6B 0%, #A026DC 34%, rgba(160, 38, 220, 0) 62%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: var(--shimmer);
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 5;
+}
+/* fixed 1076×600 design size, scaled by --ds (set from the wrapper width via
+   ResizeObserver) so the px-authored pins/bubbles/cursor loop survive any viewport */
+.demo {
+  position: relative;
+  width: 1076px;
+  height: 600px;
+  transform: scale(var(--ds, 1));
+  transform-origin: top left;
+  border-radius: 26px;
+  background: #0d0b17;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+.dmain { flex: 1; display: flex; gap: 14px; min-height: 0; }
+.dbrowser { position: relative; flex: 1; min-width: 0; background: #14121f; border: 1px solid rgba(255,255,255,0.09); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+.dtop { height: 42px; flex: none; background: #1a1826; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+.ddot { width: 11px; height: 11px; border-radius: 50%; }
+.durl { height: 25px; width: fit-content; margin-left: 10px; background: #0d0b17; border-radius: 8px; display: inline-flex; align-items: center; padding: 0 13px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; color: rgba(255,255,255,0.55); }
+.dpage { position: relative; flex: 1; padding: 22px 24px; }
+.skcard { border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; background: rgba(255,255,255,0.02); }
+.vabar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 8; display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-radius: 14px; background: #17151f; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 0 0 3px rgba(255,255,255,0.06), 0 14px 34px rgba(0,0,0,0.6); white-space: nowrap; }
+.vb { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,0.9); font-size: 13.5px; font-weight: 500; }
+.vsep { width: 1px; height: 18px; background: rgba(255,255,255,0.16); align-self: center; }
+.vba { padding: 5px 9px; margin: -5px -9px; border-radius: 9px; animation: kVba 16s linear infinite; }
+@keyframes kVba { 0%, 2.5% { background: transparent; } 4%, 5.5% { background: rgba(255,255,255,0.22); } 7%, 100% { background: transparent; } }
+.skl { background: rgba(255,255,255,0.12); border-radius: 6px; }
+
+.pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--gradient-brand-135); color: #fff; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: var(--shadow-glow); transform: scale(0); }
+.pinStatic { transform: scale(1); }
+.p1 { animation: kP1 16s var(--ease-spring) infinite; }
+.p2 { animation: kP2 16s var(--ease-spring) infinite; }
+.p3 { animation: kP3 16s var(--ease-spring) infinite; }
+@keyframes kP1 { 0%, 16% { transform: scale(0); } 18% { transform: scale(1.25); } 19%, 100% { transform: scale(1); } }
+@keyframes kP2 { 0%, 32% { transform: scale(0); } 34% { transform: scale(1.25); } 35%, 100% { transform: scale(1); } }
+@keyframes kP3 { 0%, 44% { transform: scale(0); } 46% { transform: scale(1.25); } 47%, 100% { transform: scale(1); } }
+
+.bub { position: absolute; background: #fff; border: 1px solid #E9EAEB; box-shadow: 0 12px 30px rgba(13,13,20,0.18); border-radius: 12px; padding: 10px 12px; width: 216px; opacity: 0; }
+.bubStatic { opacity: 1; }
+.bub .meta { display: flex; align-items: center; gap: 6px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; color: #717680; margin-bottom: 5px; }
+.bub .txt { font-size: 13px; font-weight: 500; color: #1F2431; }
+.b1 { animation: kB1 16s linear infinite; }
+.b2 { animation: kB2 16s linear infinite; }
+.b3 { animation: kB3 16s linear infinite; }
+@keyframes kB1 { 0%, 18% { opacity: 0; transform: translateY(6px); } 20%, 100% { opacity: 1; transform: none; } }
+@keyframes kB2 { 0%, 34% { opacity: 0; transform: translateY(6px); } 36%, 100% { opacity: 1; transform: none; } }
+@keyframes kB3 { 0%, 46% { opacity: 0; transform: translateY(6px); } 48%, 100% { opacity: 1; transform: none; } }
+
+.dright { flex: none; width: 280px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.dqueue { position: relative; flex: 1; min-height: 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(11px); padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.qhead { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.85); font-size: 13.5px; font-weight: 600; padding-bottom: 4px; }
+.qi { position: relative; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: rgba(255,255,255,0.05); padding: 10px 12px; display: flex; align-items: center; gap: 10px; opacity: 0; }
+.qn { width: 20px; height: 20px; border-radius: 50%; flex: none; background: var(--gradient-brand-135); color: #fff; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.qt { flex: 1; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; color: rgba(255,255,255,0.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ck { color: #34d399; opacity: 0; display: flex; }
+.q1 { animation: kQ1 16s linear infinite; }
+.q2 { animation: kQ2 16s linear infinite; }
+.q3 { animation: kQ3 16s linear infinite; }
+@keyframes kQ1 { 0%, 18% { opacity: 0; transform: translateX(10px); } 20% { opacity: 1; transform: none; } 96% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@keyframes kQ2 { 0%, 34% { opacity: 0; transform: translateX(10px); } 36% { opacity: 1; transform: none; } 96% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@keyframes kQ3 { 0%, 46% { opacity: 0; transform: translateX(10px); } 48% { opacity: 1; transform: none; } 96% { opacity: 1; } 99%, 100% { opacity: 0; } }
+.k1 { animation: kC1 16s linear infinite; }
+.k2 { animation: kC2 16s linear infinite; }
+.k3 { animation: kC3 16s linear infinite; }
+@keyframes kC1 { 0%, 86% { opacity: 0; } 88%, 97% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@keyframes kC2 { 0%, 90% { opacity: 0; } 92%, 97% { opacity: 1; } 99%, 100% { opacity: 0; } }
+@keyframes kC3 { 0%, 94% { opacity: 0; } 96%, 97% { opacity: 1; } 99%, 100% { opacity: 0; } }
+
+/* fused prompt panel: agent badges (2 cols) + input at the bottom */
+.dpanel { flex: none; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; background: rgba(255,255,255,0.04); backdrop-filter: blur(11px); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.dbadges { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.badge { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.85); white-space: nowrap; }
+.badge svg { color: #fff; flex: none; }
+.dprompt { position: relative; height: 48px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 14px; background: #14121f; border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; }
+.dph { position: absolute; left: 14px; font-size: 13.5px; color: rgba(255,255,255,0.35); animation: kPh 16s linear infinite; }
+@keyframes kPh { 0%, 62% { opacity: 1; } 64%, 97% { opacity: 0; } 100% { opacity: 1; } }
+.tw { flex: none; overflow: hidden; white-space: nowrap; width: 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: rgba(255,255,255,0.92); animation: kTW 16s linear infinite; }
+@keyframes kTW { 0%, 62% { width: 0; animation-timing-function: steps(19, end); } 72%, 94% { width: 19ch; } 96%, 100% { width: 0; } }
+.twc { flex: none; width: 2px; height: 17px; background: var(--accent-pink); transform: scaleY(0); animation: kBlink 0.9s steps(2, start) infinite, kTwc 16s linear infinite; }
+@keyframes kBlink { to { opacity: 0; } }
+@keyframes kTwc { 0%, 61% { transform: scaleY(0); } 62%, 80% { transform: scaleY(1); } 82%, 100% { transform: scaleY(0); } }
+.dsend { flex: none; margin-left: auto; width: 34px; height: 34px; border-radius: 50%; background: var(--gradient-brand-135); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-glow); animation: kSend 16s linear infinite; }
+@keyframes kSend { 0%, 83% { transform: scale(1); } 85% { transform: scale(0.84); } 88%, 100% { transform: scale(1); } }
+
+.cur { position: absolute; left: 0; top: 0; z-index: 9; animation: kCur 16s linear infinite; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6)); }
+/* the cursor presses (scale from its tip) + emits a ripple ring at every click moment */
+.curImg { display: block; transform-origin: 4px 3px; animation: kCurClick 16s linear infinite; }
+.curRing { position: absolute; left: 2px; top: 1px; width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; border-radius: 50%; border: 2px solid var(--accent-pink); opacity: 0; transform: scale(0.2); animation: kCurRing 16s linear infinite; pointer-events: none; }
+/* clicks fire at: 5% Annotate · 17/33/45% pins · 85% send (each ~1% before the target reacts) */
+@keyframes kCurClick {
+  0%, 4% { transform: scale(1); }
+  5% { transform: scale(0.8); }
+  6.5%, 16% { transform: scale(1); }
+  17% { transform: scale(0.8); }
+  18.5%, 32% { transform: scale(1); }
+  33% { transform: scale(0.8); }
+  34.5%, 44% { transform: scale(1); }
+  45% { transform: scale(0.8); }
+  46.5%, 84% { transform: scale(1); }
+  85% { transform: scale(0.8); }
+  86.5%, 100% { transform: scale(1); }
+}
+@keyframes kCurRing {
+  0%, 4% { opacity: 0; transform: scale(0.2); }
+  5% { opacity: 0.9; transform: scale(0.5); }
+  8.5% { opacity: 0; transform: scale(2.3); }
+  16% { opacity: 0; transform: scale(0.2); }
+  17% { opacity: 0.9; transform: scale(0.5); }
+  20.5% { opacity: 0; transform: scale(2.3); }
+  32% { opacity: 0; transform: scale(0.2); }
+  33% { opacity: 0.9; transform: scale(0.5); }
+  36.5% { opacity: 0; transform: scale(2.3); }
+  44% { opacity: 0; transform: scale(0.2); }
+  45% { opacity: 0.9; transform: scale(0.5); }
+  48.5% { opacity: 0; transform: scale(2.3); }
+  84% { opacity: 0; transform: scale(0.2); }
+  85% { opacity: 0.9; transform: scale(0.5); }
+  88.5% { opacity: 0; transform: scale(2.3); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+/* pin dpage(x,y) → cursor tip demo(x+30, y+73). Cursor lands on each pin's centre as it drops. */
+/* each move segment eases out (snappy start, soft settle); holds don't move so their easing is moot */
+@keyframes kCur {
+  0%   { left: 330px; top: 452px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }  /* enter → Annotate */
+  2%   { left: 330px; top: 542px; }  /* reach "Annotate" on the toolbar */
+  6%   { left: 330px; top: 542px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }  /* click, then → pin 1 */
+  17%  { left: 160px; top: 223px; }  /* drop pin 1  (130,150) */
+  24%  { left: 160px; top: 223px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  33%  { left: 502px; top: 373px; }  /* drop pin 2  (472,300) */
+  40%  { left: 502px; top: 373px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  45%  { left: 590px; top: 201px; }  /* drop pin 3  (560,128) */
+  52%  { left: 590px; top: 201px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  63%  { left: 850px; top: 544px; }  /* to the prompt input, type */
+  80%  { left: 850px; top: 544px; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  84%  { left: 1018px; top: 544px; } /* click the send arrow — loops back to Annotate */
+  100% { left: 1018px; top: 544px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo *, .demo *::after { animation-play-state: paused !important; }
+}
+
+/* ===== hero demo — mobile portrait canvas =====
+   Instead of shrinking the 1076-wide landscape to an unreadable thumbnail, switch
+   to a 760-wide portrait canvas (still uniformly scaled by --ds, which the JS sets
+   against 760 below md). The browser sits on top at a fixed height so its
+   px-positioned pins/bubbles stay coherent; the prompt panel stacks below full
+   width; the annotation queue and the landscape-only roaming cursor are hidden. */
+@media (max-width: 767px) {
+  .dwrap { --sx: 50%; --sy: 50%; }
+  .demo {
+    width: 760px;
+    height: 700px;
+    /* .demo is transform-scaled by --ds, so divide the target radius by --ds to
+       land a consistent 8px on screen at any width. */
+    border-radius: calc(8px / var(--ds, 1));
+    gap: 12px;
+    padding: 14px;
+  }
+  /* the frame/glow that wrap .demo are NOT scaled, so they take the on-screen
+     values directly: 8px demo edge + 2px frame padding = 10px. */
+  .dframe { height: calc(700px * var(--ds, 1) + 4px); border-radius: 10px; }
+  .dframe::before { border-radius: 8px; }
+  .dframe::after { border-radius: 10px; }
+  .dglow { border-radius: 10px; }
+  /* inner containers are scaled too — divide to keep them a matching 8px */
+  .dbrowser, .dpanel { border-radius: calc(8px / var(--ds, 1)); }
+  .dmain { flex-direction: column; gap: 12px; }
+  .dbrowser { flex: none; height: 470px; }
+  .dright { width: 100%; flex: none; }
+  .dqueue { display: none; }
+  .cur { display: none; }
+}
+
+/* mobile hero art — a single static image replacing the desktop split-scene.
+   The background-image lives ONLY inside the media query, so desktop (where this
+   element is display:none) never fetches it — a display:none element's own inline
+   background still gets requested by Chrome, an undeclared one does not. */
+/* the desktop split-scene images are declared only at ≥md, so mobile — where the
+   scene is display:none anyway — never fetches these two large jpgs. */
+@media (min-width: 768px) {
+  .heroHalfLeft { background-image: url(/hero-left.jpg); }
+  .heroHalfRight { background-image: url(/hero-right.jpg); }
+}
+
+.heroMobileBg { display: none; }
+@media (max-width: 767px) {
+  .heroMobileBg {
+    display: block;
+    position: absolute;
+    inset-inline: 0;
+    top: -40px; /* shave a little of the empty space above the mascot so it sits higher */
+    z-index: 1;
+    pointer-events: none;
+    aspect-ratio: 1080 / 1918;
+    background-image: url(/hero-mobile.jpg);
+    background-size: cover;
+    background-position: top center;
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+  }
+  /* the mascot's vertical position scales with width (taller image → lower mascot),
+     so push the copy down proportionally to keep the character above the text */
+  .heroCopy { padding-top: clamp(120px, calc(52vw - 60px), 300px); }
+}
+
+/* Touch devices can't hover, so the cursor-driven decorations only ever sit idle
+   as composited layers — drop them entirely rather than pay to render nothing.
+   (The desktop hero split-scene is already display:none below md; this also covers
+   the demo's cursor glow/shimmer and any touchscreen-desktop.) */
+@media (hover: none) {
+  .dglow, .dframe::after, .holo, .holoChroma { display: none; }
+}
+
+/* ===== features bento — card shell + split layout (reference: 2 wide on top, 3-col below) ===== */
+.fcard { position: relative; background: var(--ink-2); border: 1px solid rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 14px 34px rgba(0,0,0,0.4); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+.fcard:hover { transform: translateY(-3px); box-shadow: 0 20px 44px rgba(0,0,0,0.55); }
+.ftxt { padding: 24px 26px 0; }
+.ftxt p { margin: 0; color: #C7C7F2; font-size: 14.5px; line-height: 1.62; }
+.ftxt strong { color: #fff; font-weight: 600; }
+/* top row cards: text column left, illustration right (stacked below lg) */
+.fsplit { display: flex; flex-direction: column; flex: 1; }
+.fviz { position: relative; flex: 1; }
+@media (min-width: 1024px) {
+  .fsplit { flex-direction: row; }
+  .fsplit .ftxt { flex: 0 0 42%; padding: 30px 6px 30px 30px; }
+}
+.mchip { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; padding: 4px 9px; border-radius: 7px; background: #0a0912; border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.8); white-space: nowrap; }
+.sklw { background: rgba(255,255,255,0.12); border-radius: 5px; }
+
+/* numbered badge pinned ON the skeleton element + dotted thread from the demo UI to it */
+.badgeOn { left: auto; right: -11px; top: -11px; width: 24px; height: 24px; font-size: 12px; z-index: 3; }
+/* durable JS-tracked annotation thread — overlays the whole card, path is redrawn
+   from the live badge/source positions (see TrackedThread), so it never desyncs */
+.trackThread { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; overflow: visible; }
+.trackThread path, .vThread path { fill: none; stroke: rgba(160,38,220,0.8); stroke-width: 1.5; stroke-dasharray: 2 5; stroke-linecap: round; }
+
+/* --- card 1: pixel-perfect context — browser window + selector popup --- */
+.ctxViz { min-height: 300px; }
+.ctxWin { position: absolute; left: 30px; right: 26px; top: 30px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.11); }
+.ctxBar { height: 26px; display: flex; align-items: center; gap: 5px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.ctxBar span { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+.ctxBody { padding: 18px 22px 20px; }
+.ctxSel { position: relative; border: 1.5px solid var(--accent-purple); border-radius: 10px; padding: 16px 18px; background: rgba(160,38,220,0.07); box-shadow: 0 0 22px rgba(160,38,220,0.28); }
+.ctxHeadline { font-family: var(--font-cabinet), "Satoshi", system-ui, sans-serif; font-weight: 550; font-size: 15.5px; line-height: 1.25; letter-spacing: -0.01em; color: #fff; text-align: center; }
+.selCard { position: absolute; left: 16px; bottom: 18px; width: min(92%, 330px); background: #12101d; border: 1px solid rgba(255,255,255,0.16); border-radius: 12px; padding: 12px 14px; box-shadow: 0 20px 44px rgba(0,0,0,0.65); z-index: 2; }
+@media (min-width: 1024px) {
+  .selCard { left: -52px; bottom: 34px; }
+}
+.selHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; color: #fff; padding-bottom: 9px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.selHead svg { color: rgba(255,255,255,0.4); flex: none; }
+.selRow { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; min-width: 0; }
+.selRow span { flex: none; width: 72px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.38); }
+.selRow b { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; font-weight: 500; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selRow em { font-style: normal; color: #c084fc; margin-right: 4px; }
+.selComment { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.92); }
+.selComment svg { flex: none; }
+
+/* --- card 2: direct design edits — floating inspector panel over a live-gap skeleton --- */
+.deViz { min-height: 340px; display: flex; align-items: flex-start; justify-content: flex-end; padding: 24px 26px; }
+/* the annotated skeleton lives LEFT of the viz, in the empty zone under the text
+   column (the viz doesn't clip; only the card edge does) so the panel never covers it */
+/* top-anchored so the container (and the badge on it) stays put while the gap
+   input grows the box downward — no drift, unlike bottom-anchoring. Sits below
+   the text paragraph in the empty lower-left zone. */
+.deSkel { position: absolute; left: -128px; top: 172px; width: 112px; z-index: 0; }
+.deSkelBox { position: relative; padding: 9px; border-radius: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); }
+.deSkelBlock { height: 38px; border-radius: 9px; background: rgba(255,255,255,0.13); border: 1px solid rgba(255,255,255,0.16); transition: margin-top 0.25s var(--ease-out); }
+.deViz::before { content: ""; position: absolute; inset: 10%; background: radial-gradient(55% 55% at 55% 50%, rgba(160,38,220,0.18), transparent 70%); pointer-events: none; }
+.dePanel { position: relative; z-index: 2; width: min(100%, 252px); background: #131120; border: 1px solid rgba(255,255,255,0.14); border-radius: 14px; padding: 13px 14px 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 44px rgba(0,0,0,0.55); }
+.deTitle { font-size: 11.5px; color: rgba(255,255,255,0.55); }
+.deTitle b { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-weight: 500; color: #fff; }
+.deTabs { display: flex; gap: 5px; }
+.deTab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; font-size: 10.5px; font-weight: 500; color: rgba(255,255,255,0.5); white-space: nowrap; }
+.deTabOn { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); color: #fff; }
+.deSection { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.78); }
+.deSeg { display: flex; gap: 4px; padding: 3px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+.deSeg span { flex: 1; display: flex; align-items: center; justify-content: center; padding: 5px 0; border-radius: 6px; color: rgba(255,255,255,0.5); }
+.deSeg .deSegOn { background: rgba(255,255,255,0.16); color: #fff; }
+.deMid { display: flex; gap: 14px; align-items: center; }
+.dePad { flex: none; width: 82px; height: 82px; display: grid; grid-template-columns: repeat(3, 1fr); place-items: center; border-radius: 9px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); }
+.dePad span { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.32); }
+.deChk { display: flex; align-items: center; gap: 7px; font-size: 11px; color: rgba(255,255,255,0.7); white-space: nowrap; }
+.deChk i { width: 12px; height: 12px; border-radius: 3.5px; border: 1.5px solid rgba(255,255,255,0.3); flex: none; }
+.deGap { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.7); }
+.deVal { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid var(--accent-purple); box-shadow: 0 0 10px rgba(160,38,220,0.25); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10.5px; color: #fff; cursor: text; transition: box-shadow .15s ease; }
+.deVal:focus-within { box-shadow: 0 0 16px rgba(160,38,220,0.45); }
+/* "Try it" tooltip bobbing above the live gap input */
+.deTry { position: absolute; left: 50%; bottom: calc(100% + 8px); padding: 4px 10px; border-radius: 7px; background: var(--gradient-brand-135); color: #fff; font-family: var(--font-satoshi), "Satoshi", system-ui, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; box-shadow: var(--shadow-glow); animation: kTryBob 1.8s ease-in-out infinite; pointer-events: none; }
+.deTry i { position: absolute; left: 50%; top: 100%; margin-left: -4px; border: 4px solid transparent; border-top-color: #ED1D5B; }
+@keyframes kTryBob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
+.deVal input { width: 24px; padding: 0; background: none; border: 0; outline: none; color: inherit; font: inherit; text-align: right; appearance: textfield; -moz-appearance: textfield; }
+.deVal input::-webkit-outer-spin-button, .deVal input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.deVal i { font-style: normal; color: rgba(255,255,255,0.4); }
+.deFoot { display: flex; align-items: center; gap: 8px; padding-top: 2px; border-top: 1px solid rgba(255,255,255,0.07); }
+.deVp { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: rgba(255,255,255,0.5); padding-top: 6px; }
+/* gap stepper — desktop edits the number field; touch gets +/- buttons instead
+   (hidden here, revealed in the mobile block below) so no on-screen keyboard pops */
+.deStep, .deNum { display: none; }
+
+/* --- design-edits reflow once the card stacks (viz no longer has the text column
+   beside it, so the skeleton's negative offset would sit off-card) --- */
+@media (max-width: 1023px) {
+  /* narrow the panel so the skeleton has a clear left column to live in */
+  .dePanel { width: min(100%, 224px); }
+  /* centre the skeleton in the space left of the panel — shifts right on wider
+     (tablet) widths, clamps back so it never collides with the panel on phones */
+  .deSkel { left: clamp(16px, calc((100% - 320px) / 2), 130px); top: 84px; bottom: auto; width: 84px; z-index: 4; }
+}
+@media (max-width: 640px) {
+  .deVal { cursor: default; }
+  .deVal input { display: none; }
+  .deTry { display: none; }
+  .deNum { display: inline; min-width: 15px; text-align: right; }
+  .deStep {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 5px; flex: none;
+    border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.08);
+    color: #fff; font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .deStep:active { background: rgba(255,255,255,0.18); }
+}
+
+/* --- card 3: variants preview — interactive radio rows + switching skeleton --- */
+.vViz { flex: 1; display: flex; flex-direction: column; gap: 9px; padding: 30px 22px 16px; }
+.vOpt { display: flex; align-items: center; gap: 11px; cursor: pointer; background: none; border: none; padding: 0; text-align: left; font: inherit; }
+.vChip { flex: 1; display: flex; align-items: center; gap: 10px; padding: 8px 11px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.82); transition: border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.vOpt:hover .vChip { border-color: rgba(255,255,255,0.26); }
+.vOptOn .vChip { border-color: var(--accent-purple); background: rgba(160,38,220,0.08); box-shadow: 0 0 16px rgba(160,38,220,0.22); color: #fff; }
+.vdot { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; flex: none; }
+.vfill { width: 8px; height: 8px; border-radius: 50%; background: var(--gradient-brand-135); box-shadow: 0 0 7px rgba(255,45,107,0.8); }
+/* mini layout glyphs inside the option chips */
+.vIco { flex: none; width: 32px; height: 24px; border-radius: 5px; background: rgba(255,255,255,0.07); display: flex; align-items: center; justify-content: center; gap: 2.5px; padding: 5px; }
+.vIco i { display: block; background: rgba(255,255,255,0.5); border-radius: 1.5px; }
+.vIcoCols i { width: 8px; height: 100%; }
+.vIcoCenter { flex-direction: column; gap: 2.5px; }
+.vIcoCenter i:first-child { width: 11px; height: 4px; }
+.vIcoCenter i:last-child { width: 17px; height: 3px; opacity: 0.55; }
+.vIcoGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; align-items: center; justify-items: center; }
+.vIcoGrid i { width: 8px; height: 5px; }
+/* stretchy thread spacer — fills the flexible gap between the radios and the
+   preview, so the dotted line always runs from the choices down to the badge.
+   The svg MUST be absolutely positioned: as a flex item its 1:1 viewBox
+   aspect-ratio contributes a max-content height equal to the card width, which
+   inflates the grid rows (measured: 346px phantom height). The empty wrapper
+   contributes nothing. */
+.vThreadWrap { flex: none; height: 44px; position: relative; pointer-events: none; }
+/* overflow: visible so the path can run past the 44px box, across the column
+   gap, and into badge 3 (which sits just below the wrap) */
+.vThread { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* the preview is a mock page taller than the box — content lives in an absolute
+   layer (zero intrinsic height, so it can't inflate the grid rows) and crops at
+   the bottom edge like a real page. The wrapper takes the flex space and does NOT
+   clip, so the badge on the top edge can overflow; .vPrev inside it does the crop. */
+.vPrevWrap { position: relative; flex: 1; min-height: 150px; margin-bottom: 6px; }
+.vPrev { position: absolute; inset: 0; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.03); overflow: hidden; }
+.vPrevIn { position: absolute; inset: 0; padding: 14px 16px 0; display: flex; flex-direction: column; gap: 8px; animation: kVPrev 0.35s var(--ease-out); }
+@keyframes kVPrev { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* --- card 4: share in one file — file glyph → export panel --- */
+.shViz { flex: 1; display: flex; align-items: center; justify-content: center; gap: 13px; padding: 20px 22px 24px; }
+.shFile { display: flex; flex-direction: column; align-items: center; }
+.shDoc { position: relative; width: 82px; height: 98px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 16px 34px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: #c084fc; }
+/* folded corner: top-right half fades to the card bg (the cut), bottom-left half is the lighter flap */
+.shFold { position: absolute; right: -1px; top: -1px; width: 26px; height: 26px; background: linear-gradient(225deg, var(--ink-2) 0%, var(--ink-2) 50%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.05) 100%); border-bottom-left-radius: 12px; }
+.shTag { margin-top: -14px; z-index: 1; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; color: #fff; padding: 7px 13px; border-radius: 9px; background: #0d0b17; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 10px 22px rgba(0,0,0,0.5); white-space: nowrap; }
+/* dotted line + arrowhead — identical treatment to the install card's .inLink */
+.shArrow { position: relative; width: 24px; border-top: 2px dotted rgba(160,38,220,0.8); flex: none; align-self: center; }
+.shArrow::after { content: ""; position: absolute; right: -2px; top: -5px; border-left: 6px solid rgba(160,38,220,0.9); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.shPanel { width: 152px; border-radius: 12px; background: #131120; border: 1px solid rgba(255,255,255,0.13); padding: 11px 12px 12px; box-shadow: 0 16px 36px rgba(0,0,0,0.5); }
+.shTitle { font-size: 12px; font-weight: 600; color: #fff; }
+.shSub { font-size: 10.5px; color: rgba(255,255,255,0.45); }
+.shRow { display: flex; align-items: center; gap: 9px; margin-top: 9px; }
+.shThumb { flex: 1; height: 38px; border-radius: 6px; background: #f2f2f7; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 9px; }
+.shThumb i { display: block; height: 4px; border-radius: 2px; background: rgba(20,20,40,0.25); }
+.shThumb i:last-child { width: 60%; }
+
+/* --- card 5: auto-screenshots — placeholder thumbnail wall --- */
+.scViz { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 20px 24px 24px; align-content: center; }
+.scTile { position: relative; aspect-ratio: 16 / 10; border-radius: 9px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.22); }
+.scTileOn { border: 1.5px solid var(--accent-purple); box-shadow: 0 0 18px rgba(160,38,220,0.3); background: rgba(160,38,220,0.08); }
+.scBadge { position: absolute; right: -9px; top: -9px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-purple); color: #fff; display: flex; align-items: center; justify-content: center; border: 2px solid var(--ink-2); box-shadow: 0 6px 16px rgba(160,38,220,0.5); }
+
+/* --- card 6: install once — extension window ⇢ server terminal --- */
+.inViz { flex: 1; display: flex; align-items: center; justify-content: flex-start; padding: 20px 18px 26px 0; }
+.inWin { border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); overflow: hidden; flex: none; }
+/* extension window bleeds off the card's left edge (clipped by the card) so it can be bigger */
+.inExt { margin-left: -52px; width: 212px; }
+/* once the card is full-width (stacked), centre the illustration and stop the
+   extension window bleeding off the left — otherwise it's left-heavy with a gap */
+@media (max-width: 1023px) {
+  .inViz { justify-content: center; }
+  .inExt { margin-left: 0; }
+}
+.inBar { height: 23px; display: flex; align-items: center; gap: 5px; padding: 0 10px; border-bottom: 1px solid rgba(255,255,255,0.09); }
+.inBar i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+.inBarLights i:nth-child(1) { background: #ff5f57; }
+.inBarLights i:nth-child(2) { background: #febc2e; }
+.inBarLights i:nth-child(3) { background: #28c840; }
+.inExtBody { display: flex; gap: 14px; align-items: center; padding: 18px 16px 20px; }
+.inPuzzle { width: 46px; height: 46px; border-radius: 12px; background: rgba(160,38,220,0.16); border: 1px solid rgba(160,38,220,0.4); color: #c084fc; display: flex; align-items: center; justify-content: center; flex: none; }
+.inLink { position: relative; width: 20px; border-top: 2px dotted rgba(160,38,220,0.8); flex: none; }
+.inLink::after { content: ""; position: absolute; right: -2px; top: -5px; border-left: 6px solid rgba(160,38,220,0.9); border-top: 4px solid transparent; border-bottom: 4px solid transparent; }
+.inTermBody { padding: 12px 13px 13px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 10px; line-height: 1.8; color: rgba(255,255,255,0.92); white-space: nowrap; }
+.inOk { color: #34d399; }
+
+/* --- card 7: and more — icon grid --- */
+/* 2×2 tiles that stretch to fill the card's height (grid-auto-rows: 1fr) so the
+   four items use the whole space instead of clustering in the middle */
+/* minmax floor so tiles never shrink so short that the 40px icons touch the
+   top/bottom borders on a short (narrow-width) card */
+.moreGrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(64px, 1fr); gap: 12px; padding: 14px 26px 26px; }
+.moreItem { display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.85); line-height: 1.2; }
+.moreIco { flex: none; width: 40px; height: 40px; border-radius: 11px; background: rgba(160,38,220,0.12); border: 1px solid rgba(160,38,220,0.3); color: #c084fc; display: flex; align-items: center; justify-content: center; }
+
+/* ===== "how it works" — running mascot (left) + numbered step list (right) ===== */
+.hiwChar { position: relative; width: 100%; max-width: 400px; margin-top: 12px; }
+.hiwChar img { position: relative; z-index: 1; width: 100%; height: auto; display: block; }
+
+/* horizon arcs — a very wide, shallow slice of a large circle. The svg is stretched
+   past the viewport so only the flat centre of the curve reads (earth-curvature look);
+   non-scaling-stroke keeps the line crisp, drop-shadow gives it a soft neon bloom. */
+.hiwArc { position: absolute; left: 50%; transform: translateX(-50%); width: 150%; max-width: 2400px; height: 160px; pointer-events: none; z-index: 0; filter: drop-shadow(0 0 7px rgba(245, 0, 164, 0.3)); }
+.hiwArcTop { top: -40px; }
+.hiwArcBot { bottom: -40px; }
+
+/* ===== cursor-bound holo sheen over the hero halves =====
+   The trick: each layer is a *brightened copy of the image itself* (background:inherit
+   pulls the parent's image + cover/position), revealed only through a small radial mask
+   at the cursor (--mx/--my). So the light doesn't float over the art — it re-lights the
+   actual neon shapes it passes across, and empty black adds nothing under plus-lighter.
+   --holo fades the whole thing in by proximity; --hue shifts the foil colour with x. */
+.holo,
+.holoChroma {
+  position: absolute; inset: 0; pointer-events: none; will-change: opacity;
+  background: inherit;
+  transition: opacity 0.3s ease;
+  -webkit-mask-image: radial-gradient(840px 840px at var(--mx, 50%) var(--my, 50%), rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.42) 42%, transparent 100%);
+  mask-image: radial-gradient(840px 840px at var(--mx, 50%) var(--my, 50%), rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.42) 42%, transparent 100%);
+}
+/* specular — high contrast so it rides the bright neon edges more than the flat fills
+   (mid-tones crush toward black, which adds nothing under plus-lighter) */
+.holo {
+  filter: brightness(1.2) saturate(1.2) contrast(1.75);
+  mix-blend-mode: plus-lighter;
+  opacity: calc(var(--holo, 0) * 0.36);
+}
+/* chromatic — same edge-biased reveal, hue-shifted by cursor x for a subtle foil flip */
+.holoChroma {
+  filter: brightness(1.1) saturate(1.8) contrast(1.75) hue-rotate(var(--hue, 0deg));
+  mix-blend-mode: color-dodge;
+  opacity: calc(var(--holo, 0) * 0.16);
+}
+/* whole-scene 3D tilt bound to the cursor — a couple of degrees of parallax so the
+   moving light reads as a glint off a tilting surface. translateX(-50%) keeps the
+   container centred (it replaces the Tailwind -translate-x-1/2). */
+.heroScene {
+  transform: perspective(1600px) translateX(-50%) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo,
+  .holoChroma { display: none; }
+  .heroScene { transform: translateX(-50%); }
+}
+
+.hiwSteps { display: flex; flex-direction: column; }
+.stepRow { position: relative; display: flex; gap: 20px; align-items: stretch; padding-bottom: 18px; }
+.stepRow:last-child { padding-bottom: 0; }
+/* number column: number vertically centred on its card; dashed line links number centres */
+.stepMark { position: relative; flex: none; width: 32px; display: flex; align-items: center; justify-content: center; }
+.stepMark::before { content: ""; position: absolute; left: 50%; transform: translateX(-1px); width: 0; top: 0; bottom: -18px; border-left: 1.5px dashed rgba(255,45,107,0.4); }
+.stepRow:first-child .stepMark::before { top: 50%; }
+.stepRow:last-child .stepMark::before { bottom: 50%; }
+.stepNum { position: relative; z-index: 1; width: 32px; height: 32px; flex: none; border-radius: 50%; border: 1.5px solid rgba(255,45,107,0.7); background: var(--ink-2); color: #fff; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.stepCard { position: relative; flex: 1; min-width: 0; background: var(--ink-2); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px 22px; display: flex; gap: 16px; align-items: flex-start; box-shadow: 0 14px 34px rgba(0,0,0,0.4); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+.stepCard:hover { transform: translateY(-2px); box-shadow: 0 20px 44px rgba(0,0,0,0.55); }
+.stepIco { width: 46px; height: 46px; border-radius: 12px; flex: none; background: var(--gradient-brand-135); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-glow); }
+.stepText { display: flex; flex-direction: column; gap: 6px; }
+.stepText h3 { font-family: var(--font-cabinet), "Satoshi", system-ui, sans-serif; font-weight: 550; font-size: 19px; letter-spacing: -0.01em; margin: 0; color: #fff; }
+.stepText p { color: #C7C7F2; font-size: 14.5px; line-height: 1.55; margin: 0; }
+
+/* ===== chips / FAQ ===== */
+.chipd { display: inline-flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 9999px; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.78); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
+.faq { border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: var(--ink-2); overflow: hidden; }
+.faq summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; font-family: var(--font-cabinet), "Satoshi", system-ui, sans-serif; font-weight: 550; font-size: 20px; color: #fff; }
+.faq summary::-webkit-details-marker { display: none; }
+.faqPlus { color: #fff; flex-shrink: 0; transition: transform .25s var(--ease-spring); }
+.faq[open] .faqPlus { transform: rotate(45deg); }
+.faqAns { margin: 0; padding: 0 22px 22px; color: #C7C7F2; font-size: 16px; line-height: 1.6; }

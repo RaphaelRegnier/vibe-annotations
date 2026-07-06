@@ -6,15 +6,25 @@ Share annotations with teammates who don't have the same dev setup.
 
 [See demo video](https://github.com/RaphaelRegnier/vibe-annotations/releases/tag/v1.6.2)
 
-## Workflow
+## Send a review to anyone
 
-1. A reviewer annotates the live site (staging, production, or localhost)
-2. They click **Export** and share the `.json` file (Slack, email, etc.)
-3. A developer clicks **Import** on their localhost — annotations, badges, and style previews appear instantly
-4. The developer copies or uses MCP to send the annotations to their coding agent
+For a reviewer handing feedback to a developer, the simplest path is a self-contained export:
 
-## Cross-Origin Remap
+1. A reviewer annotates the site (staging, production, or localhost)
+2. They open **View All → Share / Export** and choose **`.html`** — a single file with every screenshot and reference image embedded
+3. They send it (Slack, email, etc.); the recipient opens it in any browser, no extension required
+4. The developer works through it and passes the changes to their coding agent
 
-When importing annotations from a public URL into localhost, the extension offers to **remap URLs** automatically so annotations anchor to your local dev server.
+See [Sharing exports](/docs/workflows/sharing) for the difference between `.md` and `.html`.
+
+## Round-trip onto a teammate's localhost
+
+To rehydrate live annotations — badges, style previews, and all — onto another machine:
+
+1. The reviewer opens **View All → Share / Export** and chooses **`.json`**
+2. They send the file
+3. The developer opens **Import** from the settings menu and selects it — the annotations reappear on their localhost
+
+When importing annotations captured on a public URL into localhost, the extension offers to **remap URLs** automatically so they anchor to your local dev server.
 
 **Important:** Annotations might not perfectly anchor if the DOM structure differs between environments. For best results, import into an environment with the same markup.

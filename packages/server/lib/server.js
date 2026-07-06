@@ -10,7 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink, readdir } from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,6 +27,17 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 const PORT = 3846;
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
+// Image attachments (auto element captures + user paste/upload) are stored as
+// files here, one per attachment, named by annotation id + attachment id. The
+// annotation carries only lightweight metadata ({ id, kind, mime }); the absolute
+// path is DERIVED locally and existence-checked at read time. So a path baked into
+// a shared/imported annotation resolves to a local file that isn't there and
+// degrades gracefully instead of handing the agent a dead path.
+const ATTACH_DIR = path.join(DATA_DIR, 'attachments');
+const EXT_BY_MIME = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/bmp': 'bmp', 'image/avif': 'avif' };
+const extForMime = (mime) => EXT_BY_MIME[mime] || 'bin';
+const attachmentFileFor = (annotationId, att) =>
+  path.join(ATTACH_DIR, `${annotationId}__${att.id}.${extForMime(att.mime)}`);
 
 class LocalAnnotationsServer {
   constructor() {
@@ -108,6 +119,27 @@ class LocalAnnotationsServer {
     }));
     this.app.use(express.json({ limit: '5mb' }));
 
+    // MCP clients (e.g. Claude Code) eagerly attempt OAuth 2.1 Dynamic Client
+    // Registration against /register before knowing whether the server even
+    // supports auth. This server is unauthenticated, so we return a
+    // spec-shaped JSON error instead of Express's default HTML 404 — that
+    // lets the client parse the response, conclude DCR isn't supported, and
+    // fall through to no-auth instead of erroring out on "JSON Parse error".
+    this.app.all('/register', (req, res) => {
+      res.status(404).json({
+        error: 'registration_not_supported',
+        error_description: 'This MCP server does not require authentication; dynamic client registration is not available.'
+      });
+    });
+    // Same shape for the well-known discovery endpoints — return a JSON 404
+    // so any future eager-auth probe fails cleanly rather than HTML-parse.
+    this.app.get('/.well-known/oauth-authorization-server', (req, res) => {
+      res.status(404).json({ error: 'no_authorization_server' });
+    });
+    this.app.get('/.well-known/oauth-protected-resource', (req, res) => {
+      res.status(404).json({ error: 'no_protected_resource' });
+    });
+
     // Health check with version info
     this.app.get('/health', (req, res) => {
       res.json({ 
@@ -153,17 +185,21 @@ class LocalAnnotationsServer {
     this.app.post('/api/annotations', async (req, res) => {
       try {
         const annotation = req.body;
-        
-        // Validate annotation
-        if (!annotation.id || !annotation.url || !annotation.comment) {
+
+        // Validate annotation. Comment is OPTIONAL — a design-edit-only or
+        // screenshot-only annotation has no text. Requiring it made those fail
+        // saveOne and only reach the server via the slower sync, which broke the
+        // screenshot upload's 404-retry timing (no capture attached).
+        if (!annotation.id || !annotation.url) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const annotations = await this.loadAnnotations();
         const existingIndex = annotations.findIndex(a => a.id === annotation.id);
-        
+
         if (existingIndex >= 0) {
-          annotations[existingIndex] = { ...annotations[existingIndex], ...annotation, updated_at: new Date().toISOString() };
+          const preserved = this.withServerAttachments(annotation, annotations[existingIndex]);
+          annotations[existingIndex] = { ...annotations[existingIndex], ...preserved, updated_at: new Date().toISOString() };
         } else {
           annotations.push({
             ...annotation,
@@ -171,7 +207,7 @@ class LocalAnnotationsServer {
             updated_at: new Date().toISOString()
           });
         }
-        
+
         await this.saveAnnotations(annotations);
         res.json({ success: true, annotation });
       } catch (error) {
@@ -193,23 +229,161 @@ class LocalAnnotationsServer {
         const currentAnnotations = await this.loadAnnotations();
         console.log(`Sync request: replacing ${currentAnnotations.length} annotations with ${annotations.length} annotations`);
 
+        // Attachments are server-owned (see withServerAttachments): force each
+        // annotation to keep the server's current attachment list, ignoring the
+        // extension's copy, so a sync can never add/drop attachments.
+        const currentById = new Map(currentAnnotations.map(a => [a.id, a]));
+        const merged = annotations.map(a => this.withServerAttachments(a, currentById.get(a.id)));
+
         // Check if data is actually different to avoid redundant saves
         const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
-        const newJson = JSON.stringify(annotations.sort((a, b) => a.id.localeCompare(b.id)));
-        
+        const newJson = JSON.stringify(merged.sort((a, b) => a.id.localeCompare(b.id)));
+
         if (currentJson === newJson) {
           console.log(`Sync skipped: data is identical`);
-          res.json({ success: true, count: annotations.length, skipped: true });
+          res.json({ success: true, count: merged.length, skipped: true });
           return;
         }
 
+        // Orphan cleanup: delete attachment files for annotations dropped in this sync.
+        const keptIds = new Set(merged.map(a => a.id));
+        for (const old of currentAnnotations) {
+          if (!keptIds.has(old.id)) await this.removeAttachmentFiles(old);
+        }
+
         // Replace all annotations with the new set
-        await this.saveAnnotations(annotations);
+        await this.saveAnnotations(merged);
         console.log(`Sync completed: now have ${annotations.length} annotations`);
         res.json({ success: true, count: annotations.length });
       } catch (error) {
         console.error('Error syncing annotations:', error);
         res.status(500).json({ error: 'Failed to sync annotations' });
+      }
+    });
+
+    // Attach an image to an annotation — the auto element capture (kind=capture,
+    // Content-Type image/webp) or a user paste/upload (kind=user, any image mime).
+    // Body is the raw image (binary, no base64); stored as a file, the annotation
+    // keeps only { id, kind, mime } metadata (path is derived locally on read).
+    this.app.post(
+      '/api/annotations/:id/attachments',
+      express.raw({ type: (req) => (req.headers['content-type'] || '').startsWith('image/'), limit: '15mb' }),
+      async (req, res) => {
+        try {
+          const { id } = req.params;
+          const buf = req.body;
+          const mime = (req.headers['content-type'] || '').split(';')[0].trim();
+          const kind = req.headers['x-attachment-kind'] === 'user' ? 'user' : 'capture';
+
+          if (!Buffer.isBuffer(buf) || buf.length === 0) {
+            return res.status(400).json({ error: 'Missing image body' });
+          }
+          if (!EXT_BY_MIME[mime]) {
+            return res.status(415).json({ error: `Unsupported image type: ${mime}` });
+          }
+
+          const annotations = await this.loadAnnotations();
+          const index = annotations.findIndex(a => a.id === id);
+          if (index === -1) {
+            return res.status(404).json({ error: 'Annotation not found' });
+          }
+
+          await mkdir(ATTACH_DIR, { recursive: true });
+          const att = { id: randomUUID().slice(0, 8), kind, mime, created_at: new Date().toISOString() };
+          await writeFile(attachmentFileFor(id, att), buf);
+
+          const existing = Array.isArray(annotations[index].attachments) ? annotations[index].attachments : [];
+          let attachments;
+          if (kind === 'capture') {
+            // One capture per annotation; replace any prior one (and unlink its file).
+            for (const old of existing.filter(a => a.kind === 'capture')) {
+              try { const f = attachmentFileFor(id, old); if (existsSync(f)) await unlink(f); } catch { /* best effort */ }
+            }
+            attachments = [att, ...existing.filter(a => a.kind !== 'capture')];
+          } else {
+            attachments = [...existing, att];
+          }
+          annotations[index] = { ...annotations[index], attachments, updated_at: new Date().toISOString() };
+          await this.saveAnnotations(annotations);
+
+          res.json({ success: true, attachment: att });
+        } catch (error) {
+          console.error('Error attaching image:', error);
+          res.status(500).json({ error: 'Failed to attach image' });
+        }
+      }
+    );
+
+    // Serve an attachment's bytes (for the extension to render thumbnails on
+    // localhost pages, and for open-in-tab from any page). 404 if the file is gone.
+    this.app.get('/api/annotations/:id/attachments/:attId', async (req, res) => {
+      try {
+        const { id, attId } = req.params;
+        const annotations = await this.loadAnnotations();
+        const ann = annotations.find(a => a.id === id);
+        const att = ann?.attachments?.find(a => a.id === attId);
+        if (!att) return res.status(404).json({ error: 'Attachment not found' });
+        const file = attachmentFileFor(id, att);
+        if (!existsSync(file)) return res.status(404).json({ error: 'Attachment file missing' });
+        res.type(att.mime);
+        res.sendFile(file);
+      } catch (error) {
+        console.error('Error serving attachment:', error);
+        res.status(500).json({ error: 'Failed to serve attachment' });
+      }
+    });
+
+    // Clear (remove) a single attachment: unlink the file + drop the metadata.
+    this.app.delete('/api/annotations/:id/attachments/:attId', async (req, res) => {
+      try {
+        const { id, attId } = req.params;
+        const annotations = await this.loadAnnotations();
+        const index = annotations.findIndex(a => a.id === id);
+        if (index === -1) return res.status(404).json({ error: 'Annotation not found' });
+
+        const att = (annotations[index].attachments || []).find(a => a.id === attId);
+        if (att) {
+          try { const f = attachmentFileFor(id, att); if (existsSync(f)) await unlink(f); } catch { /* best effort */ }
+        }
+        annotations[index] = {
+          ...annotations[index],
+          attachments: (annotations[index].attachments || []).filter(a => a.id !== attId),
+          updated_at: new Date().toISOString()
+        };
+        await this.saveAnnotations(annotations);
+        res.json({ success: true });
+      } catch (error) {
+        console.error('Error deleting attachment:', error);
+        res.status(500).json({ error: 'Failed to delete attachment' });
+      }
+    });
+
+    // Self-contained HTML export (human sharing, base64-embedded images, prints to
+    // PDF). Markdown is rendered client-side by the extension (single format, works
+    // offline); HTML needs the server because it reads the image files to embed them.
+    this.app.get('/api/export', async (req, res) => {
+      try {
+        const { url } = req.query;
+        const annotations = await this.loadAnnotations();
+        const filtered = url ? this.filterByUrlPattern(annotations, url) : annotations;
+        // Exclude resolved (finalized/cleaned — done) so the export matches the
+        // extension's "View all" list rather than surfacing internal variant artifacts.
+        const items = this.buildExportItems(filtered.filter(a => a.type !== 'stylesheet' && a.status !== 'resolved'));
+
+        let hostname = 'annotations';
+        try { hostname = new URL(String(url).replace(/\/\*$/, '')).host || hostname; }
+        catch { if (filtered[0]?.url) { try { hostname = new URL(filtered[0].url).host; } catch { /* keep default */ } } }
+
+        const meta = { hostname, date: new Date().toISOString().slice(0, 10) };
+        const safeName = hostname.replace(/[^a-z0-9.-]/gi, '_');
+
+        const html = await this.renderExportHtml(items, meta);
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="vibe-annotations-${safeName}.html"`);
+        res.send(html);
+      } catch (error) {
+        console.error('Export error:', error);
+        res.status(500).json({ error: 'Failed to build export' });
       }
     });
 
@@ -249,16 +423,25 @@ class LocalAnnotationsServer {
         if (index === -1) {
           return res.status(404).json({ error: 'Annotation not found' });
         }
-        
+
+        // Protected delete: a variants annotation mid-cycle becomes variants-discarded
+        // (for agent scaffolding cleanup) rather than being hard-deleted.
+        if (this.isVariantMidCycle(annotations[index])) {
+          annotations[index] = { ...annotations[index], status: 'variants-discarded', updated_at: new Date().toISOString() };
+          await this.saveAnnotations(annotations);
+          return res.json({ success: true, deleted: false, discarded: true, status: 'variants-discarded' });
+        }
+
         const deletedAnnotation = annotations[index];
         annotations.splice(index, 1);
-        
+
         await this.saveAnnotations(annotations);
-        res.json({ 
-          success: true, 
+        await this.removeAttachmentFiles(deletedAnnotation);
+        res.json({
+          success: true,
           deleted: true,
           message: `Annotation ${id} has been successfully deleted`,
-          deletedAnnotation 
+          deletedAnnotation
         });
       } catch (error) {
         console.error('Error deleting annotation:', error);
@@ -421,7 +604,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -447,6 +630,11 @@ class LocalAnnotationsServer {
                 url: {
                   type: 'string',
                   description: 'Filter by specific localhost URL. Supports exact match (e.g., "http://localhost:3000/dashboard") or pattern match with base URL (e.g., "http://localhost:3000/" or "http://localhost:3000/*" to get all annotations from that project)'
+                },
+                include_variants: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Set true ONLY when the user asks to FINALIZE variants — includes annotations awaiting finalization (status variant-chosen / variants-discarded), each carrying variant_instructions for cleanup. Normal reads exclude these so a routine "implement my annotations" never re-triggers or prematurely finalizes a variants cycle.'
                 }
               },
               additionalProperties: false
@@ -454,7 +642,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_annotation',
-            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. IMPORTANT: Consider using delete_project_annotations for batch deletion when implementing multiple fixes. Use this individual deletion tool when: (1) You have successfully implemented a single annotation fix, (2) You prefer to delete annotations one-by-one as you implement them, (3) You are working on just one annotation. For efficiency when handling multiple annotations, use delete_project_annotations instead. The deletion is irreversible and removes the annotation from both extension storage and MCP data. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders.',
+            description: 'Permanently removes a specific annotation after successfully implementing the requested change or fix. IMPORTANT: Consider using delete_project_annotations for batch deletion when implementing multiple fixes. Use this individual deletion tool when: (1) You have successfully implemented a single annotation fix, (2) You prefer to delete annotations one-by-one as you implement them, (3) You are working on just one annotation. For efficiency when handling multiple annotations, use delete_project_annotations instead. The deletion is irreversible and removes the annotation from both extension storage and MCP data — and also deletes the annotation\'s image attachment files from disk, so do not delete until you no longer need its screenshot. NEVER delete annotations that still need work, contain unaddressed feedback, or serve as ongoing reminders.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -484,7 +672,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'delete_project_annotations',
-            description: 'Batch delete ALL annotations for a specific project after successfully implementing all requested changes. CRITICAL WORKFLOW: Use this tool instead of individual delete_annotation calls when you have completed ALL annotation fixes for a project. This implements the efficient "read all → implement all → delete all" workflow. SAFETY: Requires URL pattern (like "http://localhost:3000/*") to prevent accidental deletion across projects. Always confirm the count of annotations to be deleted before proceeding. Use this tool when: (1) You have successfully implemented ALL annotation fixes for a project, (2) All code changes are complete and working, (3) You want to clean up all annotations for the project at once. This is more efficient than deleting annotations one-by-one.',
+            description: 'Batch delete ALL annotations for a specific project after successfully implementing all requested changes. CRITICAL WORKFLOW: Use this tool instead of individual delete_annotation calls when you have completed ALL annotation fixes for a project. This implements the efficient "read all → implement all → delete all" workflow. SAFETY: Requires URL pattern (like "http://localhost:3000/*") to prevent accidental deletion across projects. Always confirm the count of annotations to be deleted before proceeding. Use this tool when: (1) You have successfully implemented ALL annotation fixes for a project, (2) All code changes are complete and working, (3) You want to clean up all annotations for the project at once. This is more efficient than deleting annotations one-by-one. Also deletes each annotation\'s image attachment files from disk.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -536,6 +724,39 @@ class LocalAnnotationsServer {
                 }
               },
               required: ['url'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'update_annotation',
+            description: 'Write generated variant scaffolding back to a VARIANTS annotation, or transition its lifecycle. After you code the variants for a mode="variants" annotation (per its variant_instructions), call this with variantsPayload — it is validated and moves the annotation pending → variants-ready so the user can preview and pick one in the extension. On FINALIZATION (after removing all scaffolding), call it with status "resolved". Only for variants annotations; not a general editor.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Annotation ID' },
+                variantsPayload: {
+                  type: 'object',
+                  description: 'The scaffolding map the extension and finalization pass rely on.',
+                  properties: {
+                    container: { type: 'string', description: 'CSS selector of the stable wrapper you added (e.g. ".vibe-var-<id>")' },
+                    attribute: { type: 'string', description: 'The toggled attribute, "data-vibe-active"' },
+                    variants: {
+                      type: 'array',
+                      description: '>=2 items, unique values, non-empty names',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          value: { type: 'string', description: 'data-vibe-active value, e.g. "1"' },
+                          name: { type: 'string', description: 'Human name shown in the radio, e.g. "Material card"' }
+                        }
+                      }
+                    },
+                    files: { type: 'array', items: { type: 'string' }, description: 'Every file you touched (carries the sentinel comment)' }
+                  }
+                },
+                status: { type: 'string', enum: ['variants-ready', 'resolved'], description: 'Lifecycle transition. Usually set implicitly by variantsPayload; pass "resolved" on finalization.' }
+              },
+              required: ['id'],
               additionalProperties: false
             }
           }
@@ -651,6 +872,23 @@ class LocalAnnotationsServer {
                     data: result.annotations || [],
                     count: result.annotations?.length || 0,
                     message: result.message,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'update_annotation': {
+            const result = await this.updateAnnotation(args || {});
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'update_annotation',
+                    status: 'success',
+                    data: result,
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -792,12 +1030,29 @@ class LocalAnnotationsServer {
   // MCP Tool implementations
   async readAnnotations(args) {
     const annotations = await this.loadAnnotations();
-    const { status = 'pending', limit = 50, offset = 0, url } = args;
+    const { status = 'pending', limit = 50, offset = 0, url, include_variants = false } = args;
 
     let filtered = annotations;
 
     if (status !== 'all') {
       filtered = filtered.filter(a => a.status === status);
+    }
+
+    // Variant lifecycle surfacing:
+    // - variants-discarded ALWAYS surfaces (even on a normal "implement my
+    //   annotations" read) — it left stale scaffolding in the codebase that must be
+    //   cleaned up, so the agent should always see it.
+    // - variant-chosen surfaces only with include_variants (explicit finalization),
+    //   so a routine read never prematurely finalizes a choice still under review.
+    // - variants-ready / resolved never surface here (mid-review / done).
+    const surface = new Set();
+    if (status === 'pending') surface.add('variants-discarded');
+    if (include_variants) { surface.add('variants-discarded'); surface.add('variant-chosen'); }
+    if (surface.size) {
+      const seen = new Set(filtered.map(a => a.id));
+      for (const a of annotations) {
+        if (surface.has(a.status) && !seen.has(a.id)) filtered.push(a);
+      }
     }
 
     if (url) {
@@ -855,14 +1110,27 @@ class LocalAnnotationsServer {
       has_more: (offset + limit) < total
     };
 
-    // Transform annotations for MCP consumers: strip screenshots, styles, and noise
+    // Transform annotations for MCP consumers: surface each image attachment as a
+    // readable local file path (with kind), resolved + existence-checked so imported
+    // annotations degrade gracefully. Files are deleted with the annotation.
     const optimized = paginatedResults.map(annotation => {
-      const { screenshot, ...rest } = annotation;
-      const optimized = {
-        ...rest,
-        has_screenshot: !!(screenshot && screenshot.data_url)
-      };
-      return this.optimizeForAgent(optimized);
+      const { attachments, ...rest } = annotation;
+      // Resolve each attachment's local file and existence-check it. A path baked
+      // into a shared/imported annotation won't resolve here and is omitted, so the
+      // agent never receives a dead path. kind distinguishes the auto element
+      // capture (current state) from user attachments (design references / targets).
+      const available = (Array.isArray(attachments) ? attachments : [])
+        .map(att => ({ att, file: attachmentFileFor(annotation.id, att) }))
+        .filter(({ file }) => existsSync(file))
+        .map(({ att, file }) => ({ kind: att.kind, mime: att.mime, path: file }));
+
+      const out = { ...rest, has_screenshot: available.some(a => a.kind === 'capture') };
+      if (available.length) out.attachments = available;
+      const optimized = this.optimizeForAgent(out);
+      // Embed the self-contained variant contract (generate / finalize) inline.
+      const vi = this.variantInstructionsFor(annotation);
+      if (vi) optimized.variant_instructions = vi;
+      return optimized;
     });
 
     return {
@@ -873,14 +1141,271 @@ class LocalAnnotationsServer {
     };
   }
 
+  // Delete all on-disk attachment files for an annotation. Best-effort: a missing
+  // dir/file is fine. Keeps the attachments/ dir in lockstep with the store on
+  // deletion. Matches by the `<annotationId>__` filename prefix rather than the
+  // metadata array, so a user attachment that a sync race dropped from
+  // `annotation.attachments` still gets its file cleaned up instead of leaking.
+  async removeAttachmentFiles(annotation) {
+    const id = annotation?.id;
+    if (!id) return;
+    const prefix = `${id}__`;
+    try {
+      const files = await readdir(ATTACH_DIR);
+      await Promise.all(
+        files
+          .filter(f => f.startsWith(prefix))
+          .map(f => unlink(path.join(ATTACH_DIR, f)).catch(() => { /* best effort */ }))
+      );
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.error('Failed to remove attachment files:', error.message);
+    }
+  }
+
+  // One-time sweep on boot: drop any attachment file whose annotation id is no
+  // longer in the store — orphans left by an interrupted delete, a sync race, or
+  // a pre-cleanup build. Prevents the attachments/ dir from bloating over time.
+  async sweepOrphanAttachments() {
+    try {
+      const files = await readdir(ATTACH_DIR);
+      if (!files.length) return;
+      const liveIds = new Set((await this.loadAnnotations()).map(a => a.id));
+      let removed = 0;
+      for (const f of files) {
+        const sep = f.indexOf('__');
+        if (sep === -1) continue; // not one of our `<id>__<attId>.<ext>` files
+        if (liveIds.has(f.slice(0, sep))) continue;
+        try { await unlink(path.join(ATTACH_DIR, f)); removed++; } catch { /* best effort */ }
+      }
+      if (removed) console.log(`Swept ${removed} orphan attachment file(s)`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.error('Attachment sweep failed:', error.message);
+    }
+  }
+
+  // Attachments are a server-owned sub-resource, mutated ONLY via the attachment
+  // endpoints (upload/delete) — never through an annotation upsert or sync. So on
+  // every upsert/sync we force the annotation to carry the server's current
+  // attachment list and ignore whatever the incoming copy had. This makes the
+  // server the single source of truth and avoids sync races (e.g. an in-flight
+  // capture being wiped, or a cleared attachment resurrected).
+  withServerAttachments(incoming, existing) {
+    const out = { ...incoming };
+    if (existing && Array.isArray(existing.attachments) && existing.attachments.length) {
+      out.attachments = existing.attachments;
+    } else {
+      delete out.attachments;
+    }
+    return out;
+  }
+
+  // --- Shareable exports (markdown for agents, self-contained HTML for humans) ---
+
+  // Normalize annotations into a flat, ordered shape for rendering. Resolves each
+  // attachment to its local file and existence-checks it (imported annotations
+  // whose files live elsewhere simply have no images).
+  buildExportItems(annotations) {
+    const sorted = [...annotations].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    return sorted.map((a, i) => {
+      const images = (Array.isArray(a.attachments) ? a.attachments : [])
+        .map(att => ({ kind: att.kind, mime: att.mime, file: attachmentFileFor(a.id, att) }))
+        .filter(img => existsSync(img.file));
+      const componentHint = (a.context_hints || []).find(h => typeof h === 'string' && h.startsWith('Component:'));
+      // Flatten the design edits (pending_changes) into label/from/to rows.
+      const changes = [];
+      for (const [prop, v] of Object.entries(a.pending_changes || {})) {
+        if (!v || v.value == null) continue;
+        changes.push({ label: prop === 'copyChange' ? 'Text' : prop, from: v.original, to: v.value });
+      }
+      return {
+        num: i + 1,
+        comment: a.comment || '',
+        url_path: a.url_path || a.url || '',
+        component: componentHint ? componentHint.replace('Component:', '').trim() : null,
+        source_file_path: a.source_file_path || null,
+        // A data-vibe-id is injected live by the extension and is NOT in the source —
+        // useless to an agent/reader. Fall back to the readable DOM path instead.
+        selector: (a.selector && a.selector.includes('data-vibe-id'))
+          ? (a.element_context?.path || null)
+          : (a.selector || null),
+        tag: a.element_context?.tag || null,
+        text: a.element_context?.text || null,
+        css: a.css || null,
+        changes,
+        images,
+      };
+    });
+  }
+
+  // Self-contained HTML: images embedded as base64 data URIs so the single file is
+  // portable (email/Slack) and prints to PDF from any browser. base64 here is fine —
+  // it's a one-off artifact, not the store.
+  async renderExportHtml(items, meta) {
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    const cards = [];
+    for (const it of items) {
+      const figs = [];
+      for (const img of it.images) {
+        try {
+          const buf = await readFile(img.file);
+          const label = img.kind === 'capture' ? 'Screenshot' : 'Reference';
+          figs.push(`<figure><img src="data:${img.mime};base64,${buf.toString('base64')}" alt="${label}"><figcaption>${label}</figcaption></figure>`);
+        } catch { /* skip unreadable image */ }
+      }
+      const rows = [
+        it.component ? `<dt>Component</dt><dd><code>${esc(it.component)}</code></dd>` : '',
+        it.source_file_path ? `<dt>Source</dt><dd><code>${esc(it.source_file_path)}</code></dd>` : '',
+        it.url_path ? `<dt>Page</dt><dd>${esc(it.url_path)}</dd>` : '',
+        it.selector ? `<dt>Selector</dt><dd><code>${esc(it.selector)}</code></dd>` : '',
+        it.text ? `<dt>Element</dt><dd><code>${esc(it.tag || '')}</code> “${esc(it.text)}”</dd>` : '',
+      ].join('');
+      const changesHtml = it.changes.length
+        ? `<div class="changes"><span class="lbl">Design changes</span><ul>${it.changes.map(c => `<li><code>${esc(c.label)}</code> <span class="from">${esc(c.from ?? '—')}</span> → <span class="to">${esc(c.to)}</span></li>`).join('')}</ul></div>`
+        : '';
+      const cssHtml = it.css ? `<pre class="css"><code>${esc(it.css)}</code></pre>` : '';
+      cards.push(`<article class="card"><h2><span class="n">${it.num}</span>${esc(it.comment || '(no comment)')}</h2><dl>${rows}</dl>${changesHtml}${cssHtml}${figs.length ? `<div class="shots">${figs.join('')}</div>` : ''}</article>`);
+    }
+
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vibe Annotations — ${esc(meta.hostname)}</title><style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7f9;color:#1a1d21;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{padding:32px 24px 16px;max-width:820px;margin:0 auto}
+header h1{margin:0 0 4px;font-size:22px}
+header p{margin:0;color:#6b7280;font-size:13px}
+main{max-width:820px;margin:0 auto;padding:8px 24px 48px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin:16px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card h2{margin:0 0 12px;font-size:16px;display:flex;align-items:center;gap:10px}
+.card h2 .n{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:linear-gradient(90deg,#E85B5C,#D03D68);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 14px;font-size:13px}
+dt{color:#6b7280}
+dd{margin:0}
+code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:12px}
+.changes{margin:0 0 14px;font-size:13px}
+.changes .lbl{display:block;color:#6b7280;margin-bottom:4px}
+.changes ul{margin:0;padding-left:18px}
+.changes li{margin:2px 0}
+.changes .from{color:#9ca3af;text-decoration:line-through}
+.changes .to{color:#111;font-weight:600}
+pre.css{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px;margin:0 0 14px}
+pre.css code{background:none;color:inherit;padding:0}
+.shots{display:flex;flex-wrap:wrap;gap:12px}
+figure{margin:0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;max-width:360px}
+figure img{display:block;width:100%;height:auto}
+figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
+</style></head><body><header><h1>Vibe Annotations</h1><p>${esc(meta.hostname)} · Exported ${meta.date} · ${items.length} annotation${items.length === 1 ? '' : 's'}</p></header><main>${cards.join('') || '<p style="color:#6b7280">No annotations.</p>'}</main></body></html>`;
+  }
+
+  // --- Variant generation (Feature 1) ---
+  // The full agent contract travels IN the read_annotations response (per the PRD),
+  // so the agent needs no external docs to generate/finalize variants.
+
+  variantGenerateInstructions(id) {
+    return [
+      `This is a VARIANTS annotation (mode "variants"): the user wants several coexisting design variants of the target element, previewable in place. Follow this contract exactly — do NOT implement a single design or delete anything yet.`,
+      ``,
+      `1. Wrap the target element in a stable container, each variant a sibling (idiomatic JSX/Vue/etc):`,
+      `   <div class="vibe-var-${id}" data-vibe-active="1">`,
+      `     <div class="vibe-variant" data-variant="1">…variant 1 (or the original)…</div>`,
+      `     <div class="vibe-variant" data-variant="2">…variant 2…</div>`,
+      `     … one per variant …`,
+      `   </div>`,
+      `   If the target is a flex/grid child, add \`display: contents\` to the container so the wrapper doesn't break the parent layout.`,
+      `2. Add ONE scaffold CSS block (dedicated file or the global stylesheet) showing only the active variant:`,
+      `   /* vibe-annotations:scaffold ${id} — DO NOT EDIT, removed on finalize */`,
+      `   .vibe-var-${id} > .vibe-variant { display: none; }`,
+      `   .vibe-var-${id}[data-vibe-active="1"] > [data-variant="1"] { display: block; }  /* … one rule per variant … */`,
+      `3. Hardcode data-vibe-active="1" in the code so the preview survives reloads/HMR/re-renders. The extension only ever flips this one attribute.`,
+      `4. Mark EVERY file you touch with a greppable sentinel comment \`vibe-annotations:scaffold ${id}\` (JSX {/* … */}, CSS /* … */, Vue <!-- … -->) — this is the finalization cleanup map.`,
+      `5. Then call update_annotation with variantsPayload { container: ".vibe-var-${id}", attribute: "data-vibe-active", variants: [{ value: "1", name: "…" }, …], files: [every file you touched] }. This moves it to "variants-ready". Tell the user in chat to reopen the extension to preview and choose.`,
+    ].join('\n');
+  }
+
+  variantFinalizeInstructions(id, chosen) {
+    return [
+      `This VARIANTS annotation was CHOSEN (variant "${chosen}"). Finalize:`,
+      `1. Grep the codebase for \`vibe-annotations:scaffold ${id}\` to locate all scaffolding.`,
+      `2. Replace the wrapper with the chosen variant's content, idiomatically — no wrapper, no data-vibe-* attributes, no vibe-* classes.`,
+      `3. Remove the scaffold CSS rules and every sentinel comment for this id.`,
+      `4. Call update_annotation with status "resolved". The final diff must contain zero \`vibe-*\` traces.`,
+    ].join('\n');
+  }
+
+  variantDiscardInstructions(id) {
+    return [
+      `This VARIANTS annotation was DISCARDED. Clean up:`,
+      `1. Grep for \`vibe-annotations:scaffold ${id}\`.`,
+      `2. Restore the ORIGINAL element (variant "1") in place, removing the wrapper, data-vibe-* attributes and vibe-* classes.`,
+      `3. Remove the scaffold CSS rules and every sentinel comment for this id.`,
+      `4. Call update_annotation with status "resolved".`,
+    ].join('\n');
+  }
+
+  variantInstructionsFor(a) {
+    if (!a || a.mode !== 'variants') return null;
+    if (a.status === 'pending') return this.variantGenerateInstructions(a.id);
+    if (a.status === 'variant-chosen') return this.variantFinalizeInstructions(a.id, a.chosenVariant);
+    if (a.status === 'variants-discarded') return this.variantDiscardInstructions(a.id);
+    return null;
+  }
+
+  validateVariantsPayload(p) {
+    if (!p || typeof p !== 'object') return 'variantsPayload must be an object';
+    if (!p.container || typeof p.container !== 'string') return 'container (stable wrapper selector) is required';
+    if (!Array.isArray(p.variants) || p.variants.length < 2) return 'at least 2 variants are required';
+    const values = new Set();
+    for (const v of p.variants) {
+      if (!v || !String(v.name || '').trim()) return 'each variant needs a non-empty name';
+      const val = v.value == null ? '' : String(v.value).trim();
+      if (!val) return 'each variant needs a value';
+      if (values.has(val)) return `variant values must be unique (duplicate "${val}")`;
+      values.add(val);
+    }
+    return null;
+  }
+
+  // Agent write path: attach generated variantsPayload (pending → variants-ready)
+  // and/or transition status (→ resolved on finalization).
+  async updateAnnotation(args) {
+    const { id, variantsPayload, status } = args || {};
+    if (!id || typeof id !== 'string') throw new Error('update_annotation requires "id" (string annotation id)');
+    const annotations = await this.loadAnnotations();
+    const idx = annotations.findIndex(a => a.id === id);
+    if (idx === -1) throw new Error(`Annotation ${id} not found`);
+    const ann = annotations[idx];
+    const updates = {};
+
+    if (variantsPayload !== undefined) {
+      const err = this.validateVariantsPayload(variantsPayload);
+      if (err) throw new Error(`Invalid variantsPayload: ${err}`);
+      updates.variantsPayload = variantsPayload;
+      if (ann.status === 'pending') updates.status = 'variants-ready';
+    }
+    if (status !== undefined) {
+      const allowed = ['variants-ready', 'resolved'];
+      if (!allowed.includes(status)) throw new Error(`status must be one of: ${allowed.join(', ')}`);
+      updates.status = status;
+    }
+
+    annotations[idx] = { ...ann, ...updates, updated_at: new Date().toISOString() };
+    await this.saveAnnotations(annotations);
+    return { id, status: annotations[idx].status, message: `Annotation ${id} updated` };
+  }
+
   /**
    * Optimize annotation for AI agent consumption:
    * - Strip element_context.styles (computed values, not in source code)
    * - Strip internal extension fields (_synced, badge_offset)
    * - Strip null/empty fields to reduce token noise
+   * Note: context_hints IS preserved — it carries React component identity
+   * (`Component: <name>`, `Component path: …`) plus source/framework hints the
+   * agent uses to locate the right source file. (Empty arrays still get stripped
+   * below as noise.)
    */
   optimizeForAgent(annotation) {
-    const { _synced, badge_offset, context_hints, ...clean } = annotation;
+    const { _synced, badge_offset, ...clean } = annotation;
 
     // Strip computed styles — agents use classes/path/selector_preview to find elements,
     // and pending_changes for design deltas. Computed styles are never useful.
@@ -933,8 +1458,8 @@ class LocalAnnotationsServer {
   }
 
   async watchAnnotations(args) {
-    const { url, timeout = 300 } = args;
-    if (!url) throw new Error('url parameter is required');
+    const { url, timeout = 300 } = args || {};
+    if (!url || typeof url !== 'string') throw new Error('watch_annotations requires "url" (e.g. "http://localhost:3000/*")');
 
     if (this.watchers.size >= 100) {
       throw new Error('Too many active watchers (limit: 100). Stop existing watchers before creating new ones.');
@@ -1009,8 +1534,12 @@ class LocalAnnotationsServer {
   }
 
   async deleteAnnotation(args) {
-    const { id } = args;
-    
+    const { id } = args || {};
+    // The MCP SDK does not enforce inputSchema server-side; without this check a
+    // missing id fell through to the idempotent "already deleted" branch below —
+    // a silent no-op that reported deleted:true for malformed calls.
+    if (!id || typeof id !== 'string') throw new Error('delete_annotation requires "id" (string annotation id)');
+
     const annotations = await this.loadAnnotations();
     const index = annotations.findIndex(a => a.id === id);
     
@@ -1019,17 +1548,38 @@ class LocalAnnotationsServer {
       return { id, deleted: true, message: `Annotation ${id} already deleted or not found` };
     }
     
+    // Protected delete: a variants annotation with scaffolding in the codebase is
+    // converted to variants-discarded (for agent cleanup), never hard-deleted.
+    if (this.isVariantMidCycle(annotations[index])) {
+      annotations[index] = { ...annotations[index], status: 'variants-discarded', updated_at: new Date().toISOString() };
+      await this.saveAnnotations(annotations);
+      return {
+        id,
+        deleted: false,
+        discarded: true,
+        message: `Annotation ${id} has generated scaffolding — marked variants-discarded so an agent can clean it up (read with include_variants:true to finalize). Not hard-deleted.`
+      };
+    }
+
     const deletedAnnotation = annotations[index];
     annotations.splice(index, 1); // Remove the annotation completely
-    
+
     await this.saveAnnotations(annotations);
-    
+    await this.removeAttachmentFiles(deletedAnnotation);
+
     return {
       id,
       deleted: true,
       message: `Annotation ${id} has been successfully deleted`,
       deletedAnnotation
     };
+  }
+
+  // A variants annotation with scaffolding must not be hard-deleted mid-cycle —
+  // it becomes variants-discarded so the agent can remove the scaffolding it wrote.
+  isVariantMidCycle(a) {
+    return !!(a && a.mode === 'variants' && a.variantsPayload
+      && a.status !== 'resolved' && a.status !== 'variants-discarded');
   }
 
   /**
@@ -1039,16 +1589,8 @@ class LocalAnnotationsServer {
    * @returns {Object} Screenshot data response with annotation_id, screenshot, and message
    */
   async getAnnotationScreenshot(args) {
-    const { id } = args;
-
-    // Validate input
-    if (!id || typeof id !== 'string') {
-      return {
-        annotation_id: id || '',
-        screenshot: null,
-        message: 'Invalid annotation ID: must be a non-empty string'
-      };
-    }
+    const { id } = args || {};
+    if (!id || typeof id !== 'string') throw new Error('get_annotation_screenshot requires "id" (string annotation id)');
 
     try {
       // Load annotations - we only need to find the specific one
@@ -1065,24 +1607,40 @@ class LocalAnnotationsServer {
         };
       }
 
-      // Check if annotation has screenshot data
-      if (!annotation.screenshot || !annotation.screenshot.data_url) {
+      // The "screenshot" is the auto element capture — the first attachment of
+      // kind 'capture'. Its path is derived locally and existence-checked, so an
+      // imported annotation degrades gracefully instead of erroring.
+      const capture = (Array.isArray(annotation.attachments) ? annotation.attachments : [])
+        .find(a => a.kind === 'capture');
+      if (!capture) {
         return {
           annotation_id: id,
           screenshot: null,
           message: 'No screenshot available for this annotation'
         };
       }
+      const file = attachmentFileFor(id, capture);
+      if (!existsSync(file)) {
+        return {
+          annotation_id: id,
+          screenshot: null,
+          screenshot_path: file,
+          message: 'Screenshot file is missing on disk (e.g. an imported annotation)'
+        };
+      }
 
-      // Return screenshot data in the contract format
+      // Prefer handing the agent the file path — it can open the image directly,
+      // no base64 needed. Include a data_url too only as a convenience for clients
+      // that can't read local files.
+      const buf = await readFile(file);
+
       return {
         annotation_id: id,
+        screenshot_path: file,
         screenshot: {
-          data_url: annotation.screenshot.data_url,
-          compression: annotation.screenshot.compression,
-          crop_area: annotation.screenshot.crop_area,
-          element_bounds: annotation.screenshot.element_bounds,
-          timestamp: annotation.screenshot.timestamp,
+          data_url: `data:${capture.mime};base64,${buf.toString('base64')}`,
+          mime: capture.mime,
+          timestamp: capture.created_at,
           viewport: annotation.viewport || null
         },
         message: 'Screenshot retrieved successfully'
@@ -1098,8 +1656,9 @@ class LocalAnnotationsServer {
   }
 
   async deleteProjectAnnotations(args) {
-    const { url_pattern, confirm = false } = args;
-    
+    const { url_pattern, confirm = false } = args || {};
+    if (!url_pattern || typeof url_pattern !== 'string') throw new Error('delete_project_annotations requires "url_pattern" (e.g. "http://localhost:3000/*")');
+
     const annotations = await this.loadAnnotations();
     
     // Filter annotations matching the URL pattern
@@ -1139,29 +1698,40 @@ class LocalAnnotationsServer {
       };
     }
     
-    // Proceed with deletion
-    const remainingAnnotations = annotations.filter(a => !matchingAnnotations.find(m => m.id === a.id));
+    // Variants annotations mid-cycle are discarded-in-place (agent cleanup), not
+    // hard-deleted; everything else is removed.
+    const toDiscard = matchingAnnotations.filter(a => this.isVariantMidCycle(a));
+    const toRemove = matchingAnnotations.filter(a => !this.isVariantMidCycle(a));
+    const discardIds = new Set(toDiscard.map(a => a.id));
+    const removeIds = new Set(toRemove.map(a => a.id));
+
+    const remainingAnnotations = annotations
+      .filter(a => !removeIds.has(a.id))
+      .map(a => discardIds.has(a.id) ? { ...a, status: 'variants-discarded', updated_at: new Date().toISOString() } : a);
     await this.saveAnnotations(remainingAnnotations);
-    
+    for (const a of toRemove) await this.removeAttachmentFiles(a);
+
     const deletedInfo = matchingAnnotations.map(a => ({
       id: a.id,
       url: a.url,
       comment: a.comment.substring(0, 100) + (a.comment.length > 100 ? '...' : '')
     }));
-    
+
     return {
       url_pattern,
       count: matchingAnnotations.length,
       deleted: true,
-      message: `Successfully deleted ${matchingAnnotations.length} annotation(s) for project ${url_pattern}`,
+      discarded_for_cleanup: toDiscard.length,
+      message: `Removed ${toRemove.length}; ${toDiscard.length} variants annotation(s) marked variants-discarded for agent cleanup (read with include_variants:true to finalize).`,
       deleted_annotations: deletedInfo,
       remaining_total: remainingAnnotations.length
     };
   }
 
   async getProjectContext(args) {
-    const { url } = args;
-    
+    const { url } = args || {};
+    if (!url || typeof url !== 'string') throw new Error('get_project_context requires "url" (a localhost URL, e.g. "http://localhost:3000/")');
+
     // Parse localhost URL to infer project structure
     const urlObj = new URL(url);
     const port = urlObj.port;
@@ -1398,14 +1968,21 @@ class LocalAnnotationsServer {
 
   async start() {
     await this.ensureDataFile();
-    
+
+    // Reclaim attachment files whose annotation is gone (non-blocking).
+    this.sweepOrphanAttachments().catch(() => {});
+
     // Set up process handlers only once
     this.setupProcessHandlers();
     
     // Check for updates (non-blocking)
     this.checkForUpdates().catch(() => {});
     
-    this.server = this.app.listen(PORT, () => {
+    // Bind explicitly to 0.0.0.0 (IPv4 wildcard). Without a host argument
+    // Node defaults to the IPv6 wildcard, which WSL2 NAT-mode localhost
+    // forwarding doesn't relay back to Windows — Chrome extensions then
+    // see "Failed to fetch" against 127.0.0.1:3846.
+    this.server = this.app.listen(PORT, '0.0.0.0', () => {
       console.log(`Vibe Annotations server running on http://127.0.0.1:${PORT}`);
       console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
       console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);

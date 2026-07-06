@@ -1,0 +1,27 @@
+export const metadata = { title: 'Screenshots & images' }
+
+# Screenshots & Reference Images
+
+Every annotation can carry images: an automatic screenshot of the element you pinned, plus any reference images you attach yourself. Your agent receives both as real image files.
+
+## Two kinds of image
+
+- **Auto-screenshot** (`capture`) — a zoned screenshot of exactly the element you annotated, so the agent sees its *current* visual state. Captured automatically when the setting is on, or on demand from the **+** menu → *Take a screenshot*.
+- **Reference image** (`user`) — anything you attach via the **+** menu or by pasting from the clipboard. Usually a *target* ("make it look like this").
+
+The agent is told which is which, so "current state" and "design target" are never confused.
+
+## Workflow
+
+1. Open the popover on the element you want to annotate
+2. Use the **+** menu to *Attach file* or *Take a screenshot*, or just paste an image from your clipboard into the comment field
+3. Save the annotation — images travel with it to your agent (as local file paths over MCP) and into `.md` / `.html` exports
+
+## Enabling auto-screenshots
+
+Auto-capture is **off by default**. Turn it on in the toolbar settings — the extension will request the screenshot permission the first time, since capturing the tab needs broader host access than annotating alone.
+
+## Tips
+
+- Attachments are deleted automatically when their annotation is deleted, so the on-disk store never bloats with orphaned images.
+- Reference images are the fastest way to communicate a visual target that words can't — paste a Figma frame or a competitor's screenshot straight onto the pin.

@@ -3,32 +3,33 @@ import localFont from 'next/font/local'
 import { Analytics } from '@vercel/analytics/next'
 import '@/styles/globals.css'
 
-const generalSans = localFont({
-  src: [
-    {
-      path: '../fonts/GeneralSans-Variable.ttf',
-      weight: '200 700',
-      style: 'normal',
-    },
-    {
-      path: '../fonts/GeneralSans-VariableItalic.ttf',
-      weight: '200 700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-general-sans',
+const satoshi = localFont({
+  src: '../fonts/Satoshi-Variable.ttf',
+  weight: '300 900',
+  style: 'normal',
+  variable: '--font-satoshi',
+  display: 'swap',
+})
+
+const cabinetGrotesk = localFont({
+  src: '../fonts/CabinetGrotesk-Variable.ttf',
+  weight: '100 900',
+  style: 'normal',
+  variable: '--font-cabinet',
   display: 'swap',
 })
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // tint the mobile browser UI (status/address bar) to match the dark sections
+  themeColor: '#000114',
 }
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://vibe-annotations.com'),
   title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-  description: 'Browser extension to add and group visual feedbacks to your applications while developing with Claude Code, Cursor, Windsurf, GitHub Copilot or other AI coding agents.',
+  description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
   keywords: 'AI annotations, coding agents, Claude Code, Cursor, GitHub Copilot, Windsurf, visual feedback, developer tools, MCP, browser extension, local development, UI feedback, code automation',
   authors: [{ name: 'Vibe Annotations' }],
   alternates: {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-    description: 'Browser extension to add and group visual feedbacks to your applications while developing with Claude Code, Cursor, Windsurf, GitHub Copilot or other AI coding agents.',
+    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
     url: 'https://vibe-annotations.com',
     siteName: 'Vibe Annotations',
     images: [
@@ -65,7 +66,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Vibe Annotations - Visual Annotation Tool for AI Coding Agents',
-    description: 'Browser extension to add and group visual feedbacks to your applications while developing with Claude Code, Cursor, Windsurf, GitHub Copilot or other AI coding agents.',
+    description: 'Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.',
     images: ['/og-image.jpg'],
     site: '@Raph_Regnier',
     creator: '@Raph_Regnier',
@@ -89,7 +90,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={generalSans.variable}>
+    <html lang="en" className={`${satoshi.variable} ${cabinetGrotesk.variable}`}>
       <head>
         <script
           type="application/ld+json"
@@ -98,7 +99,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "Vibe Annotations",
-              "description": "Browser extension to add and group visual feedbacks to your applications while developing with Claude Code, Cursor, Windsurf, GitHub Copilot or other AI coding agents.",
+              "description": "Annotate anything on your localhost and let your AI coding agent implement every fix in one batch. Works with Claude Code, Cursor, Windsurf, GitHub Copilot. Free, source-available, 100% local.",
               "url": "https://vibe-annotations.com",
               "applicationCategory": "DeveloperApplication",
               "operatingSystem": "Web Browser",
@@ -140,7 +141,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${generalSans.className} antialiased overflow-x-hidden`} style={{ backgroundColor: '#FEFEFE' }}>
+      <body className={`${satoshi.className} antialiased overflow-x-hidden`} style={{ backgroundColor: '#FEFEFE' }}>
         {children}
         <Analytics />
       </body>

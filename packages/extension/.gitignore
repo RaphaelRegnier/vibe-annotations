@@ -1,0 +1,4 @@
+.wxt/
+.output/
+node_modules/
+*.log
