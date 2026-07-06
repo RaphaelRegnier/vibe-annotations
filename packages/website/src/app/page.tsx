@@ -453,7 +453,7 @@ function VariantsCard() {
         ))}
         <div className={s.vThreadWrap} aria-hidden>
           <svg className={s.vThread} viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M 22 0 C 30 46, 46 74, 50 100" vectorEffect="non-scaling-stroke" />
+            <path d="M 6 0 C 9 58, 33 88, 50 116" vectorEffect="non-scaling-stroke" />
           </svg>
         </div>
         <div className={s.vPrevWrap}>

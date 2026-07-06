@@ -413,7 +413,9 @@
    inflates the grid rows (measured: 346px phantom height). The empty wrapper
    contributes nothing. */
 .vThreadWrap { flex: none; height: 44px; position: relative; pointer-events: none; }
-.vThread { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* overflow: visible so the path can run past the 44px box, across the column
+   gap, and into badge 3 (which sits just below the wrap) */
+.vThread { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* the preview is a mock page taller than the box — content lives in an absolute
    layer (zero intrinsic height, so it can't inflate the grid rows) and crops at
    the bottom edge like a real page. The wrapper takes the flex space and does NOT
