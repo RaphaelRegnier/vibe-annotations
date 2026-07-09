@@ -604,7 +604,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design. VARIANT INTENT FROM A PLAIN COMMENT: a normal comment annotation whose text asks for several design options (e.g. "make variants of this", "show me a few versions", "try some different layouts") is flagged with variant_intent_detected:true and also carries variant_instructions — telling you to promote it into the variants lifecycle (update_annotation with mode:"variants") and generate variants rather than implementing one design, so the user gets the same preview-and-pick UI as the UI button. DELETION DISCIPLINE (IMPORTANT): after you implement a normal annotation in source, you MUST delete it with delete_annotation — never leave finished annotations behind. This matters most for design edits (annotations with pending_changes, also flagged cleanup_required): the extension applies pending_changes as a LIVE inline-style overlay, so a design-edit annotation left undeleted is re-applied on top of your already-implemented source change on the next page reload (doubling it), and reverting it later snaps the page to a stale state. The ONLY annotations you keep are variants annotations — they persist through their own lifecycle until finalized (status resolved). Never generalize a variant\'s "don\'t delete yet" to the other annotations in the same batch: keep deleting every non-variant annotation as you finish it.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -707,7 +707,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'watch_annotations',
-            description: 'Watch for new annotations on a localhost project. This tool blocks until pending annotations appear, then returns them. Use this in a loop for hands-free mode: call watch_annotations → implement each annotation → call delete_annotation → call watch_annotations again. The tool polls every 10 seconds and automatically stops after the timeout period (default 5 minutes) of no new annotations appearing. IMPORTANT: You must know the localhost URL of the project you are watching. If you do not know it, ask the user before calling this tool. Example: "http://localhost:3000/*" watches all pages on port 3000.',
+            description: 'Watch for new annotations on a localhost project. This tool blocks until pending annotations appear, then returns them. Use this in a loop for hands-free mode: call watch_annotations → implement each annotation → call delete_annotation → call watch_annotations again. DELETE EACH annotation right after you implement it — especially design edits (annotations with pending_changes, flagged cleanup_required), which the extension re-applies as a live inline-style overlay on the next reload if left behind. EXCEPTIONS: (1) a variants annotation (mode:"variants") is NOT deleted in this loop — follow its variant_instructions and let it run through its own pick/finalize lifecycle; do not let its "don\'t delete yet" rule stop you deleting the other annotations in the batch. (2) a plain comment that reads as a request for several versions is flagged variant_intent_detected and carries variant_instructions — route it through the variants lifecycle (update_annotation mode:"variants") instead of implementing one design. The tool polls every 10 seconds and automatically stops after the timeout period (default 5 minutes) of no new annotations appearing. IMPORTANT: You must know the localhost URL of the project you are watching. If you do not know it, ask the user before calling this tool. Example: "http://localhost:3000/*" watches all pages on port 3000.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -729,11 +729,12 @@ class LocalAnnotationsServer {
           },
           {
             name: 'update_annotation',
-            description: 'Write generated variant scaffolding back to a VARIANTS annotation, or transition its lifecycle. After you code the variants for a mode="variants" annotation (per its variant_instructions), call this with variantsPayload — it is validated and moves the annotation pending → variants-ready so the user can preview and pick one in the extension. On FINALIZATION (after removing all scaffolding), call it with status "resolved". Only for variants annotations; not a general editor.',
+            description: 'Write generated variant scaffolding back to a VARIANTS annotation, or transition its lifecycle. After you code the variants for a mode="variants" annotation (per its variant_instructions), call this with variantsPayload — it is validated and moves the annotation pending → variants-ready so the user can preview and pick one in the extension. On FINALIZATION (after removing all scaffolding), call it with status "resolved". PROMOTING A COMMENT: when read_annotations flags a plain comment with variant_intent_detected, pass mode:"variants" (on its own to convert up front, or together with variantsPayload) to promote it into the variants lifecycle so it gets the same pick UI. Only for variants annotations (or promoting a comment into one); not a general editor.',
             inputSchema: {
               type: 'object',
               properties: {
                 id: { type: 'string', description: 'Annotation ID' },
+                mode: { type: 'string', enum: ['variants'], description: 'Set to "variants" to promote a plain comment annotation (whose text asked for several design options; flagged variant_intent_detected on read) into the variants lifecycle. Also applied automatically whenever you pass variantsPayload.' },
                 variantsPayload: {
                   type: 'object',
                   description: 'The scaffolding map the extension and finalization pass rely on.',
@@ -1127,9 +1128,11 @@ class LocalAnnotationsServer {
       const out = { ...rest, has_screenshot: available.some(a => a.kind === 'capture') };
       if (available.length) out.attachments = available;
       const optimized = this.optimizeForAgent(out);
-      // Embed the self-contained variant contract (generate / finalize) inline.
-      const vi = this.variantInstructionsFor(annotation);
-      if (vi) optimized.variant_instructions = vi;
+      // Embed the self-contained variant contract (generate / finalize / discard, or
+      // a promote-then-generate contract for comment-driven variant intent).
+      this.attachVariantContract(optimized, annotation);
+      // Flag design edits that must be deleted after implementing.
+      this.maybeFlagCleanup(optimized, annotation);
       return optimized;
     });
 
@@ -1304,7 +1307,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
 
   variantGenerateInstructions(id) {
     return [
-      `This is a VARIANTS annotation (mode "variants"): the user wants several coexisting design variants of the target element, previewable in place. Follow this contract exactly — do NOT implement a single design or delete anything yet.`,
+      `This is a VARIANTS annotation (mode "variants"): the user wants several coexisting design variants of the target element, previewable in place. Follow this contract exactly — do NOT implement a single design, and do NOT delete THIS annotation (it runs through its own pick/finalize lifecycle). This "don't delete" applies to THIS annotation ONLY — keep implementing and then deleting every OTHER (non-variants) annotation in the batch exactly as normal.`,
       ``,
       `1. Wrap the target element in a stable container, each variant a sibling (idiomatic JSX/Vue/etc):`,
       `   <div class="vibe-var-${id}" data-vibe-active="1">`,
@@ -1351,6 +1354,60 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     return null;
   }
 
+  // Heuristic: does a plain (non-variants) annotation's comment read as a request
+  // for several coexisting design options? If so we nudge the agent to route it
+  // through the variants lifecycle instead of implementing a single design. Only a
+  // hint — the agent reads the real comment in context and makes the final call.
+  variantIntentInComment(a) {
+    if (!a || a.mode === 'variants' || a.type === 'stylesheet') return false;
+    if (a.status !== 'pending') return false;
+    const text = String(a.comment || '').toLowerCase();
+    if (!text) return false;
+    const noun = '(?:versions?|options?|variations?|alternatives?|ideas?|directions?|takes?|layouts?|designs?|styles?|looks?|treatments?)';
+    // Signal 1: the word variant / variation / alternative anywhere.
+    if (/\b(?:variants?|variations?|alternatives?)\b/.test(text)) return true;
+    // Signal 2: a generative verb near a plurality noun ("show me a few options").
+    if (new RegExp(`\\b(?:make|create|give|show|generate|try|explore|mock(?:\\s*up)?|design)\\b[^.!?]{0,30}\\b${noun}\\b`).test(text)) return true;
+    // Signal 3: a plurality quantifier near a plurality noun ("three different layouts").
+    if (new RegExp(`\\b(?:a few|several|multiple|different|some|a couple of|couple of|two|three|four|[2-4])\\b[^.!?]{0,20}\\b${noun}\\b`).test(text)) return true;
+    return false;
+  }
+
+  variantIntentInstructions(id) {
+    return [
+      `HEADS UP: this is a normal comment annotation, but its text reads like a request for SEVERAL design options ("make variants", "a few versions", …). If that is what the user means, treat it EXACTLY like a variants annotation created from the UI — generate multiple coexisting, previewable variants; do NOT just implement one design. (If the wording is only a passing mention and no options are wanted, ignore this and handle it as a normal comment.)`,
+      ``,
+      `Follow the standard variants generate contract below. The one difference: because this started as a plain comment, pass mode:"variants" in your update_annotation call so it converts into the variants lifecycle and the extension shows the pick UI:`,
+      ``,
+      `   update_annotation { id: "${id}", mode: "variants", variantsPayload: { … } }`,
+      ``,
+      this.variantGenerateInstructions(id),
+    ].join('\n');
+  }
+
+  // Embed the self-contained variant contract into an agent-facing annotation:
+  // the generate/finalize/discard instructions for a real variants annotation, or —
+  // for a plain comment that reads as a variants request — a promote-then-generate
+  // contract plus a variant_intent_detected flag.
+  attachVariantContract(optimized, annotation) {
+    const vi = this.variantInstructionsFor(annotation);
+    if (vi) { optimized.variant_instructions = vi; return; }
+    if (this.variantIntentInComment(annotation)) {
+      optimized.variant_intent_detected = true;
+      optimized.variant_instructions = this.variantIntentInstructions(annotation.id);
+    }
+  }
+
+  // Design-edit annotations carry a live inline-style overlay in the extension, so
+  // the agent must delete them after implementing or the overlay double-applies on
+  // reload. Flag exactly those so the reminder lands where it matters (not variants).
+  maybeFlagCleanup(optimized, annotation) {
+    if (annotation.mode === 'variants') return;
+    if (optimized.pending_changes) {
+      optimized.cleanup_required = 'DESIGN EDIT: after implementing this in source, call delete_annotation for this id. If left undeleted, the extension re-applies these inline styles over your source change on the next reload (doubling it), and a later revert snaps the page to a stale state.';
+    }
+  }
+
   validateVariantsPayload(p) {
     if (!p || typeof p !== 'object') return 'variantsPayload must be an object';
     if (!p.container || typeof p.container !== 'string') return 'container (stable wrapper selector) is required';
@@ -1369,7 +1426,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
   // Agent write path: attach generated variantsPayload (pending → variants-ready)
   // and/or transition status (→ resolved on finalization).
   async updateAnnotation(args) {
-    const { id, variantsPayload, status } = args || {};
+    const { id, variantsPayload, status, mode } = args || {};
     if (!id || typeof id !== 'string') throw new Error('update_annotation requires "id" (string annotation id)');
     const annotations = await this.loadAnnotations();
     const idx = annotations.findIndex(a => a.id === id);
@@ -1377,10 +1434,23 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     const ann = annotations[idx];
     const updates = {};
 
+    // Promote a plain comment into the variants lifecycle (comment-driven "make
+    // variants" intent). Only "variants" is a legal target — this is not a general
+    // mode editor. The extension renders any mode:"variants" + variantsPayload
+    // annotation with the pick UI, so the promotion needs no extension change.
+    if (mode !== undefined) {
+      if (mode !== 'variants') throw new Error('mode can only be set to "variants" (promotes a comment annotation into the variants lifecycle)');
+      updates.mode = 'variants';
+    }
+
     if (variantsPayload !== undefined) {
       const err = this.validateVariantsPayload(variantsPayload);
       if (err) throw new Error(`Invalid variantsPayload: ${err}`);
       updates.variantsPayload = variantsPayload;
+      // A payload only makes sense for a variants annotation — auto-promote a
+      // comment that's being routed through the variants flow even if mode wasn't
+      // passed explicitly, so it never gets stranded as a comment with a payload.
+      if (ann.mode !== 'variants') updates.mode = 'variants';
       if (ann.status === 'pending') updates.status = 'variants-ready';
     }
     if (status !== undefined) {
@@ -1503,13 +1573,17 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
           if (w) { w.polling = false; w.lastSeenAt = Date.now(); }
           console.log(`Watcher ${watcherId}: found ${pending.length} annotations`);
 
-          // Strip screenshots, styles, and noise (same as readAnnotations)
+          // Strip screenshots, styles, and noise (same as readAnnotations), then
+          // embed the variant contract / intent and design-edit cleanup flags so the
+          // hands-free loop steers exactly like a normal read.
           const cleaned = pending.map(({ screenshot, ...rest }) => {
-            const annotation = {
+            const optimized = this.optimizeForAgent({
               ...rest,
               has_screenshot: !!(screenshot && screenshot.data_url)
-            };
-            return this.optimizeForAgent(annotation);
+            });
+            this.attachVariantContract(optimized, rest);
+            this.maybeFlagCleanup(optimized, rest);
+            return optimized;
           });
 
           return { annotations: cleaned, message: `Found ${cleaned.length} pending annotations` };
