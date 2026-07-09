@@ -22,31 +22,11 @@ A (recommended) - [Use the MCP](https://vibe-annotations.com/docs/mcp-setup) to 
 
 B - Copy to your clipboard: **View all** > **Copy** and send to your AI coding agent.
 
-## Demos
+## Demo
 
-**Annotate, copy/paste to your AI coding agent:**
+https://github.com/user-attachments/assets/6946733e-eea6-4d38-8386-c493f90d36f4
 
-https://github.com/user-attachments/assets/ebcf5a17-423c-459c-b5d5-2876b671c5a7
-
-**Make persisting direct design tweaks:**
-
-https://github.com/user-attachments/assets/66bc31ed-86d6-4fc0-ab69-7e4ed8c7c27a
-
-**Use the MCP server to share your annotations, any websites, multiple pages:**
-
-https://github.com/user-attachments/assets/2dc8e03c-a760-4e31-afac-537200387788
-
-**Annotate with a browser-capable AI coding agent:**
-
-https://github.com/user-attachments/assets/5839d3df-f3e6-4b05-b58a-fdd619487aa4
-
-**Collaborate with teammates using export / import features:**
-
-https://github.com/user-attachments/assets/58de5fad-d7fa-490d-849f-d25771758067
-
-**Use watch mode, never leave your website:**
-
-https://github.com/user-attachments/assets/c74d3a43-61c4-4542-ab43-c559cd6e44bf
+This demo shows default annotations, design edits and variant generation. For more features (like collaboration via file sharing, AI-assisted annotations, watch mode...) please read the docs.
 
 ## Documentation
 
