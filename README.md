@@ -4,6 +4,10 @@
 
 Visual feedback tool for web development. Annotate elements on your pages, make design tweaks, and share with AI coding agents or teammates.
 
+https://github.com/user-attachments/assets/6946733e-eea6-4d38-8386-c493f90d36f4
+
+For more features explanations (like collaboration via file sharing, AI-assisted annotations, watch mode...) please read the docs.
+
 ## Get started
 
 **1.** Install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
@@ -21,12 +25,6 @@ One interactive command installs the global server, starts it in the background,
 A (recommended) - [Use the MCP](https://vibe-annotations.com/docs/mcp-setup) to implement your Annotations
 
 B - Copy to your clipboard: **View all** > **Copy** and send to your AI coding agent.
-
-## Demo
-
-https://github.com/user-attachments/assets/6946733e-eea6-4d38-8386-c493f90d36f4
-
-This demo shows default annotations, design edits and variant generation. For more features (like collaboration via file sharing, AI-assisted annotations, watch mode...) please read the docs.
 
 ## Documentation
 
