@@ -181,8 +181,8 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       banner.className = 'vibe-update-banner';
       banner.innerHTML = `
         <span class="vibe-update-text">
-          <strong>Vibe Annotations${version ? ` ${version}` : ''} is here</strong>
-          — new mascot, design edits, variants, screenshots &amp; sharing.
+          <strong>Vibe Annotations${version ? ` ${version}` : ''}</strong>
+          — variants generation improvements. Update your MCP server to get them.
         </span>
         <a class="vibe-update-link" href="${releaseUrl}" target="_blank" rel="noopener">See what's new</a>
         <button class="vibe-update-dismiss" title="Dismiss">${ICONS.close}</button>
