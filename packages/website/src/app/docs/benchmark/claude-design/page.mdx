@@ -1,0 +1,51 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Claude Design",
+  description: "An objective comparison of Vibe Annotations and Anthropic's Claude Design. Claude Design annotates a generated prototype inside claude.ai; Vibe Annotations annotates your real running app for any coding agent. How they differ and when to use each.",
+  keywords: "Vibe Annotations vs Claude Design, Claude Design alternative, annotate prototype Claude, Claude Design vs Figma, Claude Design comment on element, Claude Design handoff to Claude Code, annotate production app for AI agent",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/claude-design" },
+}
+
+# Vibe Annotations vs. Claude Design
+
+Claude Design and Vibe Annotations both let you comment on a visual element and turn that into a change. The difference is **what you are pointing at**. Claude Design annotates a **prototype that Claude generates inside claude.ai**. Vibe Annotations annotates your **real running app**, and hands the feedback to whatever agent you already use. One is upstream ideation tied to one environment; the other refines your actual production code and stays agnostic.
+
+> Last reviewed July 2026. Claude Design is a research preview and evolving, so check [anthropic.com](https://www.anthropic.com/news/claude-design-anthropic-labs) for current details.
+
+## What Claude Design is
+
+Launched by Anthropic Labs in April 2026, Claude Design is a visual creation surface inside claude.ai. You prompt Claude to produce designs, interactive prototypes, slides, and marketing pieces, then refine them through conversation, **inline comments on specific elements**, direct text edits, and sliders Claude generates for spacing, color, and layout. It can read your codebase and design files to reuse your design system, and when a prototype is ready it packages a **handoff bundle you pass to Claude Code** to build. It is powered by Claude models, lives inside claude.ai, and is included with Claude Pro, Max, Team, and Enterprise plans.
+
+## Side by side
+
+| | Vibe Annotations | Claude Design |
+|---|---|---|
+| What you annotate | Your real running app | A prototype Claude generated |
+| Where you work | Your own browser, on any site | Inside claude.ai |
+| Reaches your real codebase | Yes, your agent edits the repo | Through a handoff bundle to Claude Code |
+| Model and agent | Any MCP agent, any model | Claude models only |
+| Stage of work | Refine an existing product | Explore and prototype from a prompt |
+| Design edits and variants in place | Yes | On the prototype, via Claude |
+| License and price | Source available, free, local | Included in Claude paid plans |
+
+## The real difference
+
+Claude Design starts from a prompt and creates something **new** to explore, then hands a bundle to Claude Code. The object you annotate is a generated prototype that lives in claude.ai, and the loop is tied to Claude models and the Anthropic environment. Vibe Annotations starts from the **app you already have running**, captures your feedback on the real DOM, and lets your own agent edit the real source. It does not care which model or agent you use, and it is a browser extension that adds to your existing coding workflow rather than a place you go to design.
+
+So this is less a head to head and more a question of stage: Claude Design is for exploring and prototyping; Vibe Annotations is for changing the code of a product that already exists.
+
+## When Claude Design is the better pick
+
+- You are **starting from a prompt** and want to explore designs, prototypes, slides, or mockups.
+- You are happy working **inside claude.ai** with Claude models.
+- You want Claude to generate the design and hand a bundle to Claude Code.
+
+## When Vibe Annotations is the better pick
+
+- You have a **real app running** and want to change the **actual code**, not a prototype.
+- You want to stay **agnostic**: any browser, any site, any agent, any model.
+- You want a **free, local** extension that adds to your existing workflow instead of a hosted design environment.
+- You want [design edits](/docs/workflows/design-edits), [screenshots](/docs/workflows/screenshots), and [component variants](/docs/workflows/variants) on your live app.
+
+## They also fit together
+
+These are complementary across a product's life. Explore and prototype in Claude Design, ship it, then refine the real running app with Vibe Annotations and your agent of choice. See the [full benchmark](/docs/benchmark) for the wider field.

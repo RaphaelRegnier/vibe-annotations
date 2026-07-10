@@ -1,0 +1,50 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Stagewise",
+  description: "An objective comparison of Vibe Annotations and Stagewise. Stagewise pivoted from a browser toolbar into a full agentic IDE. Here is how that differs from an overlay that feeds your existing agent, and when to use each.",
+  keywords: "Vibe Annotations vs Stagewise, Stagewise alternative, agentic IDE, browser toolbar for AI coding agent, visual feedback for Cursor, Stagewise toolbar",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/stagewise" },
+}
+
+# Vibe Annotations vs. Stagewise
+
+Stagewise once looked like a direct competitor: a browser toolbar that sent element context to your code editor. In 2026 it went the other direction and became a **full agentic IDE**. That makes it a fundamentally different choice from a thin overlay on your existing setup.
+
+> Last reviewed July 2026. Stagewise is actively developed, so check [stagewise.io](https://stagewise.io/) for current details.
+
+## What Stagewise is
+
+An open source (AGPL 3.0) "agentic IDE for open source models": a standalone development environment with a built in coding agent, browser preview, console and debugger access, and git workflows. You bring your own key across Anthropic, OpenAI, Google, Mistral, and open weight or locally hosted models, or use its cloud inference. It is backed by Y Combinator and monetized, with a free tier plus paid Pro and Ultra plans. The original story of a toolbar inside your existing editor is now secondary.
+
+## Side by side
+
+| | Vibe Annotations | Stagewise |
+|---|---|---|
+| What it is | Overlay on your running app | Full standalone IDE |
+| Your editor | Keep your own (VS Code, Cursor, and so on) | Replace it with Stagewise |
+| Your agent | Keep your own via MCP | Built in agent (bring your own key) |
+| Pin and comment on a live page | Yes | Preview lives inside the IDE |
+| Design edits in the page | Yes | Via its agent |
+| Component variants | Yes | Via its agent |
+| Model management | Not applicable (uses your agent) | Extensive (many providers, local models) |
+| License | Source available | AGPL 3.0 |
+| Price | Free | Free / $20 / $200 per month |
+
+## The real difference
+
+This is a **workflow choice, not a feature checklist**. Stagewise asks you to move into a new environment that owns your editor, agent, and preview together. Vibe Annotations asks for nothing except a browser extension. You keep VS Code or Cursor, keep whatever agent you use, and add a visual feedback layer on top.
+
+If you want a single tool to manage models and run the whole loop, the design where Stagewise owns everything is a real advantage. If you have an editor and agent you already like, adopting a new IDE is a big switch for a feedback layer.
+
+## When Stagewise is the better pick
+
+- You want **one environment** that owns the editor, agent, and preview.
+- You want heavy **model management**, with many providers plus open weight or locally hosted models, inside the tool itself.
+
+## When Vibe Annotations is the better pick
+
+- You want to **keep your existing editor and agent** and just add visual feedback.
+- You want **one install that spans every project** you have running, rather than opening each project inside a dedicated IDE, which keeps you fast when you multitask across many apps.
+- You want a **free extension with nothing to lock you in** rather than a paid subscription for higher limits.
+- You want [design edits](/docs/workflows/design-edits) and [component variants](/docs/workflows/variants) directly in the page you are already looking at.
+
+See the [full benchmark](/docs/benchmark) for the rest of the field.

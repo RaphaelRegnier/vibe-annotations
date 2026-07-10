@@ -576,6 +576,19 @@ function Overline({ children, className = '' }: { children: React.ReactNode; cla
 }
 
 export default function Home() {
+  const [showDemo, setShowDemo] = useState(false)
+  // Demo lightbox: close on Escape and lock body scroll while the video is open.
+  useEffect(() => {
+    if (!showDemo) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDemo(false) }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [showDemo])
   const demoWrapRef = useRef<HTMLDivElement>(null)
   // the demo's internal layout (pins, bubbles, cursor keyframes) is authored in px
   // and scaled uniformly to fit width (--ds consumed by .demo/.dframe in the CSS).
@@ -768,12 +781,20 @@ export default function Home() {
         </svg>
         <motion.div {...scrollFadeInUp} className="relative z-[1] max-w-[1200px] mx-auto px-4 md:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* left — eyebrow, headline, running mascot */}
+            {/* left — eyebrow, headline, running mascot (swaps to a demo video on request) */}
             <div className="flex flex-col">
               <Overline className="self-start mb-5">{content.howItWorks.subtitle}</Overline>
               <h2 className="font-display font-[550] text-[clamp(32px,5vw,52px)] leading-[1.08] tracking-[-0.02em] text-white m-0 max-w-[14ch]">
                 {content.howItWorks.title}
               </h2>
+              <Button
+                onClick={() => setShowDemo(true)}
+                variant="outline"
+                icon="heroicons:play-solid"
+                className="self-start mt-6"
+              >
+                Watch the demo
+              </Button>
               <div className={s.hiwChar}>
                 <Image src="/mascot-running.png" alt="" width={620} height={487} className="w-full h-auto" />
               </div>
@@ -859,6 +880,38 @@ export default function Home() {
           Rails or plain HTML files.
         </p>
       </section>
+
+      {/* Demo video lightbox — responsive 16:9, closes on backdrop click, Escape, or the button */}
+      {showDemo && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6"
+          onClick={() => setShowDemo(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Vibe Annotations demo video"
+        >
+          <button
+            type="button"
+            onClick={() => setShowDemo(false)}
+            aria-label="Close video"
+            className="absolute top-4 right-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+          >
+            <Icon icon="heroicons:x-mark" width={22} aria-hidden />
+          </button>
+          <div
+            className="relative w-full max-w-[960px] aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe
+              className="absolute inset-0 h-full w-full"
+              src="https://www.youtube-nocookie.com/embed/tyAco6PTo0E?autoplay=1&rel=0"
+              title="Vibe Annotations demo"
+              allow="autoplay; encrypted-media; picture-in-picture; web-share; fullscreen"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -25,13 +25,16 @@ async function getReleases(): Promise<Release[]> {
 }
 
 function formatBody(body: string): string {
-  // Basic markdown-to-HTML: headers, bold, lists, code, links
+  // Basic markdown-to-HTML: headers, bold, lists, code, images, links
   return body
     .replace(/^### (.+)$/gm, '<h4 class="font-semibold text-white mt-4 mb-1">$1</h4>')
     .replace(/^## (.+)$/gm, '<h3 class="font-semibold text-white mt-4 mb-1">$1</h3>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/`(.+?)`/g, '<code class="bg-white/10 px-1 py-0.5 rounded text-sm">$1</code>')
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    // Images before links — otherwise ![alt](url) falls through to the link rule
+    // and renders as a stray "!alt" text link instead of an <img>.
+    .replace(/!\[(.*?)\]\((.+?)\)/g, '<img src="$2" alt="$1" class="rounded-lg border border-white/10 my-4 max-w-full h-auto" loading="lazy" />')
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-[#9191FD] hover:underline" target="_blank" rel="noopener">$1</a>')
     // Strip video URLs (rendered separately as LazyVideo components)
     .replace(/(?:^|\n)https:\/\/github\.com\/user-attachments\/assets\/[\w-]+/g, '')
