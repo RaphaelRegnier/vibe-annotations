@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { Icon } from '@iconify/react'
 
 type ButtonProps = {
-  href: string
+  href?: string
+  onClick?: () => void
   variant?: 'primary' | 'outline'
   size?: 'md' | 'lg'
   icon?: string
@@ -19,6 +20,7 @@ type ButtonProps = {
  */
 export default function Button({
   href,
+  onClick,
   variant = 'primary',
   size = 'md',
   icon,
@@ -47,6 +49,13 @@ export default function Button({
 
   const classes = `inline-flex items-center justify-center rounded-full font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${sizeClasses} ${variantClasses} ${className}`
 
+  if (!href) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {content}
+      </button>
+    )
+  }
   if (external) {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" className={classes}>

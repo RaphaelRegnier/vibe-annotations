@@ -1,0 +1,97 @@
+export const metadata = {
+  title: "Benchmark: Vibe Annotations vs. alternatives",
+  description: "An objective comparison of visual feedback tools and AI coding environments. Vibe Annotations vs. Agentation, Stagewise, Onlook, Cursor, Codex, Claude Design, BrowserTools MCP, and client feedback tools like BugHerd. Feature tables and when to use each.",
+  keywords: "visual feedback for AI coding agents, annotate localhost for Cursor, annotate localhost for Claude Code, Agentation alternative, Stagewise alternative, Onlook alternative, Cursor visual editing, Codex UI feedback, Claude Design alternative, model agnostic visual feedback, MCP visual feedback, markup for coding agents, AI annotation tool comparison",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark" },
+}
+
+# Benchmark: how Vibe Annotations compares
+
+There is a growing category of tools that turn **visual feedback into code changes for AI coding agents**: you point at something in the browser, describe the change, and an agent implements it. This page compares Vibe Annotations to the tools people most often evaluate alongside it, as objectively as we can, including where another tool is the better fit.
+
+> **Last reviewed: July 2026.** This space moves fast and every product below is under active development. Pricing, licenses, and features change, so verify the specifics on each vendor's own site before deciding.
+
+## What Vibe Annotations is
+
+A Chrome extension plus a local [MCP server](/docs/mcp-setup). You pin and comment on any element of your running app, make [design edits](/docs/workflows/design-edits) in the page, attach [screenshots or reference images](/docs/workflows/screenshots), or ask for [component variants](/docs/workflows/variants). Your existing agent, whether Claude Code, Cursor, Windsurf, Copilot, or anything that speaks MCP, reads the annotations and edits your real codebase. It is free, source available, and 100% local.
+
+**One install covers all your work.** You set it up once, and the same extension and local server handle every localhost project you have running. There is no per project setup, so you can annotate one app, jump to another, and keep the feedback for each straight while you multitask across many projects at once.
+
+## The kinds of tool in this space
+
+Not everything that "sees your browser" solves the same problem. It helps to sort the field:
+
+- **Annotate your own app, then hand off to your agent.** A thin overlay on your running dev app that passes feedback to whatever agent you already use. This is the category Vibe Annotations lives in. **Agentation** lives here too, and it is the closest comparison.
+- **Tools that own the editor.** Full environments with a built in agent and canvas. You work *inside* them rather than in your normal browser and editor. **Stagewise** and **Onlook** are here.
+- **AI coding and design environments.** Editors, agents, or design surfaces tied to one vendor's environment or model: **Cursor**, **Codex**, and **Claude Design**. Some have their own visual editing, but you work inside their world. Vibe Annotations stays agnostic and feeds whichever you use.
+- **Context feeding, not annotation.** These pipe console logs, network traffic, and screenshots to an agent for debugging. **BrowserTools MCP** is the notable one, and it complements Vibe Annotations rather than competing with it.
+- **Client and QA feedback tools.** Visual pins for *people* to triage on a board. **BugHerd**, **Marker.io**, and **Pastel** do a different job, though BugHerd now exposes its feedback to agents over MCP.
+
+## Feature comparison
+
+| Tool | Delivery | Connects to your agent via | Annotate your own app | Design edits in the page | Component variants | License | Price |
+|---|---|---|---|---|---|---|---|
+| **Vibe Annotations** | Chrome extension + local MCP server | MCP (any agent), or markdown paste | Localhost **and any public site** | Yes | **Yes** | Source available | Free |
+| **Agentation** | npm package injected in your app / MCP server | Markdown paste **or** MCP (Claude Code, Cursor, Codex, Windsurf) | Yes | Not advertised | Not advertised | Source available (PolyForm Shield) | Free |
+| **Stagewise** | Standalone agentic IDE | Built in agent (bring your own key) | Preview inside the IDE | Via its agent | Via its agent | AGPL 3.0 | Free / $20 / $200 |
+| **Onlook** | Standalone visual editor (self hostable) | Built in AI | Its own canvas over a React repo | Yes (canvas like Figma) | Via its AI | Apache 2.0 | Self host free; hosted TBD |
+| **BrowserTools MCP** | Chrome extension + server + MCP | MCP | Reads any page (context, not pins) | No | No | MIT | Free |
+| **BugHerd** | SaaS + browser extension | MCP server | Any site (client feedback) | No | No | Proprietary | $50 to $150 per month |
+
+Cells like "component variants" and "design edits in the page" for competitors reflect what each product *advertises* as of the review date. A blank means we did not find it documented, not that it is impossible.
+
+## The closest competitor
+
+### Agentation
+
+Agentation is the tool nearest to Vibe Annotations: you annotate a page and hand the notes to an agent over MCP. The main differences are that it installs as a code level component you add to your app rather than a browser extension you set up once, and it leans into agent driven modes where the agent critiques or fixes on its own. It added an MCP server in its v2. See **[Vibe Annotations vs. Agentation](/docs/benchmark/agentation)**.
+
+## Adjacent: tools that own the editor
+
+### Stagewise
+
+Started as a browser toolbar much like this category, but in 2026 it pivoted into a full open source agentic IDE that owns the editor, the agent, and the preview. If you want one environment to replace your editor, that is a different bet than an overlay on your existing setup. See **[Vibe Annotations vs. Stagewise](/docs/benchmark/stagewise)**.
+
+### Onlook
+
+An open source, canvas based visual editor for React. You design on a canvas that writes real code. It replaces your design surface rather than augmenting your browser. See **[Vibe Annotations vs. Onlook](/docs/benchmark/onlook)**.
+
+## Complementary, not competing
+
+**BrowserTools MCP** (by AgentDesk, MIT licensed) gives agents console logs, network traffic, screenshots, and audits over MCP. It feeds *debugging context*; it has no pin a comment, design edit, or variant workflow. Many people run something like it **alongside** Vibe Annotations, where one supplies visual intent and the other supplies runtime telemetry.
+
+## Different category: client and QA feedback
+
+**BugHerd**, **Marker.io**, and **Pastel** are visual feedback tools built for humans, meaning clients and QA leaving pins for a team to triage on a board, with issue tracker sync. They are not a loop from localhost to code. The one caveat: BugHerd now ships an MCP server so agents can *read* that client feedback. If your problem is "collect feedback from people who do not write code," those tools fit. If it is "turn my own feedback into code," Vibe Annotations does.
+
+## Compared to AI coding and design environments
+
+Cursor, Codex, and Claude Design are not really alternatives to Vibe Annotations. Two of them are agents you can point Vibe Annotations at, and the third is a prototyping surface. The common thread is that each is tied to one vendor's environment or model, while Vibe Annotations stays agnostic and adds to whatever you already use.
+
+| | Visual element to code | Works on your real app | Model and agent | Where you work |
+|---|---|---|---|---|
+| **Vibe Annotations** | Yes | Yes | Any agent, any model | Your browser, over your app |
+| **Cursor** | Yes (Design Mode) | Yes | Many models, but you adopt Cursor | Inside the Cursor editor |
+| **Codex** | No visual surface | Yes (via pull requests) | OpenAI models only | CLI, IDE, cloud, GitHub |
+| **Claude Design** | Yes, on a prototype | Via handoff to Claude Code | Claude models only | Inside claude.ai |
+
+- **[Vibe Annotations vs. Cursor](/docs/benchmark/cursor)**: Cursor has visual editing, but only inside its own editor and browser pane.
+- **[Vibe Annotations vs. Codex](/docs/benchmark/codex)**: Codex has no visual surface; Vibe Annotations is the layer that feeds it.
+- **[Vibe Annotations vs. Claude Design](/docs/benchmark/claude-design)**: Claude Design annotates a prototype inside claude.ai; Vibe Annotations annotates your real app.
+
+## When to choose Vibe Annotations
+
+- You want to keep your **existing agent and editor** and just add a visual feedback layer, rather than switch into a new IDE.
+- You want **one setup that works across every project** you have running. Install once and multitask across many localhost apps without wiring anything up per project.
+- You want **design edits, screenshots, and component variants in your codebase** in one extension.
+- You annotate **beyond localhost**, on staging, a deployed preview, or any public site.
+- You want a **free, local, source available** tool with nothing leaving your machine.
+
+## When another tool fits better
+
+- **You want one environment that owns everything** (editor, agent, and preview): look at **Stagewise**.
+- **You are a designer who wants a canvas** that writes React: look at **Onlook**.
+- **You need people who are not developers to leave feedback** for a team to triage: **BugHerd**, **Marker.io**, or **Pastel**.
+- **You mainly need runtime or debug context** for your agent: **BrowserTools MCP** (and you can run it with Vibe Annotations).
+
+We would rather you pick the right tool than the wrong one with our name on it. If a comparison here is out of date, [let us know](/docs/contact).

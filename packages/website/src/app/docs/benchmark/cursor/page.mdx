@@ -1,0 +1,55 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Cursor",
+  description: "An objective comparison of Vibe Annotations and Cursor. Cursor has a visual Design Mode inside its own editor; Vibe Annotations is a browser extension that feeds any agent, including Cursor. How they differ and when to use each.",
+  keywords: "Vibe Annotations vs Cursor, Cursor visual editing, Cursor Design Mode, Cursor browser tool select element, Cursor visual editor alternative, annotate localhost for Cursor, edit UI by clicking Cursor",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/cursor" },
+}
+
+# Vibe Annotations vs. Cursor
+
+First, an honest note: **Cursor is one of the agents Vibe Annotations connects to** over MCP, so this is less "either or" and more "do you still want a visual feedback layer if you already use Cursor." Cursor now has its own visual editing, so the comparison is real, but the two live in different places.
+
+> Last reviewed July 2026. Cursor ships fast, so check [cursor.com](https://cursor.com/) for current details.
+
+## What Cursor is
+
+Cursor is a full AI code editor, a fork of VS Code that you adopt as your IDE. Its agent reads and edits your repository. In 2026 it added **Design Mode** over the **Cursor Browser**, a preview pane that opens inside the editor: you click an element (or describe a change by voice), Cursor captures its technical identity and a screenshot, and the agent edits the source while the app reloads live. Cursor works with many models and supports bringing your own API key, so you are not locked to one model, but you **are** working inside Cursor as your editor and its built in browser.
+
+## Side by side
+
+| | Vibe Annotations | Cursor |
+|---|---|---|
+| What it is | Browser extension and feedback layer | Full AI editor (VS Code fork) |
+| Where you point | Your own browser, on any site | Cursor's built in browser pane |
+| Visual element to code | Yes | Yes (Design Mode) |
+| Your editor | Keep your own | You adopt Cursor as the editor |
+| Your agent | Any MCP agent, including Cursor | Cursor's agent (many models, bring your own key) |
+| Design edits in the page | Yes | Yes |
+| Component variants | Yes | Via its agent |
+| Screenshots and image attachments | Yes | Screenshot captured for context |
+| Reviewable annotation queue across projects | Yes | In the moment, inside the editor |
+| License and price | Source available, free | Proprietary, free to $200 per month |
+
+## The real difference
+
+Cursor's visual editing is genuinely good, but it lives **inside Cursor**: its own editor, its own browser pane. To use it, Cursor has to be your editor. Vibe Annotations is a browser extension over the browser you already use, on any site, and it feeds **whatever agent you already run**, Cursor included. It also keeps your annotations as a reviewable queue you can batch across pages and projects, and adds component variants and screenshot attachments.
+
+So if you live in Cursor and only preview your app in its pane, Design Mode covers a lot of this. If you want to stay in your own browser, annotate sites Cursor is not previewing, keep your feedback as a batch, or use a different agent for some work, Vibe Annotations adds that.
+
+## You can use them together
+
+Because Cursor speaks MCP, Vibe Annotations can hand your annotations straight to Cursor's agent. Annotate in your real browser, let Cursor implement. See [MCP setup](/docs/mcp-setup).
+
+## When Cursor is the better pick
+
+- You already live in **Cursor as your editor** and preview your app in its pane.
+- You want visual editing and code in **one window** with no extra tool.
+
+## When Vibe Annotations is the better pick
+
+- You want to keep your **own browser and editor** and just add a visual feedback layer.
+- You annotate **any site**, not only the app in Cursor's preview pane.
+- You want **one install across every project**, a reviewable annotation queue, [component variants](/docs/workflows/variants), and screenshot attachments.
+- You want to stay **agnostic**: use any agent, including Cursor itself, for the actual edits.
+
+See the [full benchmark](/docs/benchmark) for the wider field.

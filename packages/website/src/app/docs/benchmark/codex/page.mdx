@@ -1,0 +1,49 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Codex",
+  description: "An objective comparison of Vibe Annotations and OpenAI Codex. Codex is a task based coding agent with no visual feedback surface; Vibe Annotations is the visual layer that feeds it, and any agent. How they differ and when to use each.",
+  keywords: "Vibe Annotations vs Codex, Codex UI feedback, OpenAI Codex annotate UI, Codex visual editing, Codex localhost feedback to agent, visual feedback for Codex, annotate localhost for Codex",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/codex" },
+}
+
+# Vibe Annotations vs. Codex
+
+Like Cursor, **Codex is one of the agents Vibe Annotations connects to**, not a rival. The useful comparison is what each one does: Codex writes and ships code from text instructions, and Vibe Annotations is the visual layer it does not have.
+
+> Last reviewed July 2026. Codex changes quickly, so check [openai.com/codex](https://openai.com/codex/) for current details.
+
+## What Codex is
+
+Codex is OpenAI's coding agent. It spans a terminal CLI, an IDE extension for VS Code and JetBrains, a cloud mode you delegate tasks to from ChatGPT, and a GitHub bot. You give it text instructions and it writes features, fixes bugs, runs tests, and proposes pull requests. Cloud tasks run in an isolated sandbox loaded with your repo and come back as a PR you review; the CLI and IDE run locally against your working tree. It runs on **OpenAI models**, so unlike an agnostic layer you choose among OpenAI's models rather than any vendor's.
+
+## Side by side
+
+| | Vibe Annotations | Codex |
+|---|---|---|
+| Visual element to code feedback | Yes, pin and comment on any element | No visual surface (text and task based) |
+| Where you work | Your browser, over your running app | CLI, IDE extension, cloud, and GitHub |
+| Works on your real codebase | Yes, your agent edits the repo | Yes, local plus cloud sandbox to pull requests |
+| Model and agent | Any MCP agent, any model | OpenAI models only |
+| Design edits and component variants | Yes | Not applicable |
+| License and price | Source available, free, local | Bundled in ChatGPT plans |
+
+## The real difference
+
+Codex has no way to point at a rendered element and turn it into a change. Its loop is textual: you describe the task, it edits code and opens a pull request. That is powerful for well described work, but it means you are translating a visual problem into words yourself. Vibe Annotations is exactly that missing front end: you click the element, add the comment or design edit, and the feedback carries the real DOM context to your agent. And because Vibe is agnostic, it does not tie you to OpenAI models, whereas Codex does.
+
+## You can use them together
+
+Codex speaks MCP, so Vibe Annotations can hand your annotations straight to it. Point at the UI in your browser, let Codex implement and open the pull request. See [MCP setup](/docs/mcp-setup).
+
+## When Codex alone is enough
+
+- You are comfortable driving everything from **text and task prompts**.
+- You want a **cloud and pull request** flow and do not need a visual layer.
+- You are already committed to **OpenAI models**.
+
+## When Vibe Annotations adds value
+
+- You want to **point at the UI** instead of describing it in words.
+- You want [design edits](/docs/workflows/design-edits), [screenshots](/docs/workflows/screenshots), and [component variants](/docs/workflows/variants) that Codex has no surface for.
+- You want to stay **agnostic** and feed the same annotations to Codex today and a different agent tomorrow.
+
+See the [full benchmark](/docs/benchmark) for the wider field.

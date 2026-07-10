@@ -1,0 +1,54 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Agentation",
+  description: "An objective comparison of Vibe Annotations and Agentation, two tools that hand visual web annotations to AI coding agents over MCP. How install, features, and license differ, and when to use each.",
+  keywords: "Vibe Annotations vs Agentation, Agentation alternative, visual feedback tool for agents, annotate web page for AI, MCP annotation server, agentation.dev alternative",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/agentation" },
+}
+
+# Vibe Annotations vs. Agentation
+
+Agentation and Vibe Annotations share a core idea: annotate a web page, then let an AI coding agent read those annotations over MCP and change the code. They differ most in **how you install them** and **who originates the feedback**.
+
+> Last reviewed July 2026. Agentation is actively developed, so check [agentation.com](https://www.agentation.com/) for current details.
+
+## What Agentation is
+
+"Connect AI agents to web page annotations via the Model Context Protocol." You click an element, leave a note, and it captures selectors, class names, component hierarchy, and live CSS so an agent can find the exact code. There are two paths to your agent: copy structured **markdown** and paste it, or use its **MCP server** (`agentation-mcp`, added in v2), which exposes tools to list sessions, read pending annotations, reply, and watch in a loop. It names Claude Code, Cursor, Codex, and Windsurf. It also offers agent driven modes, including a "critique" mode where the agent annotates the page itself, and a mode where it fixes issues on its own after annotating.
+
+Agentation's annotation surface is primarily a **component you add to your app's code** (an npm package), rather than a browser extension you install once. Its source is available under the **PolyForm Shield** license, which is *source available* rather than OSI open source, since it restricts competing use.
+
+## Side by side
+
+| | Vibe Annotations | Agentation |
+|---|---|---|
+| Delivery | Chrome extension (no code changes) | npm package added to your app + MCP server |
+| Connects to agent via | MCP (any agent), or markdown paste | Markdown paste **or** MCP (Claude Code, Cursor, Codex, Windsurf) |
+| Pin and comment on elements | Yes | Yes |
+| Design edits in the page | Yes | Not advertised |
+| Screenshots and image attachments | Yes | Not advertised |
+| Component variants | Yes | Not advertised |
+| Hands off watch loop (agent implements new annotations) | Yes | Yes |
+| Agent originates the feedback (critique, self driven fixes) | Advanced, via the [bridge API](/docs/workflows/agents) | Yes |
+| License | Source available | Source available (PolyForm Shield) |
+| Price | Free | Free |
+
+## The real differences
+
+- **Install model.** Vibe Annotations is a browser extension, so nothing goes into your app's code and it works on any site without wiring anything up. You set it up once and the same extension and local server cover every project you have running, which is handy when you multitask across many apps. Agentation's main surface is a component you add to each project's code.
+- **Context and accuracy.** Both capture comparable element context (selectors, class names, component hierarchy, live CSS), so both point the agent at the right code. Vibe Annotations also sends an automatic screenshot and framework hints, so this is not where the two differ.
+- **Feature bundle.** Vibe Annotations adds design edits, screenshots, and component variants in the page. Agentation does not advertise those.
+- **Who originates the feedback.** This is the main split. Agentation has first class agent driven modes: a critique mode where it annotates the page itself, and a mode where it fixes issues on its own. Vibe Annotations keeps a human in charge by default. A browser capable agent can also create annotations through Vibe Annotations' [bridge API](/docs/workflows/agents), but that is an advanced path rather than the default. Both offer a hands off watch loop, so once annotations exist the agent can implement them without further input.
+
+## When Agentation is the better pick
+
+- You want the agent to **critique or fix on its own**, annotating the page itself and acting.
+- You are fine adding a **component to your app** and prefer a comment and selector workflow over editing in the page.
+
+## When Vibe Annotations is the better pick
+
+- You want a **browser extension with no code changes** to your project.
+- You want **one install that covers every project** you have running, instead of adding a component to each app, so you can multitask across many projects at once.
+- You want **design edits, screenshots, and [component variants](/docs/workflows/variants)** in the same tool.
+- You want to stay the decision maker: point, edit, and hand off, rather than hand the wheel to the agent.
+
+See the [full benchmark](/docs/benchmark) for how both compare to the rest of the field.

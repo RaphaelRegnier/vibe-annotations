@@ -1,0 +1,48 @@
+export const metadata = {
+  title: "Vibe Annotations vs. Onlook",
+  description: "An objective comparison of Vibe Annotations and Onlook. Onlook is a canvas based visual editor for React; Vibe Annotations is an overlay that feeds your existing agent. How they differ and when to use each.",
+  keywords: "Vibe Annotations vs Onlook, Onlook alternative, visual editor for React with AI, Cursor for designers, design to code, visual feedback for AI coding agents",
+  alternates: { canonical: "https://vibe-annotations.com/docs/benchmark/onlook" },
+}
+
+# Vibe Annotations vs. Onlook
+
+Onlook and Vibe Annotations both connect visual work to real code, but they sit at opposite ends of the workflow. Onlook is a **design surface**; Vibe Annotations is a **feedback layer**.
+
+> Last reviewed July 2026. Onlook is actively developed, so check [onlook.com](https://www.onlook.com/) for current details.
+
+## What Onlook is
+
+"The Cursor for designers" is an open source (Apache 2.0), AI first visual editor for React and Tailwind. It gives you an infinite canvas, much like Figma, over a real codebase: drag, drop, and directly manipulate styling while it writes the code. AI is built into the tool. It is a standalone app that you can self host, it is backed by Y Combinator, and it is the most starred project in this comparison. It is a place you go to *design and build* React apps, not an overlay on an arbitrary running app.
+
+## Side by side
+
+| | Vibe Annotations | Onlook |
+|---|---|---|
+| What it is | Overlay on your running app | Standalone visual editor and canvas |
+| Primary user | Developers giving feedback | Designers building UI |
+| Framework | Any (for annotation) | React and Next.js with Tailwind |
+| Where you work | Your normal browser and editor | Onlook's canvas |
+| Agent model | Your existing agent via MCP | Built in AI |
+| Pin and comment on a live element | Yes | Not applicable (direct manipulation instead) |
+| Component variants | Yes | Via its AI |
+| License | Source available | Apache 2.0 |
+| Price | Free | Self host free; hosted pricing changing |
+
+## The real difference
+
+Onlook **replaces your design and edit surface**. You compose UI on its canvas and it emits React. Vibe Annotations **augments your existing workflow**. You stay in your own browser and editor, point at what is wrong on a page you already have, and your agent fixes it. Onlook is specific to React and Tailwind; Vibe Annotations annotates anything and leans on your agent for the framework specific work.
+
+## When Onlook is the better pick
+
+- You are a **designer** who wants a **canvas** to build and restyle React visually.
+- Your project is **React with Tailwind** and you want direct manipulation over that codebase.
+
+## When Vibe Annotations is the better pick
+
+- You are a **developer** who wants to keep your **browser, editor, and agent** and add a feedback layer.
+- You want **one install that works across every project** you have running, rather than opening each project on its own canvas, so you can multitask across many apps at once.
+- Your stack is **not React** (or not only React) and you want a way to annotate that works with any framework.
+- You want [design edits](/docs/workflows/design-edits), [screenshots](/docs/workflows/screenshots), and [component variants](/docs/workflows/variants) on your live app without switching tools.
+
+See the [full benchmark](/docs/benchmark) for the wider field.

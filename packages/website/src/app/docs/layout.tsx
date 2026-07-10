@@ -54,6 +54,16 @@ const RESOURCES: NavItem[] = [
   { href: '/docs/contact', label: 'Contact' },
 ]
 
+const BENCHMARK: NavItem[] = [
+  { href: '/docs/benchmark', label: 'Overview' },
+  { href: '/docs/benchmark/agentation', label: 'vs Agentation' },
+  { href: '/docs/benchmark/stagewise', label: 'vs Stagewise' },
+  { href: '/docs/benchmark/onlook', label: 'vs Onlook' },
+  { href: '/docs/benchmark/cursor', label: 'vs Cursor' },
+  { href: '/docs/benchmark/codex', label: 'vs Codex' },
+  { href: '/docs/benchmark/claude-design', label: 'vs Claude Design' },
+]
+
 function NavLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -117,6 +127,18 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               Enjoying Vibe Annotations? <span className="text-accent-pink font-medium">Leave a review</span>
             </a>
           </div>
+          <details className="mt-6">
+            <summary className="px-3 text-xs font-medium text-white/30 uppercase tracking-wider cursor-pointer hover:text-white/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
+              Benchmark
+            </summary>
+            <ul className="mt-1 space-y-0.5">
+              {BENCHMARK.map((item) => (
+                <li key={item.href}>
+                  <NavLink href={item.href} label={item.label} />
+                </li>
+              ))}
+            </ul>
+          </details>
         </nav>
         <div className="hidden lg:block" />{/* gap column */}
         <article className="prose prose-invert max-w-none prose-headings:font-display prose-headings:font-[550] prose-a:text-[#9191FD] prose-a:no-underline hover:prose-a:underline prose-code:before:content-none prose-code:after:content-none prose-code:bg-white/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-ink-2 prose-pre:border prose-pre:border-white/10 [&_pre_code]:bg-transparent [&_pre_code]:p-0">
