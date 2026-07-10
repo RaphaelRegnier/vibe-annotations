@@ -41,12 +41,67 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://vibe-annotations.com/docs/workflows/design-edits</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/workflows/variants</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/workflows/screenshots</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/workflows/sharing</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://vibe-annotations.com/docs/workflows/collaboration</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://vibe-annotations.com/docs/workflows/agents</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/agentation</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/stagewise</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/onlook</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/cursor</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/codex</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vibe-annotations.com/docs/benchmark/claude-design</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
