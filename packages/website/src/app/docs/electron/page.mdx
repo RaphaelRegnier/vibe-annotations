@@ -1,0 +1,94 @@
+export const metadata = {
+  title: "Electron & embedded Chromium hosts",
+  description: "Run Vibe Annotations inside an Electron app (or any embedded Chromium host) by side-loading the unpacked extension into your dev session. Setup, why it sidesteps CSP and CORS, and the known gaps.",
+  keywords: "Vibe Annotations Electron, annotate Electron app, load Chrome extension in Electron, embedded Chromium extension, WebView2 CEF annotations, loadExtension dev",
+  alternates: { canonical: "https://vibe-annotations.com/docs/electron" },
+}
+
+# Electron & embedded Chromium hosts
+
+Vibe Annotations ships as a Chrome extension, but it isn't limited to Chrome. Any Chromium-based host that can side-load an unpacked extension can run the toolbar, including **Electron**. The same approach applies to other embedded Chromium runtimes (Edge WebView2, CEF) that implement the MV3 extension APIs; the examples below use Electron.
+
+This is a **development-only** setup. You never ship the extension inside a packaged app.
+
+## How it works
+
+Electron renders your app in its own bundled Chromium, which knows nothing about extensions you've installed in Chrome. So you load the unpacked extension directly into your Electron **session** during development. Once it's loaded, the content script auto-injects into your renderer via the static `content_scripts` match patterns, exactly as it does in a browser tab.
+
+Two things make this painless on localhost:
+
+- Injection on localhost happens through the static `content_scripts` match patterns, so the core annotate loop doesn't depend on `chrome.scripting` or `chrome.permissions` (which embedded hosts don't implement).
+- Server calls run in the extension's **background worker**, not in your page. So you sidestep both **CSP** (`connect-src`) and **CORS** entirely, because your renderer never talks to the server directly.
+
+## Requirements
+
+- **Electron** recent enough to run MV3 background service workers. The extension-loading API lives at `ses.extensions.loadExtension` on Electron 35+, and `ses.loadExtension` on older versions.
+- Your renderer served from a **localhost URL** in dev (`http://localhost:<port>`), or a `file://` page loaded with `allowFileAccess`.
+- The **local server** running: `npx vibe-annotations-server`.
+
+## 1. Build the unpacked extension
+
+```bash
+git clone https://github.com/RaphaelRegnier/vibe-annotations
+cd vibe-annotations && pnpm install
+cd packages/extension && pnpm build
+```
+
+The unpacked build lands in `packages/extension/.output/chrome-mv3`. That's the folder you point Electron at.
+
+## 2. Load it into your Electron session
+
+Load the extension **before you create the window**, so the content script is registered in time for the first navigation. If you load it after, you'll need to reload the window once for the toolbar to appear.
+
+```js
+const { app, session, BrowserWindow } = require('electron')
+
+function createWindow() {
+  const win = new BrowserWindow({ /* ...your options... */ })
+  win.loadURL('http://localhost:5173') // your renderer's dev URL
+}
+
+app.whenReady().then(async () => {
+  if (!app.isPackaged) {
+    const extPath = '/absolute/path/to/vibe-annotations/packages/extension/.output/chrome-mv3'
+    const ses = session.defaultSession
+    // Electron 35+
+    await ses.extensions.loadExtension(extPath, { allowFileAccess: true })
+    // Electron < 35: await ses.loadExtension(extPath, { allowFileAccess: true })
+  }
+  createWindow()
+})
+```
+
+`allowFileAccess: true` is only needed if your renderer loads over `file://`; it's harmless otherwise.
+
+## 3. Start the server and your app
+
+```bash
+npx vibe-annotations-server
+```
+
+Launch your Electron app in dev. The toolbar appears in the renderer, annotations sync to the server, and your AI coding agent reads them over MCP exactly as it does for a browser tab. See [MCP Setup](/docs/mcp-setup).
+
+## Known gaps
+
+A few extension features depend on browser chrome that Electron doesn't provide. None of them block the core annotate to agent loop.
+
+| Feature | Status in Electron | Why |
+|---|---|---|
+| Comment, design edits, [variants](/docs/workflows/variants), watch mode | Works | Content-script and background features, fully supported |
+| Screenshots & image capture | Unavailable | `chrome.tabs.captureVisibleTab` isn't implemented in Electron. Leave screenshots off (the default) |
+| Toolbar-icon toggle & keyboard shortcut | Unavailable | Embedded hosts have no extension toolbar icon and no `chrome.commands`. Use the in-page toolbar instead |
+| "Enable on this site" for non-localhost | Unsupported | Relies on `chrome.scripting` / `chrome.permissions`, which Electron doesn't provide. localhost works out of the box |
+
+Because there's no extension icon or keyboard shortcut to reopen a dismissed overlay, the toolbar's **close (X) button is hidden** in embedded hosts, so the toolbar stays in place and you can't strand yourself with no way back.
+
+## Non-Chrome host hygiene
+
+The extension feature-detects Chrome-only APIs so a non-Chrome host never crashes the background worker on boot. `chrome.commands` and `chrome.action.onClicked` are optional-chained (both are `undefined` in Electron), and screenshot capture is off by default and fails gracefully if triggered. If you're building from source as above, these are already included. If you're loading an older packaged build and the worker throws on startup, rebuild from the current source.
+
+## Troubleshooting
+
+- **No toolbar appears.** Confirm the extension loaded (`ses.extensions.getAllExtensions()` should list it), and that your renderer URL matches a supported localhost pattern (`localhost`, `127.0.0.1`, `0.0.0.0`, `*.local`, `*.test`, `*.localhost`).
+- **Worker crashes on boot.** You're on a build without the host guards above. Rebuild from current source.
+- **Nothing syncs.** The local server isn't running. Start it with `npx vibe-annotations-server` and check [Troubleshooting](/docs/troubleshooting).

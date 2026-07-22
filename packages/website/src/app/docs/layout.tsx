@@ -45,6 +45,7 @@ const NAV: NavItem[] = [
     ]
   },
   { href: '/docs/architecture', label: 'Architecture' },
+  { href: '/docs/electron', label: 'Electron & embedded hosts' },
 ]
 
 const RESOURCES: NavItem[] = [
