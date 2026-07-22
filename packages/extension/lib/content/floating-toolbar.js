@@ -25,6 +25,10 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  // Embedded Chromium hosts (Electron, etc.) have no extension toolbar icon and no
+  // chrome.commands shortcut, so closing the overlay would be a one-way door with no
+  // way to reopen it. Hide the close button there — the toolbar stays put instead.
+  const isEmbeddedHost = /\bElectron\//.test(navigator.userAgent);
   const defaultShortcutHint = isMac ? '\u2318\u21E7,' : 'Ctrl+Shift+,';
   let shortcutHint = defaultShortcutHint;
   let customShortcut = null;
@@ -153,10 +157,11 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
           <span class="vibe-toolbar-instruction">to stop</span>
         </div>
       </div>
+      ${isEmbeddedHost ? '' : `
       <div class="vibe-toolbar-separator"></div>
       <button class="vibe-toolbar-close vibe-tb-close" title="Close Vibe Annotations">
         ${ICONS.close}
-      </button>
+      </button>`}
     `;
 
     root.appendChild(toolbarEl);
@@ -229,8 +234,8 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
       toggleSettings();
     });
 
-    // Close — animate out then hide
-    toolbarEl.querySelector('.vibe-tb-close').addEventListener('click', () => {
+    // Close — animate out then hide. Absent in embedded hosts (see isEmbeddedHost).
+    toolbarEl.querySelector('.vibe-tb-close')?.addEventListener('click', () => {
       animateToolbarOut();
     });
 
