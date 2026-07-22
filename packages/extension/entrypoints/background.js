@@ -549,8 +549,10 @@ export default defineBackground(() => {
   // Instantiate the existing class — no behavior change, just wrapped for WXT.
   const bg = new VibeAnnotationsBackground();
 
-  // Keyboard shortcut commands.
-  chrome.commands.onCommand.addListener(async (command, tab) => {
+  // Keyboard shortcut commands. Optional-chained: chrome.commands is a Chrome-only
+  // capability, undefined in embedded Chromium hosts (Electron, WebView2, CEF) — an
+  // unguarded call throws here and aborts the rest of worker init.
+  chrome.commands?.onCommand?.addListener?.(async (command, tab) => {
     if (command === 'toggle-annotate' && tab?.id && (await isSupportedUrl(tab.url))) {
       try {
         await chrome.tabs.sendMessage(tab.id, { action: 'toggleAnnotate' });
@@ -563,7 +565,9 @@ export default defineBackground(() => {
   // Icon click — no popup.html anymore. The whole flow lives in the content-script overlay:
   // localhost/granted pages toggle the existing toolbar; unsupported pages get a permission
   // modal inside the shadow host.
-  chrome.action.onClicked.addListener(async (tab) => {
+  // Optional-chained for the same reason as chrome.commands above — embedded hosts have
+  // no extension toolbar icon, so chrome.action may be absent and this event never fires.
+  chrome.action?.onClicked?.addListener?.(async (tab) => {
     if (!tab?.id || !tab?.url || isRestrictedUrl(tab.url)) return;
 
     let originPattern, hostname;
