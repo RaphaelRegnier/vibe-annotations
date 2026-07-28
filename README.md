@@ -1,5 +1,7 @@
 # Vibe Annotations
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2FRaphaelRegnier%2Fvibe-annotations.svg)](https://mcptoplist.com/server/glama%2FRaphaelRegnier%2Fvibe-annotations)
+
 [![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-6K+_users-green?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof) [![Server Package](https://img.shields.io/badge/Server-NPM-blue)](https://www.npmjs.com/package/vibe-annotations-server) [![License: PolyForm Shield](https://img.shields.io/badge/License-PolyForm%20Shield-blue)](https://polyformproject.org/licenses/shield/1.0.0)
 
 Visual feedback tool for web development. Annotate elements on your pages, make design tweaks, and share with AI coding agents or teammates.
