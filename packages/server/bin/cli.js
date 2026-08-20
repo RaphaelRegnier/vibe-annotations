@@ -66,7 +66,7 @@ program
 program
   .command('init')
   .description('Interactive setup wizard: install server, configure MCP, link the extension')
-  .option('--agent <name>', 'Configure specific agent (repeatable). One of: claude-code, cursor, windsurf, codex, openclaw, vscode', collectAgent, [])
+  .option('--agent <name>', 'Configure specific agent (repeatable). One of: claude-code, cursor, windsurf, codex, openclaw, opencode, vscode', collectAgent, [])
   .option('--non-interactive', 'No prompts; use defaults. Auto-applied on CI or no TTY.')
   .option('--skip-extension', 'Skip the Chrome extension prompt')
   .option('--skip-server', 'Skip installing/starting the server')
