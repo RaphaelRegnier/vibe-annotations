@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Framed Annotate Fixture — Top Page</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 20px;
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+    h1 { font-size: 18px; margin: 0 0 10px; }
+    #canvas-rect {
+      width: 320px;
+      height: 90px;
+      background: #1e3a8a;
+      border: 2px solid #3b82f6;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 12px;
+    }
+    #canvas-rect.selected { box-shadow: 0 0 0 3px #60a5fa; }
+    input[type="text"] {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 8px;
+      border-radius: 6px;
+      width: 220px;
+      margin-bottom: 12px;
+    }
+    .frame-row { display: flex; gap: 12px; align-items: flex-start; }
+    iframe {
+      width: 340px;
+      height: 200px;
+      border: 2px dashed #334155;
+      border-radius: 8px;
+      background: #090d16;
+    }
+  </style>
+  <!-- Parse-time host listeners and counters, shared with every frame of this fixture. -->
+  <script src="/frame-host-contract.js"></script>
+  <script>
+    // Top page of the A15 frame-session fixture. Embeds three frames:
+    //   - same origin as this page,
+    //   - an authorized cross-origin host,
+    //   - a host outside every declared permission (never injectable).
+    // Origins are query-configurable so the same fixture can serve more than one
+    // controlled top origin; the defaults exercise the standard fixture server.
+    const fixtureParams = new URLSearchParams(window.location.search);
+    const SAME_ORIGIN_BASE = fixtureParams.get('sameOrigin') || '';
+    const CROSS_ORIGIN_BASE = fixtureParams.get('crossOrigin') || 'http://localhost:3005';
+    const UNLISTED_ORIGIN_BASE = fixtureParams.get('unlistedOrigin') || 'http://vibe-unlisted.invalid:3005';
+
+    window.__FIXTURE_STATE.frameOrigins = {
+      sameOrigin: SAME_ORIGIN_BASE || window.location.origin,
+      crossOrigin: CROSS_ORIGIN_BASE,
+      unlisted: UNLISTED_ORIGIN_BASE
+    };
+
+    // Host-driven frame lifecycle, used by the A15 navigation/removal scenarios.
+    window.__setFrameSrc = function (id, url) {
+      document.getElementById(id).src = url;
+    };
+    window.__removeFrame = function (id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    };
+  </script>
+</head>
+<body>
+  <h1>Framed Annotate Fixture</h1>
+  <div id="canvas-rect" class="selected" data-selected="true" tabindex="0">Top rectangle</div>
+  <input type="text" id="host-input" value="top input">
+
+  <div class="frame-row">
+    <iframe id="same-origin-frame" name="same-origin" title="same origin"
+            src="frame-child.html?name=same-origin"></iframe>
+    <iframe id="cross-origin-frame" name="cross-origin" title="authorized cross origin"></iframe>
+    <iframe id="unlisted-frame" name="unlisted" title="unlisted origin"></iframe>
+  </div>
+
+  <script>
+    // The cross-origin and unlisted frames are attached from script so the origin
+    // bases parsed above decide their target before any request is made.
+    document.getElementById('cross-origin-frame').src =
+      `${CROSS_ORIGIN_BASE}/frame-child.html?name=cross-origin`;
+    document.getElementById('unlisted-frame').src =
+      `${UNLISTED_ORIGIN_BASE}/frame-child.html?name=unlisted`;
+
+    window.__updateFixtureDOM();
+  </script>
+</body>
+</html>

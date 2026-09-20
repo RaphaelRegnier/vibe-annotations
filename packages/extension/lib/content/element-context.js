@@ -6,9 +6,23 @@ import VibeShadowDOMUtils from './shadow-dom-utils.js';
 import { vibeLocationPath } from './event-bus.js';
 
 
+  let delayForTesting = 0;
+
+  function setDelayForTesting(ms) {
+    delayForTesting = ms;
+  }
+
   // --- Main entry point ---
 
   async function generate(element) {
+    const domDelay = typeof document !== 'undefined'
+      ? (parseInt(document.documentElement?.getAttribute('data-vibe-context-delay') || '', 10) || 0)
+      : 0;
+    const delay = delayForTesting || domDelay || (typeof window !== 'undefined' && window.__VIBE_CONTEXT_DELAY_MS) || 0;
+    if (delay > 0) {
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
     const selector = generateSelector(element);
     const computedStyle = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
@@ -915,6 +929,7 @@ import { vibeLocationPath } from './event-bus.js';
 
 const VibeElementContext = {
   generate,
+  setDelayForTesting,
   generateSelector,
   findElementBySelector,
   scanPageColorVariables,

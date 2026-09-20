@@ -1117,6 +1117,29 @@ export const VIBE_STYLES = `
   height: 14px;
 }
 
+/* Refresh requirement banner — persistent (not dismissible) until the page reloads */
+.vibe-refresh-banner {
+  border-color: var(--v-accent);
+}
+
+.vibe-refresh-action {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 7px;
+  background: var(--v-pill-gradient);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.vibe-refresh-action:hover {
+  filter: brightness(1.08);
+}
+
 @keyframes vibe-update-banner-in {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }

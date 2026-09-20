@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Framed Annotate Fixture — Child Frame</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 10px;
+      background: #111827;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+    h2 { font-size: 14px; margin: 0 0 8px; }
+    #canvas-rect {
+      width: 100%;
+      max-width: 320px;
+      height: 90px;
+      background: #1e3a8a;
+      border: 2px solid #3b82f6;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 8px;
+    }
+    #canvas-rect.selected { box-shadow: 0 0 0 3px #60a5fa; }
+    input[type="text"] {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 6px 8px;
+      border-radius: 6px;
+      width: 200px;
+    }
+  </style>
+  <!-- Parse-time host listeners and counters, shared with the top page of this fixture. -->
+  <script src="/frame-host-contract.js"></script>
+</head>
+<body>
+  <h2 id="frame-title">Child frame</h2>
+  <div id="canvas-rect" class="selected" data-selected="true" tabindex="0">Child rectangle</div>
+  <input type="text" id="host-input" value="child input">
+  <script>
+    window.__updateFixtureDOM();
+    document.getElementById('frame-title').textContent = 'Child frame: ' + window.__FIXTURE_STATE.frameName;
+  </script>
+</body>
+</html>

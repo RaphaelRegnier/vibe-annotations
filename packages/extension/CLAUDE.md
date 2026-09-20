@@ -36,6 +36,14 @@ bridge-handler → content.js
 | `element-context.js` | ~940 | Selector generation (8-tier fallback), source mapping |
 | `api-bridge.js` | ~300 | All chrome.runtime.sendMessage + chrome.storage calls |
 
+### Keyboard entry point & injection paths
+
+`entrypoints/content/index.js` installs the window-capture keyboard router synchronously at `document_start`, before page scripts register their own listeners. Dynamic site registrations (`entrypoints/background.js` → `enableSite`) use the same `runAt`. A runtime injection (`chrome.scripting.executeScript` into an already-loaded page) cannot precede those listeners, so the background marks it (`__VIBE_LATE_INJECTION`), the router records install evidence (`VibeKeyboardRouter.getInstallEvidence()`), and the toolbar shows a persistent "reload for full keyboard protection" banner instead of claiming full isolation.
+
+### Cross-frame Annotate session
+
+The manifest content script (and the dynamic registration) run in all frames, so an Annotate session is shared by every frame the extension may control. `lib/content/keyboard-router.js` is the frame half of the protocol: it asks the tab's coordinator which session exists when it boots, publishes its own transitions, mirrors remote ones (owning the keyboard from `document_start`, driving its overlay once `onUiReady()` runs), and reports a release when the document that owns the session goes away. `lib/background/session-coordinator.js` is the tab-level half: it keeps the per-tab record and relays states through `chrome.tabs.sendMessage`, which reaches only injected frames. Each frame publishes `data-vibe-session-state` / `data-vibe-session-mirror` on its shadow host as evidence. See `docs/e2e-testing.md` §10 for the contract and its coverage boundaries.
+
 ### Storage
 
 - **All mutations** go through `background.js` via `sendMessage()` (serialized with storage lock).
@@ -74,4 +82,23 @@ Tools: `read_annotations`, `delete_annotation`, `watch_annotations`, `get_projec
 
 ## Testing
 
-Load unpacked in Chrome, navigate to any localhost page. No automated tests — all manual.
+### Automated tests
+
+```bash
+# Unit tests (mock DOM)
+pnpm test:unit
+# or
+node --test tests/**/*.test.js
+
+# E2E tests (Playwright with loaded extension in Chromium)
+pnpm test:e2e
+
+# Keyboard conflict baseline scenarios
+pnpm test:baseline
+```
+
+See `docs/e2e-testing.md` for environment details, browser/headless configuration, CI setup, and per-ticket coverage notes.
+
+### Manual testing
+
+Load unpacked in Chrome (`.output/chrome-mv3` or extension root), navigate to any localhost page.

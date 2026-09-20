@@ -10,9 +10,14 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test:unit": "node --test tests/**/*.test.js",
+    "test:e2e": "wxt build && playwright test tests/e2e/fixture-outside.spec.js tests/e2e/extension-entry.spec.js tests/e2e/selection-keyboard.spec.js tests/e2e/editing-keyboard.spec.js tests/e2e/ime-composition.spec.js tests/e2e/a14-controls-keyboard.spec.js tests/e2e/session-recovery.spec.js tests/e2e/focus-restore.spec.js tests/e2e/injection-paths.spec.js tests/e2e/frame-session.spec.js",
+    "test:baseline": "wxt build && playwright test tests/e2e/keyboard-baseline.spec.js",
+    "test": "node --test tests/**/*.test.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "wxt": "^0.20.25"
   }
 }

@@ -11,7 +11,8 @@ import VibeAnnotationPopover from '../../lib/content/annotation-popover.js';
 import VibeBridgeHandler from '../../lib/content/bridge-handler.js';
 import VibeToolbar from '../../lib/content/floating-toolbar.js';
 import VibeScreenshot from '../../lib/content/screenshot.js';
-import { shouldTriggerHotkey } from '../../lib/content/hotkey.js';
+import VibeKeyboardRouter from '../../lib/content/keyboard-router.js';
+import VibeSessionFocus from '../../lib/content/session-focus.js';
 
 // --- State ---
 let annotations = [];
@@ -33,13 +34,37 @@ function injectFontFace() {
       font-display: swap;
     }
   `;
-  document.head.appendChild(style);
+    const target = document.head || document.documentElement;
+    if (target) target.appendChild(style);
+  }
+
+// --- Injection evidence ---
+// The shadow host is the one DOM node both the content-script world and the page
+// world can read, so the router's install evidence is published there for the E2E
+// suite and for anyone inspecting why keyboard protection is limited.
+function publishKeyboardEvidence() {
+  const host = VibeShadowHost.getHost();
+  const evidence = VibeKeyboardRouter.getInstallEvidence();
+  if (!host || !evidence) return;
+
+  host.setAttribute('data-vibe-keyboard-world', evidence.world);
+  host.setAttribute('data-vibe-keyboard-run-at', evidence.runAt);
+  host.setAttribute('data-vibe-keyboard-installed-at', String(evidence.installedAt));
+  host.setAttribute('data-vibe-keyboard-early-capture', String(evidence.earlyCapture));
+  host.setAttribute('data-vibe-keyboard-late-injection', String(evidence.lateInjection));
 }
 
 // --- Initialize all modules ---
 async function init() {
+  // Controlled fault injection for the E2E suite (tests/fixtures/selected-rectangle.html
+  // sets this attribute). Absent on real pages, so the boot path is unchanged.
+  if (document.documentElement?.hasAttribute('data-vibe-boot-fail')) {
+    throw new Error('[Vibe] Controlled initialization failure');
+  }
+
   injectFontFace();
   VibeShadowHost.init();
+  publishKeyboardEvidence();
 
   // Boot intent set by the background when it injected us for a one-off reason
   // (currently: permission prompt on a non-auto-enabled site). Consumed and cleared.
@@ -70,6 +95,7 @@ async function bootNormal() {
 
   VibeBadgeManager.init();
   VibeInspectionMode.init();
+  VibeSessionFocus.init();
   VibeAnnotationPopover.init();
   VibeBridgeHandler.init(() => annotations);
   VibeScreenshot.init();
@@ -78,8 +104,12 @@ async function bootNormal() {
   setupMessageListener();
   setupStorageListener();
   setupRouteChangeDetection();
-  setupKeyboardShortcuts();
   setupAnnotationEvents();
+
+  // The router mirrors the tab's Annotate session from document_start, before any
+  // of this UI existed. Now that it does, a mirrored session can drive the local
+  // overlay (cursor, hover, click-to-annotate) instead of only owning the keyboard.
+  VibeKeyboardRouter.onUiReady();
 
   if (!overlayClosed) {
     waitForHydrationAndShowAnnotations();
@@ -283,35 +313,6 @@ function setupStorageListener() {
   });
 }
 
-// --- Keyboard shortcuts ---
-function setupKeyboardShortcuts() {
-  let customShortcut = null;
-
-  VibeAPI.getCustomShortcut().then((s) => { customShortcut = s; }).catch(() => {});
-
-  chrome.storage.onChanged.addListener((changes, ns) => {
-    if (ns === 'local' && changes.vibeCustomShortcut) {
-      customShortcut = changes.vibeCustomShortcut.newValue || null;
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && VibeInspectionMode.isActive()) {
-      VibeEvents.emit('inspection:stop');
-      return;
-    }
-
-    if (shouldTriggerHotkey(e, customShortcut)) {
-      e.preventDefault();
-      if (VibeInspectionMode.isActive()) {
-        VibeEvents.emit('inspection:stop');
-      } else {
-        VibeEvents.emit('inspection:start');
-      }
-    }
-  });
-}
-
 // --- Annotation lifecycle ---
 function setupAnnotationEvents() {
   VibeEvents.on('annotation:saved', ({ annotation }) => {
@@ -441,6 +442,29 @@ function startLazyElementObserver() {
   }, 30000);
 }
 
+function onDOMReady(callback) {
+  if (document.body) {
+    callback();
+    return;
+  }
+
+  const onReady = () => {
+    if (document.body) {
+      callback();
+    } else {
+      const observer = new MutationObserver(() => {
+        if (document.body) {
+          observer.disconnect();
+          callback();
+        }
+      });
+      observer.observe(document.documentElement || document, { childList: true, subtree: true });
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', onReady, { once: true });
+}
+
 export default defineContentScript({
   matches: [
     'http://localhost/*',
@@ -458,9 +482,19 @@ export default defineContentScript({
     'file:///*',
   ],
   allFrames: true,
-  runAt: 'document_idle',
+  runAt: 'document_start',
   cssInjectionMode: 'manual',
   main() {
-    init().catch((err) => console.error('[Vibe] Init failed:', err));
+    // Install lightweight early synchronous capture router immediately
+    VibeKeyboardRouter.init();
+
+    // Initialize body-dependent UI when DOM is ready
+    onDOMReady(() => {
+      init().catch((err) => {
+        console.error('[Vibe] Init failed:', err);
+        // A failed boot must leave the page untouched: no UI, no keyboard ownership.
+        VibeKeyboardRouter.teardown();
+      });
+    });
   },
 });

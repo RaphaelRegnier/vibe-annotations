@@ -4,6 +4,8 @@
   "scripts": {
     "dev:web": "pnpm --filter website dev",
     "build:web": "pnpm --filter website build",
-    "lint": "pnpm --filter website lint"
+    "lint": "pnpm --filter website lint",
+    "test:extension": "pnpm --filter vibe-annotations-extension test:unit",
+    "test:extension:e2e": "pnpm --filter vibe-annotations-extension test:e2e"
   }
 }

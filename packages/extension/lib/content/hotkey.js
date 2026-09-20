@@ -8,17 +8,17 @@
 //
 //   1. The recorder only accepts shortcuts that combine with a modifier
 //      (Ctrl / Cmd / Alt) and rejects keys that are essential for editing
-//      (Space, Backspace, Enter, Tab, Escape, arrows) even when modified.
+//      (Space, Backspace, Delete, Enter, Tab, Escape, arrows) even when modified.
 //   2. The trigger site ignores the shortcut while the user is typing in an
 //      editable element (inputs, textareas, contenteditable — including the
-//      extension's own shadow-DOM popovers) and never fires on Space or
-//      Backspace. Stored shortcuts recorded by older versions without a
+//      extension's own shadow-DOM popovers) and never fires on Space,
+//      Backspace or Delete. Stored shortcuts recorded by older versions without a
 //      modifier are also ignored, so existing bad recordings stop breaking
 //      typing the moment the extension updates.
 
 const MODIFIER_KEYS = ['Control', 'Shift', 'Alt', 'Meta'];
 
-const EDITING_KEYS = new Set([' ', 'Backspace', 'Enter', 'Tab', 'Escape']);
+const EDITING_KEYS = new Set([' ', 'Backspace', 'Delete', 'Enter', 'Tab', 'Escape']);
 
 function hasModifier(keys) {
   return !!(keys.ctrlKey || keys.metaKey || keys.altKey);

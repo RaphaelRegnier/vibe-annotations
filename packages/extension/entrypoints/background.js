@@ -6,6 +6,8 @@ import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../
 import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment, deleteAttachment } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
+import SessionCoordinator from '../lib/background/session-coordinator.js';
+import { SESSION_SYNC, SESSION_STATES } from '../lib/session-protocol.js';
 
 function isRestrictedUrl(url) {
   if (!url) return true;
@@ -17,6 +19,15 @@ function isRestrictedUrl(url) {
 }
 
 async function injectContentScripts(tabId) {
+  // Runtime injection into a page that is already running cannot install the
+  // keyboard router before host listeners that page scripts registered at parse
+  // time, so tell the injected script that full early-listener protection is
+  // unavailable and the user must reload. The content script reads this flag
+  // (see lib/content/keyboard-router.js).
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    func: () => { window.__VIBE_LATE_INJECTION = true; },
+  });
   await chrome.scripting.executeScript({
     target: { tabId, allFrames: true },
     files: ['content-scripts/content.js'],
@@ -39,6 +50,12 @@ async function seedBootIntent(tabId, intent, data) {
 class VibeAnnotationsBackground {
   constructor() {
     this._storageQueue = Promise.resolve();
+    // One Annotate session per tab, shared with every frame the extension controls.
+    // The coordinator holds the tab-level record; the keyboard router in each frame
+    // holds that frame's half of the protocol.
+    this.sessions = new SessionCoordinator({
+      broadcast: (tabId, state, ownerNonce) => this.broadcastSessionState(tabId, state, ownerNonce),
+    });
     this.init();
   }
 
@@ -208,11 +225,55 @@ class VibeAnnotationsBackground {
             .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           return true;
+        case SESSION_SYNC.HELLO:
+          this.handleSessionHello(request, sender)
+            .then(result => sendResponse(result))
+            .catch(() => sendResponse({ state: SESSION_STATES.IDLE, ownerNonce: null }));
+          break;
+        case SESSION_SYNC.STATE:
+          this.handleSessionStateReport(request, sender)
+            .then(() => sendResponse({ success: true }))
+            .catch(() => sendResponse({ success: false }));
+          break;
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
       return true;
     });
+  }
+
+  // --- Cross-frame Annotate session ---
+
+  // Tell every frame the extension can reach about the session state. Frames are
+  // targeted through the tab (permitted frames only), so unauthorized, restricted
+  // or non-injectable frames are never told they are protected. The reporting frame's
+  // nonce travels with the state so it can recognize its own transition.
+  async broadcastSessionState(tabId, state, ownerNonce = null) {
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        action: SESSION_SYNC.REMOTE_STATE,
+        state,
+        ownerNonce,
+      });
+    } catch {
+      /* No listening frame left in the tab */
+    }
+  }
+
+  // A frame's keyboard router boots (or its document is replaced) and asks which
+  // session the tab is in, so a frame that loads mid-session joins it instead of
+  // leaking shortcuts.
+  async handleSessionHello(request, sender) {
+    const tabId = sender.tab?.id;
+    if (tabId === undefined) return { state: SESSION_STATES.IDLE, ownerNonce: null };
+    return this.sessions.hello(tabId, sender.frameId ?? 0, request?.nonce || null);
+  }
+
+  // A frame reports a transition of the shared session.
+  async handleSessionStateReport(request, sender) {
+    const tabId = sender.tab?.id;
+    if (tabId === undefined) return;
+    await this.sessions.report(tabId, sender.frameId ?? 0, request?.nonce || null, request?.state);
   }
 
   // --- Tab & storage listeners ---
@@ -229,10 +290,21 @@ class VibeAnnotationsBackground {
     });
 
     chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+      // A main-frame navigation replaces the top document and every frame under it,
+      // so the recorded session belongs to documents that are gone. Frames still
+      // alive are told to release; the fresh top document also resets on its own
+      // hello. Subframe navigation is excluded — it must not end the tab's session.
+      if (changeInfo.status === 'loading' && changeInfo.frameId === 0) {
+        if (this.sessions.end(tabId)) await this.broadcastSessionState(tabId, SESSION_STATES.IDLE);
+      }
       if (changeInfo.status === 'complete' && tab.url) {
         if (await isSupportedUrl(tab.url)) await updateBadge(tabId, tab.url);
         else await clearBadge(tabId);
       }
+    });
+
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      this.sessions.forget(tabId);
     });
   }
 
@@ -524,13 +596,17 @@ class VibeAnnotationsBackground {
     // WXT bundles each entrypoint into a single file under content-scripts/.
     // Entrypoint `content/index.js` → `content-scripts/content.js`.
     // Entrypoint `bridge.content.js` → `content-scripts/bridge.js`.
+    // document_start matches the static registration: the keyboard router must own
+    // window capture before the page's own parse-time listeners (A16), and allFrames
+    // matches the manifest content script so frames of a dynamically enabled site
+    // participate in the shared Annotate session too (A15).
     const scriptId = 'vibe-' + originPattern.replace(/[^a-zA-Z0-9]/g, '_');
     try {
       await chrome.scripting.unregisterContentScripts({ ids: [scriptId] }).catch(() => {});
       await chrome.scripting.registerContentScripts([{
         id: scriptId, matches: [originPattern],
         js: ['content-scripts/content.js'],
-        runAt: 'document_idle', persistAcrossSessions: true
+        runAt: 'document_start', allFrames: true, persistAcrossSessions: true
       }]);
       const bridgeScriptId = scriptId + '_bridge';
       await chrome.scripting.unregisterContentScripts({ ids: [bridgeScriptId] }).catch(() => {});

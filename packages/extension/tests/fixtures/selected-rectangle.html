@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Selected Rectangle Fixture — Host Keyboard Isolation</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 40px;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    .status-panel {
+      margin-bottom: 24px;
+      padding: 12px;
+      background: #1e293b;
+      border-radius: 8px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .badge-selected { background: #2563eb; color: #fff; }
+    .badge-unselected { background: #475569; color: #94a3b8; }
+    .badge-deleted { background: #dc2626; color: #fff; }
+
+    #canvas-container {
+      width: 600px;
+      height: 350px;
+      border: 2px dashed #334155;
+      border-radius: 8px;
+      position: relative;
+      background: #090d16;
+      margin-bottom: 24px;
+    }
+    #canvas-rect {
+      position: absolute;
+      top: 60px;
+      left: 60px;
+      width: 220px;
+      height: 140px;
+      background: #1e3a8a;
+      border: 2px solid #3b82f6;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: box-shadow 0.1s;
+    }
+    #canvas-rect.selected {
+      box-shadow: 0 0 0 3px #60a5fa, 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    }
+    #canvas-rect.deleted {
+      display: none !important;
+    }
+    .rect-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #93c5fd;
+    }
+    .rect-subtitle {
+      font-size: 12px;
+      color: #bfdbfe;
+      margin-top: 4px;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+    input[type="text"] {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 280px;
+    }
+  </style>
+  <script>
+    // --- Earliest page-script registration (head start) ---
+    window.__FIXTURE_STATE = {
+      selected: true,
+      deleted: false,
+      cancelCount: 0,
+      deleteCount: 0,
+      escCount: 0,
+      backspaceCount: 0,
+      clickCount: 0,
+      mouseDownCount: 0,
+      preventDefaultOnBackspace: false,
+      stopImmediatePropagationOnEsc: false,
+      lateListenersRegistered: false
+    };
+
+    window.__EVENT_LOG = [];
+
+    function describeNode(node) {
+      if (!node) return null;
+      if (node === window) return 'window';
+      if (node === document) return 'document';
+      const id = node.id ? '#' + node.id : '';
+      const tag = node.tagName ? node.tagName.toLowerCase() : '';
+      const cls = node.className && typeof node.className === 'string' ? '.' + node.className.trim().split(/\s+/).join('.') : '';
+      return (tag + id + cls) || String(node);
+    }
+
+    function recordEvent(phase, e) {
+      window.__EVENT_LOG.push({
+        type: e.type,
+        key: e.key,
+        code: e.code,
+        repeat: e.repeat,
+        phase: phase,
+        target: describeNode(e.target),
+        defaultPrevented: e.defaultPrevented,
+        timestamp: performance.now()
+      });
+    }
+
+    function updateDOM() {
+      const rect = document.getElementById('canvas-rect');
+      const selBadge = document.getElementById('selection-status');
+      const delBadge = document.getElementById('deleted-status');
+      const cancelCounter = document.getElementById('cancel-counter');
+      const deleteCounter = document.getElementById('delete-counter');
+
+      if (rect) {
+        rect.classList.toggle('selected', !!window.__FIXTURE_STATE.selected);
+        rect.classList.toggle('deleted', !!window.__FIXTURE_STATE.deleted);
+        rect.setAttribute('data-selected', String(!!window.__FIXTURE_STATE.selected));
+        rect.setAttribute('data-deleted', String(!!window.__FIXTURE_STATE.deleted));
+      }
+      if (selBadge) {
+        selBadge.textContent = window.__FIXTURE_STATE.selected ? 'Selected: true' : 'Selected: false';
+        selBadge.className = 'badge ' + (window.__FIXTURE_STATE.selected ? 'badge-selected' : 'badge-unselected');
+      }
+      if (delBadge) {
+        delBadge.textContent = window.__FIXTURE_STATE.deleted ? 'Deleted: true' : 'Deleted: false';
+        delBadge.className = 'badge ' + (window.__FIXTURE_STATE.deleted ? 'badge-deleted' : 'badge-unselected');
+      }
+      if (cancelCounter) {
+        cancelCounter.textContent = 'Cancel count: ' + window.__FIXTURE_STATE.cancelCount;
+      }
+      if (deleteCounter) {
+        deleteCounter.textContent = 'Delete count: ' + window.__FIXTURE_STATE.deleteCount;
+      }
+    }
+
+    // 1. Window capture listeners
+    window.addEventListener('keydown', function(e) {
+      recordEvent('window-capture', e);
+      if (e.key === 'Escape') {
+        window.__FIXTURE_STATE.escCount++;
+        if (window.__FIXTURE_STATE.stopImmediatePropagationOnEsc) {
+          e.stopImmediatePropagation();
+        }
+      }
+      if (e.key === 'Backspace') {
+        window.__FIXTURE_STATE.backspaceCount++;
+        if (window.__FIXTURE_STATE.preventDefaultOnBackspace) {
+          e.preventDefault();
+        }
+      }
+    }, true);
+
+    window.addEventListener('keyup', function(e) {
+      recordEvent('window-capture', e);
+    }, true);
+
+    window.addEventListener('keypress', function(e) {
+      recordEvent('window-capture', e);
+    }, true);
+
+    // 2. Document capture listeners
+    document.addEventListener('keydown', function(e) {
+      recordEvent('document-capture', e);
+    }, true);
+
+    document.addEventListener('keyup', function(e) {
+      recordEvent('document-capture', e);
+    }, true);
+
+    document.addEventListener('keypress', function(e) {
+      recordEvent('document-capture', e);
+    }, true);
+
+    // 3. Document bubble listeners (Host application command dispatch)
+    document.addEventListener('keydown', function(e) {
+      recordEvent('document-bubble', e);
+
+      // Deselection command on Escape
+      if (e.key === 'Escape' && window.__FIXTURE_STATE.selected) {
+        window.__FIXTURE_STATE.cancelCount++;
+        window.__FIXTURE_STATE.selected = false;
+        updateDOM();
+      }
+
+      // Deletion command on Backspace / Delete
+      if ((e.key === 'Backspace' || e.key === 'Delete') && window.__FIXTURE_STATE.selected) {
+        // Do not intercept if user is typing inside an editable host input
+        const isEditable = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
+        if (!isEditable) {
+          window.__FIXTURE_STATE.deleteCount++;
+          window.__FIXTURE_STATE.deleted = true;
+          updateDOM();
+        }
+      }
+    }, false);
+
+    document.addEventListener('keyup', function(e) {
+      recordEvent('document-bubble', e);
+    }, false);
+
+    document.addEventListener('keypress', function(e) {
+      recordEvent('document-bubble', e);
+    }, false);
+
+    // 4. Window bubble listeners
+    window.addEventListener('keydown', function(e) {
+      recordEvent('window-bubble', e);
+    }, false);
+
+    window.addEventListener('keyup', function(e) {
+      recordEvent('window-bubble', e);
+    }, false);
+
+    window.addEventListener('keypress', function(e) {
+      recordEvent('window-bubble', e);
+    }, false);
+
+    // 5. Property handler
+    window.onkeydown = function(e) {
+      recordEvent('window-property', e);
+    };
+    window.onkeypress = function(e) {
+      recordEvent('window-property', e);
+    };
+
+    // Timing evidence for the injection-path checks (A16): the extension's keyboard
+    // router must install before this parse-time registration to own capture events.
+    window.__FIXTURE_STATE.earlyListenersRegisteredAt = performance.now();
+
+    // 6. Mouse activity counters — prove the extension never simulates clicks on
+    // the host page (extension UI events are retargeted to its shadow host).
+    function isExtensionUI(e) {
+      return !!(e.target && e.target.id === 'vibe-annotations-root');
+    }
+    window.addEventListener('click', function(e) {
+      if (!isExtensionUI(e)) window.__FIXTURE_STATE.clickCount++;
+    }, true);
+    window.addEventListener('mousedown', function(e) {
+      if (!isExtensionUI(e)) window.__FIXTURE_STATE.mouseDownCount++;
+    }, true);
+
+    // Public test helpers
+    window.__resetFixtureState = function() {
+      window.__FIXTURE_STATE.selected = true;
+      window.__FIXTURE_STATE.deleted = false;
+      window.__FIXTURE_STATE.cancelCount = 0;
+      window.__FIXTURE_STATE.deleteCount = 0;
+      window.__FIXTURE_STATE.escCount = 0;
+      window.__FIXTURE_STATE.backspaceCount = 0;
+      window.__FIXTURE_STATE.clickCount = 0;
+      window.__FIXTURE_STATE.mouseDownCount = 0;
+      window.__EVENT_LOG = [];
+      updateDOM();
+    };
+
+    window.__registerLateListeners = function(options) {
+      window.__FIXTURE_STATE.lateListenersRegistered = true;
+      const opts = options || {};
+      window.addEventListener('keydown', function(e) {
+        recordEvent('late-window-capture', e);
+        if (opts.preventDefaultOnBackspace && e.key === 'Backspace') {
+          e.preventDefault();
+        }
+        if (opts.stopImmediatePropagationOnEsc && e.key === 'Escape') {
+          e.stopImmediatePropagation();
+        }
+      }, true);
+    };
+
+    // Parse URL query options if any (e.g. ?preventBackspace=true)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('preventBackspace') === 'true') {
+      window.__FIXTURE_STATE.preventDefaultOnBackspace = true;
+    }
+    if (params.get('stopEsc') === 'true') {
+      window.__FIXTURE_STATE.stopImmediatePropagationOnEsc = true;
+    }
+    // Controlled extension initialization failure (ticket #10 A13)
+    if (params.get('bootFail') === 'true') {
+      document.documentElement.setAttribute('data-vibe-boot-fail', '');
+    }
+  </script>
+</head>
+<body>
+  <h1>Selected Rectangle Fixture</h1>
+  <p style="color: #94a3b8; font-size: 13px;">Simulates host canvas selection with cancellation & deletion counters.</p>
+
+  <div class="status-panel">
+    <span id="selection-status" class="badge badge-selected">Selected: true</span>
+    <span id="deleted-status" class="badge badge-unselected">Deleted: false</span>
+    <span id="cancel-counter">Cancel count: 0</span>
+    <span id="delete-counter">Delete count: 0</span>
+    <button id="reset-btn" type="button" onclick="window.__resetFixtureState()">Reset</button>
+  </div>
+
+  <div id="canvas-container">
+    <div id="canvas-rect" class="selected" data-selected="true" data-deleted="false" tabindex="0">
+      <div class="rect-title">Selected Rectangle</div>
+      <div class="rect-subtitle">Click to annotate or press Esc/Backspace</div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <label for="host-input" style="display:block; margin-bottom: 6px; font-size: 13px; color: #94a3b8;">Editable Page Content:</label>
+    <input type="text" id="host-input" value="editable page content">
+  </div>
+
+  <div id="variants-container" data-vibe-active="1" style="margin-top: 20px; width: 300px;">
+    <div data-variant="1" class="variant-child" style="padding: 10px; background: #1e293b; border-radius: 4px;">Variant 1 Alpha</div>
+    <div data-variant="2" class="variant-child" style="padding: 10px; background: #334155; border-radius: 4px; display: none;">Variant 2 Beta</div>
+  </div>
+
+  <!-- Makes the page scrollable so focus restoration can prove it does not scroll -->
+  <div id="page-spacer" style="height: 1500px;"></div>
+
+
+  <script>
+    // Target element listener (registered when DOM exists)
+    const canvasRect = document.getElementById('canvas-rect');
+    canvasRect.addEventListener('keydown', function(e) {
+      recordEvent('target-capture', e);
+    }, true);
+    canvasRect.addEventListener('keydown', function(e) {
+      recordEvent('target-bubble', e);
+    }, false);
+
+    // Allow clicking the rectangle to re-select it
+    canvasRect.addEventListener('click', function(e) {
+      if (!window.__FIXTURE_STATE.selected) {
+        window.__FIXTURE_STATE.selected = true;
+        updateDOM();
+      }
+    });
+
+    updateDOM();
+  </script>
+</body>
+</html>
