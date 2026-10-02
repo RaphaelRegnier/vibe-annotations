@@ -5,9 +5,31 @@ import { updateAllBadges } from './badge.js';
 const API_URL = 'http://127.0.0.1:3846';
 let connected = false;
 
+// Last status object produced by checkConnection, so callers (content scripts,
+// popup) can read the connection state without triggering another /health
+// request. The connection monitor keeps it warm; see getCachedStatus.
+let lastStatus = null;
+let lastStatusTime = 0;
+
 export function isConnected() { return connected; }
 
+// Cached connection status, or null if we have nothing newer than maxAgeMs.
+// Content scripts use this so an idle page never causes a /health request —
+// the background monitor is the only thing that polls (issue #84).
+export function getCachedStatus(maxAgeMs = 60000) {
+  if (!lastStatus) return null;
+  if (Date.now() - lastStatusTime > maxAgeMs) return null;
+  return { ...lastStatus, cached: true };
+}
+
 export async function checkConnection() {
+  const status = await probeConnection();
+  lastStatus = status;
+  lastStatusTime = Date.now();
+  return status;
+}
+
+async function probeConnection() {
   try {
     const response = await fetch(`${API_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(5000) });
     if (response.ok) {
@@ -174,6 +196,40 @@ export async function smartSync(storageLockFn) {
       } catch { /* ignore */ }
     } catch (error) { console.error('Error during smart sync:', error); }
   });
+}
+
+// Fetch a shareable export on behalf of a content script. Pages on public
+// (https) origins can't reach http://127.0.0.1 themselves — mixed content and
+// private-network rules block it — but the service worker holds the localhost
+// host permission and isn't subject to the page's origin, so it can.
+export async function fetchExport(urlPattern, format) {
+  const response = await fetch(
+    `${API_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
+    { signal: AbortSignal.timeout(15000) }
+  );
+  if (!response.ok) throw new Error(`export failed: ${response.status}`);
+  return {
+    content: await response.text(),
+    mime: response.headers.get('Content-Type') || 'text/plain',
+  };
+}
+
+// Watcher state, fetched on behalf of a content script for the same reason as
+// fetchExport: keeps the page's own network log free of extension traffic.
+export async function fetchWatchers() {
+  try {
+    const response = await fetch(`${API_URL}/api/watchers`, { signal: AbortSignal.timeout(2000) });
+    if (!response.ok) return { watchers: [], watching: false };
+    return await response.json();
+  } catch {
+    return { watchers: [], watching: false };
+  }
+}
+
+export async function stopWatchers() {
+  try {
+    await fetch(`${API_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
+  } catch { /* ignore */ }
 }
 
 export async function fetchAnnotations(url) {
