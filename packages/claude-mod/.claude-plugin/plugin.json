@@ -1,0 +1,9 @@
+{
+  "name": "vibe-annotations",
+  "version": "0.1.0",
+  "description": "Shows new Vibe Annotations above the Claude Code prompt and sends them to Claude in one press, with no watch loop.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Raphael Regnier"
+  }
+}
