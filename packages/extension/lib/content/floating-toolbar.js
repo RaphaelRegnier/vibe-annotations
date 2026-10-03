@@ -22,6 +22,7 @@ import { isRecordableHotkey } from './hotkey.js';
   let screenshotEnabled = false;
   let badgeColor = '#D03D68';
   let watcherActive = false;
+  let claudeConnected = false; // Claude Code mod is polling the server
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -67,6 +68,7 @@ import { isRecordableHotkey } from './hotkey.js';
     robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
     book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
     layers: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12.75l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/><path d="M2 17.25l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/></svg>',
+    send: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
     eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
@@ -137,6 +139,10 @@ import { isRecordableHotkey } from './hotkey.js';
             ${ICONS.list}
             <span>View all</span>
             <span class="vibe-toolbar-pill" style="display:none">0</span>
+          </button>
+          <button class="vibe-toolbar-btn vibe-tb-send" title="Send this site's annotations to Claude Code" style="display:none">
+            ${ICONS.send}
+            <span>Send to Claude</span>
           </button>
           <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
             ${ICONS.settings}
@@ -227,6 +233,13 @@ import { isRecordableHotkey } from './hotkey.js';
     toolbarEl.querySelector('.vibe-tb-viewall').addEventListener('click', (e) => {
       e.stopPropagation();
       toggleViewAll();
+    });
+
+    // Send to Claude — the Claude Code mod picks it up on its next poll
+    toolbarEl.querySelector('.vibe-tb-send').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (sessionPicker) closeSessionPicker();
+      else sendToClaude();
     });
 
     // Settings
@@ -892,6 +905,15 @@ import { isRecordableHotkey } from './hotkey.js';
       }
     }
 
+    // --- Send to Claude: only while the server and the Claude Code mod are up ---
+    const sendEl = toolbarEl.querySelector('.vibe-tb-send');
+    if (sendEl) {
+      sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
+      if (sendEl.querySelector('span').textContent === 'Send to Claude') {
+        sendEl.disabled = totalCount === 0;
+      }
+    }
+
     // --- Status indicator (icon-only, label in tooltip) ---
     const statusEl = toolbarEl.querySelector('.vibe-tb-status');
     if (statusEl) {
@@ -923,7 +945,67 @@ import { isRecordableHotkey } from './hotkey.js';
     if (changed) updateUI();
   }
 
+  // --- Send to Claude ---
+
+  let sessionPicker = null;
+
+  async function sendToClaude(sessionId) {
+    closeSessionPicker();
+    const sendBtn = toolbarEl.querySelector('.vibe-tb-send');
+    const label = sendBtn.querySelector('span');
+    sendBtn.disabled = true;
+    let r = { success: false };
+    try { r = await VibeAPI.sendToClaude(sessionId); } catch { /* server gone */ }
+    if (r.choose) {
+      sendBtn.disabled = false;
+      openSessionPicker(r.choose);
+      return;
+    }
+    label.textContent = r.success ? `Sent to ${r.session.name}` : 'Claude not connected';
+    setTimeout(() => {
+      label.textContent = 'Send to Claude';
+      sendBtn.disabled = false;
+      if (!r.success) refreshClaude();
+      else updateUI();
+    }, 1500);
+  }
+
+  // Several Claude sessions are open and none works in this site's project:
+  // ask which one. The server remembers the pick for this site.
+  function openSessionPicker(sessions) {
+    closeSettings();
+    closeViewAll();
+    const rect = toolbarEl.getBoundingClientRect();
+    sessionPicker = document.createElement('div');
+    sessionPicker.className = 'vibe-settings-dropdown' + (rect.top > window.innerHeight / 2 ? ' above' : '');
+    sessionPicker.innerHTML = `
+      <div class="vibe-settings-header"><span class="vibe-settings-title">Send to which Claude session?</span></div>
+      <div class="vibe-settings-body">
+        ${sessions.map(s => `<button class="vibe-settings-link" type="button" data-session="${escapeHTML(s.id)}">${ICONS.send}<span>${escapeHTML(s.name)}</span></button>`).join('')}
+      </div>
+    `;
+    sessionPicker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pick = e.target.closest('[data-session]');
+      if (pick) sendToClaude(pick.dataset.session);
+    });
+    toolbarEl.appendChild(sessionPicker);
+    setTimeout(() => document.addEventListener('click', closeSessionPicker), 0);
+  }
+
+  function closeSessionPicker() {
+    if (sessionPicker) { sessionPicker.remove(); sessionPicker = null; }
+    document.removeEventListener('click', closeSessionPicker);
+  }
+
+  async function refreshClaude() {
+    const was = claudeConnected;
+    claudeConnected = serverOnline && (await VibeAPI.getClaudeStatus()).connected === true;
+    if (was !== claudeConnected) updateUI();
+  }
+
   async function refreshWatchers() {
+    refreshClaude();
     if (!serverOnline) {
       if (watcherActive) {
         watcherActive = false;

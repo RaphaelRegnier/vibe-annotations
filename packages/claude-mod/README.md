@@ -14,6 +14,14 @@ and hands them to Claude as one prompt when you press **Implement**.
   prompt. Claude implements them and deletes each one when done.
 - **View** opens a side pane listing open annotations.
 - **Auto-send** sends new annotations as soon as they land, once the session is idle.
+- **Send to Claude** in the extension toolbar sends that site's new annotations
+  right away. The button only shows while the server is up and this mod is
+  polling it (the mod checks in at `/api/claude/inbox` every 2s).
+- Several Claude sessions can run at once, each on its own app. The server
+  routes each site to one session: the session whose folder holds the dev
+  server on that port (found with `lsof`, macOS/Linux), else the session it was
+  last sent to, else the only session. If none of those settles it, Send asks
+  which session. Each band only shows its own sites.
 - After each turn, a toast flags annotations Claude was given but left open.
 - `/vibe` sends new annotations, `/vibe list` opens the pane, `/vibe auto on|off`
   toggles auto-send.
@@ -41,7 +49,6 @@ Needs Claude Code 2.1.288 or newer (the mod API is early access and may change).
 
 ## Not done yet
 
-- A "Send to Claude" button in the extension toolbar. The mod already picks up
-  anything new, so the button would only add an explicit hand-off flag on the server.
 - Shipping it with `vibe-annotations-server init` as a Claude Code plugin.
-- Scoping to the current project's localhost port (today it shows all open annotations).
+- Port matching needs the dev server to run locally; sites behind Docker or a
+  proxy route by Send instead.

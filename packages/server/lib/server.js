@@ -15,6 +15,8 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,12 +62,68 @@ class LocalAnnotationsServer {
     this.saveLock = Promise.resolve(); // Serialize save operations to prevent race conditions
     this.watchers = new Map(); // watcherId → { url, registeredAt, lastSeenAt, polling, abort }
     this.WATCHER_GRACE_MS = 120_000; // Watcher stays "active" for 2min after last seen (covers agent processing)
+    // Claude Code mod (packages/claude-mod): each Claude session polls
+    // /api/claude/inbox with its id and cwd, which doubles as a heartbeat. Every
+    // site (origin) routes to one session; see claudeSessionFor.
+    this.CLAUDE_SEEN_MS = 10_000;
+    this.claudeSessions = new Map(); // id → { cwd, lastSeenAt, sends: [{ origin, at }] }
+    this.claudeRoutes = new Map(); // origin → session id, set by a send
+    this.portCwdCache = new Map(); // port → { cwd, at }
 
     this.setupExpress();
     this.setupMCP();
 
     // Periodic sweep: remove watchers whose grace period expired
     this.watcherSweepInterval = setInterval(() => this.pruneStaleWatchers(), 15_000);
+  }
+
+  liveClaudeSessions() {
+    const now = Date.now();
+    for (const [id, s] of this.claudeSessions) {
+      if (now - s.lastSeenAt > this.CLAUDE_SEEN_MS) this.claudeSessions.delete(id);
+    }
+    return [...this.claudeSessions].map(([id, s]) => ({ id, name: path.basename(s.cwd || '') || id, cwd: s.cwd }));
+  }
+
+  // Working directory of the local process listening on a port (the app's dev
+  // server), so a site can be matched to the Claude session in that project.
+  // Uses lsof: macOS and Linux only; elsewhere sites route by send instead.
+  async portCwd(port) {
+    const hit = this.portCwdCache.get(port);
+    if (hit && Date.now() - hit.at < 10_000) return hit.cwd;
+    let cwd = null;
+    if (process.platform !== 'win32') {
+      try {
+        const run = promisify(execFile);
+        const { stdout: pids } = await run('lsof', ['-tiTCP:' + port, '-sTCP:LISTEN'], { timeout: 2000 });
+        const pid = pids.split('\n')[0].trim();
+        if (pid) {
+          const { stdout } = await run('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 2000 });
+          cwd = stdout.split('\n').find(l => l.startsWith('n'))?.slice(1) || null;
+        }
+      } catch { /* no listener, or lsof missing */ }
+    }
+    this.portCwdCache.set(port, { cwd, at: Date.now() });
+    return cwd;
+  }
+
+  // Which live Claude session a site belongs to: the one working in the project
+  // that serves the site's port, else the one it was last sent to. null when
+  // neither applies (the extension then asks, if several sessions are open).
+  async claudeSessionFor(origin, live) {
+    let url = null;
+    try { url = new URL(origin); } catch { /* not a URL */ }
+    const local = url && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(url.hostname) && url.port;
+    if (local) {
+      const appCwd = await this.portCwd(url.port);
+      const inside = (a, b) => a === b || a.startsWith(b + path.sep);
+      const match = appCwd && live
+        .filter(s => s.cwd && (inside(appCwd, s.cwd) || inside(s.cwd, appCwd)))
+        .sort((a, b) => b.cwd.length - a.cwd.length)[0];
+      if (match) return match.id;
+    }
+    const routed = this.claudeRoutes.get(origin);
+    return live.some(s => s.id === routed) ? routed : null;
   }
 
   pruneStaleWatchers() {
@@ -459,6 +517,61 @@ class LocalAnnotationsServer {
     this.app.post('/api/watchers/stop', (req, res) => {
       this.stopAllWatchers();
       res.json({ success: true });
+    });
+
+    // Claude Code mod status (for the extension's "Send to Claude" button)
+    this.app.get('/api/claude', (req, res) => {
+      const sessions = this.liveClaudeSessions().map(({ id, name }) => ({ id, name }));
+      res.json({ connected: sessions.length > 0, sessions });
+    });
+
+    // Extension → mod: send this origin's open annotations to Claude now. Goes
+    // to the session the site belongs to, the only session, or the one passed
+    // as `session`; otherwise answers { choose: sessions } so the user picks.
+    this.app.post('/api/claude/send', async (req, res) => {
+      const { origin, session } = req.body || {};
+      if (!origin || typeof origin !== 'string') {
+        return res.status(400).json({ error: 'origin is required' });
+      }
+      const live = this.liveClaudeSessions();
+      if (live.length === 0) {
+        return res.status(409).json({ error: 'Claude Code mod is not connected' });
+      }
+      const target = live.find(s => s.id === session)?.id
+        ?? await this.claudeSessionFor(origin, live)
+        ?? (live.length === 1 ? live[0].id : null);
+      if (!target) {
+        return res.json({ success: false, choose: live.map(({ id, name }) => ({ id, name })) });
+      }
+      this.claudeRoutes.set(origin, target);
+      const s = this.claudeSessions.get(target);
+      if (!s.sends.some(x => x.origin === origin)) s.sends.push({ origin, at: new Date().toISOString() });
+      res.json({ success: true, session: { id: target, name: live.find(x => x.id === target).name } });
+    });
+
+    // Each mod session polls this with ?session=<id>&cwd=<dir>: records the
+    // heartbeat, takes its queued sends, and lists the sites routed to it.
+    this.app.get('/api/claude/inbox', async (req, res) => {
+      const id = typeof req.query.session === 'string' && req.query.session ? req.query.session : 'default';
+      const cwd = typeof req.query.cwd === 'string' ? req.query.cwd : '';
+      const s = this.claudeSessions.get(id) || { sends: [] };
+      this.claudeSessions.set(id, { ...s, cwd, lastSeenAt: Date.now() });
+      const sends = s.sends;
+      this.claudeSessions.get(id).sends = [];
+
+      const live = this.liveClaudeSessions();
+      const origins = new Set();
+      try {
+        for (const a of await this.loadAnnotations()) {
+          if (a.status !== 'pending') continue;
+          try { origins.add(new URL(a.url).origin); } catch { /* skip */ }
+        }
+      } catch { /* storage unreadable: no sites */ }
+      const sites = [];
+      for (const origin of origins) {
+        if (await this.claudeSessionFor(origin, live) === id) sites.push(origin);
+      }
+      res.json({ sends, sites });
     });
 
     // SSE endpoint for MCP connection (proper MCP SSE transport)

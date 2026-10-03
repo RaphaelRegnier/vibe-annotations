@@ -383,6 +383,32 @@ function isServerOutdated(version) {
     }
   }
 
+  // Claude Code mod (packages/claude-mod) — connected while it polls the server.
+  async function getClaudeStatus() {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/claude`, { signal: AbortSignal.timeout(2000) });
+      if (!res.ok) return { connected: false }; // older server without the route
+      return await res.json();
+    } catch {
+      return { connected: false };
+    }
+  }
+
+  // Sync first so the server has every annotation the mod is about to send.
+  // Resolves to { success, session: { id, name } }, or { success: false, choose:
+  // [sessions] } when several Claude sessions are open and none owns this site.
+  async function sendToClaude(session) {
+    await forceSync();
+    const res = await fetch(`${SERVER_URL}/api/claude/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: window.location.origin, session }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return { success: false };
+    return await res.json();
+  }
+
 const VibeAPI = {
   checkServerStatus,
   clearStatusCache,
@@ -421,6 +447,8 @@ const VibeAPI = {
   saveCustomShortcut,
   getWatchers,
   stopWatchers,
+  getClaudeStatus,
+  sendToClaude,
   getShareExport,
 };
 export default VibeAPI;
