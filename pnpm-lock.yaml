@@ -8,6 +8,8 @@ importers:
 
   .: {}
 
+  packages/claude-mod: {}
+
   packages/extension:
     devDependencies:
       wxt:

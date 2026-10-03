@@ -68,3 +68,84 @@ test('reports when the Vibe server is down', async ($, on) => {
   await clock.advance(1)
   expect(r.text).toContain('not reachable')
 })
+
+test('a send from the extension hands over only that page origin', async ($, on) => {
+  const annotations = [
+    ...ANNOTATIONS,
+    { id: 'b1', url: 'http://localhost:4000/', comment: 'Other app', selector: '#x', status: 'pending' },
+  ]
+  let sends = [{ origin: 'http://localhost:3000' }]
+  const prompts: string[] = []
+  on('http.fetch', async ($, e) => {
+    const body = e.url.includes('/api/claude/inbox')
+      ? (() => { const r = { sends }; sends = []; return r })()
+      : { annotations }
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify(body) } } as never
+  })
+  on('prompt.submit', async ($, e) => {
+    prompts.push(e.text)
+    return { text: e.text }
+  })
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  const clock = mock.clock(on)
+  on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await clock.advance(1)
+
+  expect(prompts.length).toBe(1)
+  expect(prompts[0]).toContain('[a1]')
+  expect(prompts[0]).toContain('[a2]')
+  expect(prompts[0]).not.toContain('[b1]')
+
+  // The send was taken: later polls send nothing more.
+  await clock.advance(5000)
+  expect(prompts.length).toBe(1)
+})
+
+test('band and Implement only cover the sites the server routes to this session', async ($, on) => {
+  const annotations = [
+    ...ANNOTATIONS,
+    { id: 'b1', url: 'http://localhost:4000/', comment: 'Other app', selector: '#x', status: 'pending' },
+    { id: 'b2', url: 'http://localhost:5000/', comment: 'Third app', selector: '#y', status: 'pending' },
+  ]
+  let routed: string[] = []
+  const inboxUrls: string[] = []
+  const prompts: string[] = []
+  on('http.fetch', async ($, e) => {
+    const isInbox = e.url.includes('/api/claude/inbox')
+    if (isInbox) inboxUrls.push(e.url)
+    const body = isInbox ? { sends: [], sites: routed } : { annotations }
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify(body) } } as never
+  })
+  on('ui.render', async ($, e) => { const { Text } = $.ui.resolve(e); return <Text>engine</Text> })
+  on('prompt.submit', async ($, e) => {
+    prompts.push(e.text)
+    return { text: e.text }
+  })
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  const clock = mock.clock(on)
+  on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/work/app', surface: 'terminal', isInteractive: true } as never)
+
+  // The session tells the server who it is and where it works.
+  expect(inboxUrls[0]).toMatch(/session=[^&]+&cwd=%2Fwork%2Fapp/)
+
+  // Nothing routed here yet: other apps' annotations stay out of the band.
+  let ui = await $.ui.mount({ plugin: 'vibe-annotations', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: /new annotation/ })).toBeUndefined()
+  await ui.unmount()
+
+  routed = ['http://localhost:3000']
+  await clock.advance(2000)
+  ui = await $.ui.mount({ plugin: 'vibe-annotations', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: /2 new annotations on localhost:3000/ })).toBeDefined()
+  await ui.press({ key: 'implement' })
+  await clock.advance(1)
+  expect(prompts.length).toBe(1)
+  expect(prompts[0]).toContain('[a1]')
+  expect(prompts[0]).not.toContain('[b1]')
+  expect(prompts[0]).not.toContain('[b2]')
+  await ui.unmount()
+})
