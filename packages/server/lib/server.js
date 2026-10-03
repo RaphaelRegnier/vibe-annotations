@@ -10,6 +10,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { normalizeProtocolVersionHeader } from './protocol-version.js';
 import { readFile, writeFile, mkdir, unlink, readdir } from 'fs/promises';
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
@@ -42,6 +43,7 @@ const attachmentFileFor = (annotationId, att) =>
 class LocalAnnotationsServer {
   constructor() {
     this.app = express();
+    this.loggedProtocolRewrites = new Set();
     this.mcpServer = new Server(
       {
         name: 'claude-annotations',
@@ -559,6 +561,16 @@ class LocalAnnotationsServer {
           enableDnsRebindingProtection: false // Disable for localhost
         });
         
+        // Newer clients (e.g. Claude Code with MCP 2026-07-28) send a protocol
+        // version header the SDK doesn't list yet and would reject with 400.
+        // Rewrite it to the latest supported version; initialize already
+        // negotiates down to that version, so the client keeps working.
+        const rewritten = normalizeProtocolVersionHeader(req);
+        if (rewritten && !this.loggedProtocolRewrites.has(rewritten.from)) {
+          this.loggedProtocolRewrites.add(rewritten.from);
+          console.log(`[MCP] Client requested protocol ${rewritten.from}, negotiating ${rewritten.to}`);
+        }
+
         // Connect server to transport and handle request
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
