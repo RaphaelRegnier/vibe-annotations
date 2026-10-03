@@ -1,0 +1,6 @@
+{
+  "name": "vibe-annotations-claude-mod",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code mod for Vibe Annotations (prototype). Load with: claude --plugin-dir packages/claude-mod"
+}
