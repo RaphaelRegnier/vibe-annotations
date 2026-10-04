@@ -92,32 +92,67 @@ import { isRecordableHotkey } from './hotkey.js';
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
-    VibeEvents.on('overlay:closed', () => { isOverlayVisible = false; stopPolling(); });
-    VibeEvents.on('overlay:shown', async () => { isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
+    VibeEvents.on('overlay:closed', () => { overlayOpen = false; isOverlayVisible = false; stopPolling(); });
+    VibeEvents.on('overlay:shown', async () => { overlayOpen = true; isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
 
     window.removeEventListener('resize', handleWindowResize);
     window.addEventListener('resize', handleWindowResize, { passive: true });
 
-    // Start periodic checks
-    startPolling();
+    // Pause polling while the tab is backgrounded — a hidden tab isn't being
+    // actively used, so there's no reason to keep checking the server (issue #84).
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopPolling();
+      else if (overlayOpen) startPolling();
+    });
+
+    // Start periodic checks only when the overlay is actually up and the tab is
+    // visible. A closed overlay resumes on 'overlay:shown', a background tab via
+    // the visibilitychange handler above.
+    overlayOpen = !(await VibeAPI.getOverlayHidden());
+    if (overlayOpen && !document.hidden) startPolling();
   }
 
-  let serverPollId = null;
+  let overlayOpen = false;
+  let serverPollTimer = null;
   let watcherPollId = null;
+  let serverPollActive = false;
+  let serverPollGen = 0; // bumped on every start/stop so a superseded loop exits
+  const SERVER_POLL_INTERVAL = 10000;
 
   function startPolling() {
-    if (!serverPollId) {
-      refreshServerStatus();
-      serverPollId = setInterval(refreshServerStatus, 10000);
+    if (!serverPollActive) {
+      serverPollActive = true;
+      runServerPoll(++serverPollGen, true); // live check on open/focus, then self-schedules
     }
     if (!watcherPollId) {
       refreshWatchers();
-      watcherPollId = setInterval(refreshWatchers, 5000);
+      // 10s rather than 5s: watch mode is toggled by the agent, not the user, so
+      // a slightly later indicator update is invisible — and it halves the idle
+      // request rate. Skipped entirely while the server is offline.
+      watcherPollId = setInterval(refreshWatchers, 10000);
     }
   }
 
+  // Self-scheduling status poll. This reads the background worker's cached
+  // health state rather than hitting the server from the page (issue #84), so
+  // the only cost per tick is a runtime message. No backoff here: the worker
+  // already backs off its own /health probes while the server is down, and a
+  // second backoff on top only delays the toolbar noticing a reconnect (up to
+  // 60s). `fresh` forces a live probe — used when the toolbar opens or the tab
+  // regains focus, where a stale answer would be visible to the user. `gen`
+  // guards against a close→reopen landing mid-await: the old loop would
+  // otherwise resume alongside the new one and orphan a timer.
+  async function runServerPoll(gen, fresh = false) {
+    if (gen !== serverPollGen) return;
+    await refreshServerStatus(fresh);
+    if (gen !== serverPollGen) return;
+    serverPollTimer = setTimeout(() => runServerPoll(gen), SERVER_POLL_INTERVAL);
+  }
+
   function stopPolling() {
-    if (serverPollId) { clearInterval(serverPollId); serverPollId = null; }
+    serverPollActive = false;
+    serverPollGen++;
+    if (serverPollTimer) { clearTimeout(serverPollTimer); serverPollTimer = null; }
     if (watcherPollId) { clearInterval(watcherPollId); watcherPollId = null; }
   }
 
@@ -920,8 +955,8 @@ import { isRecordableHotkey } from './hotkey.js';
     }
   }
 
-  async function refreshServerStatus() {
-    const status = await VibeAPI.checkServerStatus();
+  async function refreshServerStatus(fresh = false) {
+    const status = await VibeAPI.checkServerStatus({ fresh });
     const changed = serverOnline !== status.connected || serverOutdated !== !!status.outdated;
     serverOnline = status.connected;
     serverOutdated = !!status.outdated;
@@ -1164,13 +1199,17 @@ import { isRecordableHotkey } from './hotkey.js';
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     } catch (err) {
       console.warn('[Vibe] export failed:', err);
-      // .html needs the server to read + embed the image files. If the server is
-      // reachable but too old to have the export endpoint, point at the fix.
-      const status = await VibeAPI.checkServerStatus().catch(() => null);
+      // .html needs the server to read + embed the image files. Probe live —
+      // a cached "offline" would misdiagnose a server that just came back.
+      const status = await VibeAPI.checkServerStatus({ fresh: true }).catch(() => null);
       if (status?.outdated) {
         showInfoModal('Update your server', 'The .html export needs a newer annotations server. Run "npm update -g vibe-annotations-server" and restart it — or use the .md export, which works offline.');
-      } else {
+      } else if (!status?.connected) {
         showInfoModal('Export failed', 'The .html export needs the local annotations server running. Start it, or use the .md export instead.');
+      } else {
+        // Server is up, so this isn't a "start the server" problem — most likely
+        // the export request itself failed (bad response, timeout on a large set).
+        showInfoModal('Export failed', 'The server is running but the export request failed. Check the server logs, then try again — or use the .md export, which works offline.');
       }
     }
   }

@@ -3,7 +3,7 @@
 
 import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
-import { isConnected, checkConnection, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment, deleteAttachment } from '../lib/background/api-sync.js';
+import { isConnected, checkConnection, getCachedStatus, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment, deleteAttachment, fetchExport, fetchWatchers, stopWatchers } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
 import { migrateSyncFlags } from '../lib/background/utils.js';
 
@@ -175,9 +175,29 @@ class VibeAnnotationsBackground {
             .then(data => sendResponse({ success: true, data }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
-        case 'checkMCPStatus':
-          checkConnection()
+        case 'checkMCPStatus': {
+          // Serve the monitor's cached result unless the caller explicitly wants
+          // a live probe (user gesture, tab regaining focus). Keeps idle pages
+          // from generating any /health traffic at all — issue #84.
+          const cached = request.fresh ? null : getCachedStatus();
+          (cached ? Promise.resolve(cached) : checkConnection())
             .then(status => sendResponse({ success: true, status }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        }
+        case 'fetchExport':
+          fetchExport(request.urlPattern, request.format)
+            .then(result => sendResponse({ success: true, ...result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'getWatchers':
+          fetchWatchers()
+            .then(data => sendResponse({ success: true, ...data }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'stopWatchers':
+          stopWatchers()
+            .then(() => sendResponse({ success: true }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
         case 'enableSite':
@@ -471,13 +491,23 @@ class VibeAnnotationsBackground {
   // --- Connection monitoring ---
 
   startConnectionMonitoring() {
-    checkConnection().then(() => updateAllBadges());
-    setInterval(async () => {
+    const MIN_DELAY = 10000;
+    const MAX_DELAY = 60000;
+    let delay = MIN_DELAY;
+    const tick = async () => {
       const wasConnected = isConnected();
       await checkConnection();
       if (wasConnected !== isConnected()) await updateAllBadges();
-      if (isConnected()) await smartSync(fn => this._withStorageLock(fn));
-    }, 10000);
+      if (isConnected()) {
+        delay = MIN_DELAY;
+        await smartSync(fn => this._withStorageLock(fn));
+      } else {
+        // Back off while the server is down instead of polling a dead port every 10s (issue #84).
+        delay = Math.min(delay * 2, MAX_DELAY);
+      }
+      setTimeout(tick, delay);
+    };
+    checkConnection().then(() => updateAllBadges()).finally(() => setTimeout(tick, delay));
   }
 
   // --- Content script registration ---

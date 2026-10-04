@@ -467,7 +467,9 @@ import VibeShadowHost from './shadow-host.js';
 
     const variantsTab = popover.querySelector('.vibe-mode-tab[data-mode="variants"]');
     if (variantsTab) {
-      VibeAPI.checkServerStatus().then(s => {
+      // User just opened the popover — a stale "offline" would wrongly keep the
+      // variants tab disabled, so probe live.
+      VibeAPI.checkServerStatus({ fresh: true }).then(s => {
         if (s?.connected) {
           variantsTab.disabled = false;
           variantsTab.title = 'Ask your agent to generate several coexisting design variants';

@@ -35,40 +35,25 @@ function isServerOutdated(version) {
 
   // --- Server status ---
 
-  async function checkServerStatus() {
+  // The page never fetches /health itself. The background worker already polls
+  // the server (with backoff while it's down) and answers from its cache, so an
+  // idle tab produces no localhost requests and no failed-request noise in the
+  // page's DevTools — issue #84. Pass { fresh: true } for user-driven checks
+  // that must not read a stale cache.
+  async function checkServerStatus({ fresh = false } = {}) {
     const now = Date.now();
-    if (statusCache && (now - statusCacheTime) < CACHE_TTL) return statusCache;
+    if (!fresh && statusCache && (now - statusCacheTime) < CACHE_TTL) return statusCache;
 
-    let status;
-
-    if (isFileProtocol() || !isLocalOrigin()) {
-      // Non-local origins can't fetch localhost directly (CORS) — route via background
-      status = await _checkViaBg();
-    } else {
-      try {
-        const res = await fetch(`${SERVER_URL}/health`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(2000),
-          mode: 'cors',
-          credentials: 'omit'
-        });
-        let version = null;
-        if (res.ok) { try { version = (await res.json())?.version || null; } catch { /* older server / bad body */ } }
-        status = { connected: res.ok, version };
-      } catch {
-        status = await _checkViaBg();
-      }
-    }
-
+    const status = await _checkViaBg(fresh);
     status.outdated = !!(status.connected && isServerOutdated(status.version));
     statusCache = status;
     statusCacheTime = now;
     return status;
   }
 
-  async function _checkViaBg() {
+  async function _checkViaBg(fresh = false) {
     try {
-      const r = await chrome.runtime.sendMessage({ action: 'checkMCPStatus' });
+      const r = await chrome.runtime.sendMessage({ action: 'checkMCPStatus', fresh });
       const s = r && r.success && r.status;
       return { connected: !!(s && s.connected), version: s ? s.server_version : null };
     } catch {
@@ -355,29 +340,47 @@ function isServerOutdated(version) {
   }
 
   // Fetch a shareable export (markdown or self-contained HTML) from the server.
-  // Direct fetch works on local origins (the export is a localhost-dev feature).
+  // A direct fetch only works on local origins: from an https:// page, reaching
+  // http://127.0.0.1 is blocked by mixed-content / private-network rules before
+  // the request ever leaves the browser. Elsewhere (and if the direct attempt
+  // fails) we route through the background worker, which holds the localhost
+  // host permission and isn't bound by the page's origin.
   async function getShareExport(urlPattern, format) {
-    const res = await fetch(
-      `${SERVER_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
-      { signal: AbortSignal.timeout(15000) }
-    );
-    if (!res.ok) throw new Error(`export failed: ${res.status}`);
-    return { content: await res.text(), mime: res.headers.get('Content-Type') || 'text/plain' };
+    if (isLocalOrigin() && !isFileProtocol()) {
+      try {
+        const res = await fetch(
+          `${SERVER_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
+          { signal: AbortSignal.timeout(15000) }
+        );
+        if (!res.ok) throw new Error(`export failed: ${res.status}`);
+        return { content: await res.text(), mime: res.headers.get('Content-Type') || 'text/plain' };
+      } catch {
+        // fall through to the background route
+      }
+    }
+    return _exportViaBg(urlPattern, format);
   }
 
+  async function _exportViaBg(urlPattern, format) {
+    const r = await chrome.runtime.sendMessage({ action: 'fetchExport', urlPattern, format });
+    if (!r || !r.success) throw new Error(r?.error || 'export failed');
+    return { content: r.content, mime: r.mime || 'text/plain' };
+  }
+
+  // Watcher state goes through the background for the same reasons as the health
+  // check: the page's own network log stays free of extension requests, and it
+  // works on non-local origins, where a direct localhost fetch is blocked.
   async function stopWatchers() {
     try {
-      await fetch(`${SERVER_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
+      await chrome.runtime.sendMessage({ action: 'stopWatchers' });
     } catch { /* ignore */ }
   }
 
   async function getWatchers() {
     try {
-      const res = await fetch(`${SERVER_URL}/api/watchers`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      if (!res.ok) return { watchers: [], watching: false };
-      return await res.json();
+      const r = await chrome.runtime.sendMessage({ action: 'getWatchers' });
+      if (!r || !r.success) return { watchers: [], watching: false };
+      return { watchers: r.watchers || [], watching: !!r.watching };
     } catch {
       return { watchers: [], watching: false };
     }

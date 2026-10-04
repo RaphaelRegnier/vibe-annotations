@@ -231,7 +231,9 @@ import VibeEvents, { vibeLocationPath } from './event-bus.js';
   }
 
   async function handleStatus() {
-    const server = await VibeAPI.checkServerStatus();
+    // Agent-facing status query — probe live rather than answering from the
+    // background's poll cache, which can lag by up to a backoff interval.
+    const server = await VibeAPI.checkServerStatus({ fresh: true });
     return { extension: true, server: server.connected };
   }
 
