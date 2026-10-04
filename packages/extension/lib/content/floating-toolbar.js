@@ -22,6 +22,7 @@ import { isRecordableHotkey } from './hotkey.js';
   let screenshotEnabled = false;
   let badgeColor = '#D03D68';
   let watcherActive = false;
+  let isOverlayVisible = true;
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -83,6 +84,7 @@ import { isRecordableHotkey } from './hotkey.js';
     await refreshServerStatus();
 
     buildToolbar(root);
+    isOverlayVisible = true;
     await restorePosition();
 
     // Listen for events
@@ -90,8 +92,11 @@ import { isRecordableHotkey } from './hotkey.js';
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
-    VibeEvents.on('overlay:closed', () => { resetPosition(); stopPolling(); });
-    VibeEvents.on('overlay:shown', () => { startPolling(); animateToolbarIn(); });
+    VibeEvents.on('overlay:closed', () => { isOverlayVisible = false; stopPolling(); });
+    VibeEvents.on('overlay:shown', async () => { isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
+
+    window.removeEventListener('resize', handleWindowResize);
+    window.addEventListener('resize', handleWindowResize, { passive: true });
 
     // Start periodic checks
     startPolling();
@@ -1002,11 +1007,10 @@ import { isRecordableHotkey } from './hotkey.js';
       const newRight = window.innerWidth - (startLeft + toolbarEl.offsetWidth) - dx;
       const newTop = startTop + dy;
 
-      const clampedRight = Math.max(8, Math.min(newRight, window.innerWidth - toolbarEl.offsetWidth - 8));
-      const clampedTop = Math.max(8, Math.min(newTop, window.innerHeight - toolbarEl.offsetHeight - 8));
+      const clamped = clampPosition(newRight, newTop);
 
-      toolbarEl.style.right = `${clampedRight}px`;
-      toolbarEl.style.top = `${clampedTop}px`;
+      toolbarEl.style.right = `${clamped.right}px`;
+      toolbarEl.style.top = `${clamped.top}px`;
     });
 
     document.addEventListener('mouseup', () => {
@@ -1031,25 +1035,63 @@ import { isRecordableHotkey } from './hotkey.js';
     }, true);
   }
 
-  async function restorePosition() {
-    const pos = await VibeAPI.getToolbarPosition();
-    if (pos && toolbarEl) {
-      // Clamp to viewport to handle saved positions from old narrower toolbar
-      const rightPx = parseInt(pos.right, 10);
-      const topPx = parseInt(pos.top, 10);
-      const maxRight = window.innerWidth - toolbarEl.offsetWidth - 8;
-      const maxTop = window.innerHeight - toolbarEl.offsetHeight - 8;
-      toolbarEl.style.right = Math.max(8, Math.min(rightPx, maxRight)) + 'px';
-      toolbarEl.style.top = Math.max(8, Math.min(topPx, maxTop)) + 'px';
+  function isToolbarVisible() {
+    if (!toolbarEl || !isOverlayVisible) return false;
+    if (VibeShadowHost.getHost && VibeShadowHost.getHost()) {
+      return VibeShadowHost.isVisible();
+    }
+    return true;
+  }
+
+  function handleWindowResize() {
+    if (!isToolbarVisible()) return;
+    clampCurrentPosition();
+  }
+
+  function clampPosition(rightPx, topPx) {
+    const toolbarWidth = toolbarEl ? (toolbarEl.offsetWidth || 300) : 300;
+    const toolbarHeight = toolbarEl ? (toolbarEl.offsetHeight || 40) : 40;
+    const winWidth = window.innerWidth || document.documentElement?.clientWidth || 1024;
+    const winHeight = window.innerHeight || document.documentElement?.clientHeight || 768;
+
+    const maxRight = Math.max(8, winWidth - toolbarWidth - 8);
+    const maxTop = Math.max(8, winHeight - toolbarHeight - 8);
+
+    const clampedRight = Math.max(8, Math.min(rightPx, maxRight));
+    const clampedTop = Math.max(8, Math.min(topPx, maxTop));
+
+    return { right: clampedRight, top: clampedTop };
+  }
+
+  function clampCurrentPosition() {
+    if (!toolbarEl) return;
+    const currentRight = toolbarEl.style.right ? parseInt(toolbarEl.style.right, 10) : 24;
+    const currentTop = toolbarEl.style.top ? parseInt(toolbarEl.style.top, 10) : 24;
+    const validRight = Number.isFinite(currentRight) ? currentRight : 24;
+    const validTop = Number.isFinite(currentTop) ? currentTop : 24;
+    const clamped = clampPosition(validRight, validTop);
+
+    if (clamped.right !== validRight) {
+      toolbarEl.style.right = `${clamped.right}px`;
+    }
+    if (clamped.top !== validTop) {
+      toolbarEl.style.top = `${clamped.top}px`;
     }
   }
 
-  function resetPosition() {
-    if (toolbarEl) {
-      toolbarEl.style.right = '';
-      toolbarEl.style.top = '';
+  async function restorePosition() {
+    const pos = await VibeAPI.getToolbarPosition();
+    if (pos && toolbarEl) {
+      const rightPx = parseInt(pos.right, 10);
+      const topPx = parseInt(pos.top, 10);
+      const validRight = Number.isFinite(rightPx) ? rightPx : 24;
+      const validTop = Number.isFinite(topPx) ? topPx : 24;
+      const clamped = clampPosition(validRight, validTop);
+      toolbarEl.style.right = `${clamped.right}px`;
+      toolbarEl.style.top = `${clamped.top}px`;
+    } else if (toolbarEl) {
+      clampCurrentPosition();
     }
-    VibeAPI.saveToolbarPosition(null);
   }
 
   // --- Delete confirm ---
