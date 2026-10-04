@@ -111,14 +111,11 @@ import { isRecordableHotkey } from './hotkey.js';
   let serverPollTimer = null;
   let watcherPollId = null;
   let serverPollActive = false;
-  const SERVER_POLL_MIN = 10000;
-  const SERVER_POLL_MAX = 60000;
-  let serverPollDelay = SERVER_POLL_MIN;
+  const SERVER_POLL_INTERVAL = 10000;
 
   function startPolling() {
     if (!serverPollActive) {
       serverPollActive = true;
-      serverPollDelay = SERVER_POLL_MIN;
       runServerPoll(true); // live check on open/focus, then self-schedules
     }
     if (!watcherPollId) {
@@ -132,19 +129,16 @@ import { isRecordableHotkey } from './hotkey.js';
 
   // Self-scheduling status poll. This reads the background worker's cached
   // health state rather than hitting the server from the page (issue #84), so
-  // the only cost per tick is a runtime message. We still back off while the
-  // server is down (10s → 20s → 40s → 60s cap) to keep the UI's wake-ups rare,
-  // and reset to the fast interval on reconnect. `fresh` forces a live probe —
-  // used when the toolbar opens or the tab regains focus, where a stale answer
-  // would be visible to the user.
+  // the only cost per tick is a runtime message. No backoff here: the worker
+  // already backs off its own /health probes while the server is down, and a
+  // second backoff on top only delays the toolbar noticing a reconnect (up to
+  // 60s). `fresh` forces a live probe — used when the toolbar opens or the tab
+  // regains focus, where a stale answer would be visible to the user.
   async function runServerPoll(fresh = false) {
     if (!serverPollActive) return;
     await refreshServerStatus(fresh);
-    serverPollDelay = serverOnline
-      ? SERVER_POLL_MIN
-      : Math.min(serverPollDelay * 2, SERVER_POLL_MAX);
     if (!serverPollActive) return;
-    serverPollTimer = setTimeout(() => runServerPoll(), serverPollDelay);
+    serverPollTimer = setTimeout(() => runServerPoll(), SERVER_POLL_INTERVAL);
   }
 
   function stopPolling() {
