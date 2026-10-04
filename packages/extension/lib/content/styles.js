@@ -1238,6 +1238,90 @@ export const VIBE_STYLES = `
   pointer-events: none;
 }
 
+/* Send to Claude — primary icon button at the end of the bar */
+.vibe-toolbar-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  background: var(--v-pill-gradient);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(208, 61, 104, 0.35);
+  transition: filter 0.15s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  animation: vibe-send-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.vibe-toolbar-send:hover { filter: brightness(1.1); }
+.vibe-toolbar-send:active { transform: scale(0.92); }
+
+.vibe-toolbar-send svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.vibe-toolbar-send:disabled {
+  background: var(--v-toolbar-btn-active);
+  color: var(--v-instruction-text);
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
+.vibe-toolbar-send.sending:disabled {
+  background: var(--v-pill-gradient);
+  color: #fff;
+  cursor: progress;
+}
+
+.vibe-toolbar-send.sending svg { animation: vibe-send-fly 0.6s ease-in-out infinite alternate; }
+.vibe-toolbar-send.sent:disabled { background: var(--v-status-online); box-shadow: 0 1px 6px rgba(16, 185, 129, 0.35); cursor: default; }
+.vibe-toolbar-send.sent svg { animation: none; }
+.vibe-toolbar-send.failed:disabled { background: var(--v-toolbar-btn-active); color: var(--v-toolbar-text); box-shadow: none; }
+.vibe-toolbar-send.failed svg { animation: none; }
+
+@keyframes vibe-send-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes vibe-send-fly {
+  from { transform: translate(0, 0); }
+  to { transform: translate(2px, -2px); }
+}
+
+/* Floating confirmation under the bar (keeps the toolbar width stable) */
+.vibe-send-chip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--v-panel-bg);
+  box-shadow: var(--v-panel-shadow);
+  color: var(--v-toolbar-text-active);
+  font: 500 12px/1 var(--v-font);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: vibe-send-chip-in 0.18s ease both;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.vibe-send-chip.above { top: auto; bottom: calc(100% + 8px); }
+.vibe-send-chip.out { opacity: 0; transform: translateY(-4px); }
+
+@keyframes vibe-send-chip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* MCP status in toolbar */
 .vibe-toolbar-status {
   display: flex;
