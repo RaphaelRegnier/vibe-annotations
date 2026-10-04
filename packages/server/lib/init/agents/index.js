@@ -3,6 +3,7 @@ import cursor from './cursor.js';
 import windsurf from './windsurf.js';
 import codex from './codex.js';
 import openclaw from './openclaw.js';
+import opencode from './opencode.js';
 import vscode from './vscode.js';
 import { existsSync, readFileSync } from 'fs';
 import {
@@ -15,7 +16,7 @@ import {
   runCli,
 } from './shared.js';
 
-export const AGENTS = [claudeCode, cursor, windsurf, codex, openclaw, vscode];
+export const AGENTS = [claudeCode, cursor, windsurf, codex, openclaw, opencode, vscode];
 
 export function findAgent(id) {
   return AGENTS.find((a) => a.id === id) || null;
