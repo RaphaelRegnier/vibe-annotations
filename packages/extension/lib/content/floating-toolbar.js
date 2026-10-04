@@ -213,6 +213,8 @@ import { isRecordableHotkey } from './hotkey.js';
   }
 
   // --- Release banner (shown once after an update, until dismissed) ---
+  // RELEASE CHECKLIST: the banner copy below is hardcoded — rewrite it for
+  // every Chrome Web Store release, or users see the previous release's pitch.
 
   async function injectUpdateBanner() {
     try {
@@ -228,7 +230,7 @@ import { isRecordableHotkey } from './hotkey.js';
       banner.innerHTML = `
         <span class="vibe-update-text">
           <strong>Vibe Annotations${version ? ` ${version}` : ''}</strong>
-          — variants generation improvements. Update your MCP server to get them.
+          — no more DevTools noise, and the toolbar stays where you put it. Update your MCP server for the latest Claude Code.
         </span>
         <a class="vibe-update-link" href="${releaseUrl}" target="_blank" rel="noopener">See what's new</a>
         <button class="vibe-update-dismiss" title="Dismiss">${ICONS.close}</button>

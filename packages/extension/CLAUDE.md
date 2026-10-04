@@ -72,6 +72,13 @@ claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3
 
 Tools: `read_annotations`, `delete_annotation`, `watch_annotations`, `get_project_context`.
 
+## Releasing (Chrome Web Store)
+
+1. Bump `version` in `package.json`.
+2. **Rewrite the release banner copy** in `floating-toolbar.js` (`injectUpdateBanner`) — it's hardcoded and shown to every user after the update.
+3. `pnpm --filter vibe-annotations-extension zip` → `.output/vibe-annotations-extension-<version>-chrome.zip`.
+4. Draft the GitHub release `v<version>` — the banner's "See what's new" links to that tag, and the website's release notes page reads from GitHub Releases.
+
 ## Testing
 
 Load unpacked in Chrome, navigate to any localhost page. No automated tests — all manual.
