@@ -140,16 +140,15 @@ import { isRecordableHotkey } from './hotkey.js';
             <span>View all</span>
             <span class="vibe-toolbar-pill" style="display:none">0</span>
           </button>
-          <button class="vibe-toolbar-btn vibe-tb-send" title="Send this site's annotations to Claude Code" style="display:none">
-            ${ICONS.send}
-            <span>Send to Claude</span>
-          </button>
           <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
             ${ICONS.settings}
             <span>Settings</span>
           </button>
           <button class="vibe-toolbar-status vibe-tb-status" title="Offline" style="margin-left:4px;">
             ${ICONS.serverRack}
+          </button>
+          <button class="vibe-toolbar-send vibe-tb-send" title="Send to Claude Code" aria-label="Send to Claude Code" style="display:none">
+            ${ICONS.send}
           </button>
         </div>
         <div class="vibe-toolbar-annotating">
@@ -909,8 +908,12 @@ import { isRecordableHotkey } from './hotkey.js';
     const sendEl = toolbarEl.querySelector('.vibe-tb-send');
     if (sendEl) {
       sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
-      if (sendEl.querySelector('span').textContent === 'Send to Claude') {
+      if (!sendEl.classList.contains('sending')) {
         sendEl.disabled = totalCount === 0;
+        sendEl.title = totalCount === 0
+          ? 'Add annotations to send them to Claude Code'
+          : `Send ${totalCount} annotation${totalCount === 1 ? '' : 's'} to Claude Code`;
+        sendEl.setAttribute('aria-label', sendEl.title);
       }
     }
 
@@ -952,22 +955,39 @@ import { isRecordableHotkey } from './hotkey.js';
   async function sendToClaude(sessionId) {
     closeSessionPicker();
     const sendBtn = toolbarEl.querySelector('.vibe-tb-send');
-    const label = sendBtn.querySelector('span');
     sendBtn.disabled = true;
+    sendBtn.classList.add('sending');
     let r = { success: false };
     try { r = await VibeAPI.sendToClaude(sessionId); } catch { /* server gone */ }
     if (r.choose) {
+      sendBtn.classList.remove('sending');
       sendBtn.disabled = false;
       openSessionPicker(r.choose);
       return;
     }
-    label.textContent = r.success ? `Sent to ${r.session.name}` : 'Claude not connected';
+    // Icon-only button: confirm with a check + a floating chip, so the bar keeps its width
+    sendBtn.classList.add(r.success ? 'sent' : 'failed');
+    sendBtn.innerHTML = r.success ? ICONS.check : ICONS.send;
+    showSendChip(r.success ? `Sent to ${r.session.name}` : 'Claude not connected');
     setTimeout(() => {
-      label.textContent = 'Send to Claude';
-      sendBtn.disabled = false;
+      sendBtn.classList.remove('sending', 'sent', 'failed');
+      sendBtn.innerHTML = ICONS.send;
       if (!r.success) refreshClaude();
-      else updateUI();
-    }, 1500);
+      updateUI();
+    }, 1800);
+  }
+
+  function showSendChip(text) {
+    toolbarEl.querySelector('.vibe-send-chip')?.remove();
+    const rect = toolbarEl.getBoundingClientRect();
+    const chip = document.createElement('div');
+    chip.className = 'vibe-send-chip' + (rect.top > window.innerHeight / 2 ? ' above' : '');
+    chip.textContent = text;
+    toolbarEl.appendChild(chip);
+    setTimeout(() => {
+      chip.classList.add('out');
+      setTimeout(() => chip.remove(), 200);
+    }, 1800);
   }
 
   // Several Claude sessions are open and none works in this site's project:
