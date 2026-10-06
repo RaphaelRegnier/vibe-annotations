@@ -1127,16 +1127,6 @@ export const VIBE_STYLES = `
   to   { opacity: 0; transform: translateY(-6px); }
 }
 
-/* Toolbar logo */
-.vibe-toolbar-logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  flex-shrink: 0;
-  pointer-events: none;
-  margin: 0 4px;
-}
-
 /* Toolbar separator */
 .vibe-toolbar-separator {
   width: 1px;
@@ -1297,14 +1287,14 @@ export const VIBE_STYLES = `
   to { transform: translate(2px, -2px); }
 }
 
-/* Devil mascot (Claude mod): decorative, after Send. The figure is a bit
+/* Devil mascot: the toolbar's logo, first in the bar. The figure is a bit
    taller than its slot so the horns peek over the bar; it never takes clicks. */
 .vibe-mascot {
   position: relative;
   flex: none;
   width: 30px;
   height: 28px;
-  margin: 0 2px 0 4px;
+  margin: 0 2px;
   pointer-events: none;
 }
 

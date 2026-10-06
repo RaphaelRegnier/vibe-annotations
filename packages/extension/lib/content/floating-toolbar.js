@@ -27,7 +27,7 @@ import { createMascot } from './mascot.js';
   let badgeColor = '#D03D68';
   let watcherActive = false;
   let claudeConnected = false; // Claude Code mod is polling the server
-  let mascot = null; // devil mascot, shown with "Send to Claude"
+  let mascot = null; // devil mascot, the toolbar logo
   let mascotFlash = null; // { state, until }: short-lived done / error moments
   let lastActivityAt = Date.now();
   const MASCOT_SLEEP_MS = 120_000; // idle this long → sleepy
@@ -135,13 +135,11 @@ import { createMascot } from './mascot.js';
   let viewAllPanel = null;
 
   function buildToolbar(root) {
-    const logoUrl = chrome.runtime.getURL('assets/icons/icon-hq.png');
-
     toolbarEl = document.createElement('div');
     toolbarEl.className = 'vibe-toolbar';
 
     toolbarEl.innerHTML = `
-      <img class="vibe-toolbar-logo" src="${logoUrl}" />
+      <span class="vibe-toolbar-logo"></span>
       <div class="vibe-toolbar-separator"></div>
       <div class="vibe-modes" role="radiogroup" aria-label="Mode">
         <button class="vibe-mode-btn active" data-mode="interact" role="radio" title="Interact: use the page normally">${ICONS.pointer}<span>Interact</span></button>
@@ -188,10 +186,9 @@ import { createMascot } from './mascot.js';
       </button>`}
     `;
 
-    // Devil mascot (Claude mod): after the buttons so it stays visible while annotating
+    // The devil mascot is the toolbar's logo: one character, acting out the annotations
     mascot = createMascot();
-    mascot.el.style.display = 'none';
-    toolbarEl.querySelector('.vibe-toolbar-middle').after(mascot.el);
+    toolbarEl.querySelector('.vibe-toolbar-logo').replaceWith(mascot.el);
 
     root.appendChild(toolbarEl);
     wireButtons();
@@ -1146,12 +1143,6 @@ import { createMascot } from './mascot.js';
 
   async function refreshMascot() {
     if (!mascot) return;
-    // A failed send usually means Claude just went away: keep the mascot up
-    // for its "error" moment, then let it leave with the Send button.
-    const erroring = mascotFlash?.state === 'error' && Date.now() < mascotFlash.until;
-    const visible = (serverOnline && claudeConnected) || erroring;
-    mascot.el.style.display = visible ? '' : 'none';
-    if (!visible) return;
     const all = await VibeAPI.loadProjectAnnotations();
     const byId = new Map(all.map(a => [a.id, a]));
     const sent = readSent();
@@ -1172,6 +1163,8 @@ import { createMascot } from './mascot.js';
     mascotFlash = null;
     if (isAnnotating) return 'annotating';
     if (all.some(a => statusOf(a) === 'variants-ready')) return 'reply';
+    // Waiting / working only mean something while the Claude mod is connected
+    if (!(serverOnline && claudeConnected)) return Date.now() - lastActivityAt > MASCOT_SLEEP_MS ? 'sleepy' : 'idle';
     const open = all.filter(a => OPEN_STATUSES.has(statusOf(a)));
     if (open.some(a => sent[a.id] !== statusOf(a))) return 'waiting';
     if (open.length) return 'working';
