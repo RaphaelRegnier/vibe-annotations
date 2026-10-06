@@ -397,12 +397,13 @@ function isServerOutdated(version) {
   // Sync first so the server has every annotation the mod is about to send.
   // Resolves to { success, session: { id, name } }, or { success: false, choose:
   // [sessions] } when several Claude sessions are open and none owns this site.
-  async function sendToClaude(session) {
+  // ids limits the send to those annotations (Send to Claude from the popover).
+  async function sendToClaude(session, ids) {
     await forceSync();
     const res = await fetch(`${SERVER_URL}/api/claude/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: window.location.origin, session }),
+      body: JSON.stringify({ origin: window.location.origin, session, ids }),
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return { success: false };

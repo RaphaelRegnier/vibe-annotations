@@ -11,6 +11,7 @@ import VibeAnnotationPopover from '../../lib/content/annotation-popover.js';
 import VibeBridgeHandler from '../../lib/content/bridge-handler.js';
 import VibeToolbar from '../../lib/content/floating-toolbar.js';
 import VibeScreenshot from '../../lib/content/screenshot.js';
+import VibeTextEdit from '../../lib/content/text-edit.js';
 import { shouldTriggerHotkey } from '../../lib/content/hotkey.js';
 
 // --- State ---
@@ -71,6 +72,7 @@ async function bootNormal() {
   VibeBadgeManager.init();
   VibeInspectionMode.init();
   VibeAnnotationPopover.init();
+  VibeTextEdit.init();
   VibeBridgeHandler.init(() => annotations);
   VibeScreenshot.init();
   await VibeToolbar.init();
@@ -322,13 +324,14 @@ function setupAnnotationEvents() {
     VibeEvents.emit('annotations:render', annotations);
   });
 
-  VibeEvents.on('annotation:updated', ({ id, comment, pending_changes, css }) => {
+  VibeEvents.on('annotation:updated', ({ id, comment, pending_changes, css, thread }) => {
     localSaveCount++;
     const idx = annotations.findIndex((a) => a.id === id);
     if (idx !== -1) {
       const updates = { comment, updated_at: new Date().toISOString() };
       if (pending_changes !== undefined) updates.pending_changes = pending_changes;
       if (css !== undefined) updates.css = css;
+      if (thread !== undefined) updates.thread = thread;
       annotations[idx] = { ...annotations[idx], ...updates };
     }
   });

@@ -9,11 +9,14 @@ import VibeShadowHost from './shadow-host.js';
 import VibeToolbarDocs from './toolbar-docs.js';
 import { renderAnnotationsMarkdown } from './export-markdown.js';
 import { isRecordableHotkey } from './hotkey.js';
+import VibeBadgeManager from './badge-manager.js';
+import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, needsReply, variantToPick, inProgress, newMessage } from './annotation-meta.js';
 
   let toolbarEl = null;
   let settingsDropdown = null;
   let activeRecordingCleanup = null;
   let isAnnotating = false;
+  let inspectMode = 'annotate'; // the inspector mode while isAnnotating
   let serverOnline = false;
   let serverOutdated = false; // connected but older than the extension needs
   let annotationCount = 0;
@@ -43,6 +46,8 @@ import { isRecordableHotkey } from './hotkey.js';
     settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
     list: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>',
     close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
+    pointer: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/></svg>',
+    textMode: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/></svg>',
     crosshair: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 6V2"/><path d="M12 22v-4"/></svg>',
     serverRack: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>',
     collapse: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
@@ -88,7 +93,8 @@ import { isRecordableHotkey } from './hotkey.js';
     await restorePosition();
 
     // Listen for events
-    VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
+    VibeEvents.on('inspection:started', ({ mode } = {}) => { isAnnotating = true; inspectMode = mode || inspectMode; updateUI(); });
+    VibeEvents.on('claude:send', ({ ids } = {}) => sendToClaude(undefined, ids));
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
@@ -129,12 +135,16 @@ import { isRecordableHotkey } from './hotkey.js';
     toolbarEl.innerHTML = `
       <img class="vibe-toolbar-logo" src="${logoUrl}" />
       <div class="vibe-toolbar-separator"></div>
+      <div class="vibe-modes" role="radiogroup" aria-label="Mode">
+        <button class="vibe-mode-btn active" data-mode="interact" role="radio" title="Interact: use the page normally">${ICONS.pointer}<span>Interact</span></button>
+        <span class="vibe-modes-sep"></span>
+        <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" title="Annotate: click an element to leave a comment (${shortcutHint})">${ICONS.annotate}<span>Annotate</span></button>
+        <button class="vibe-mode-btn" data-mode="design" role="radio" title="Design: click an element to tweak its styles">${ICONS.palette}<span>Design</span></button>
+        <button class="vibe-mode-btn" data-mode="text" role="radio" title="Text: click any text to retype it">${ICONS.textMode}<span>Text</span></button>
+      </div>
+      <div class="vibe-toolbar-separator"></div>
       <div class="vibe-toolbar-middle">
         <div class="vibe-toolbar-default">
-          <button class="vibe-toolbar-btn vibe-tb-annotate" title="Annotate (${shortcutHint})">
-            ${ICONS.annotate}
-            <span>Annotate</span>
-          </button>
           <button class="vibe-toolbar-btn vibe-tb-viewall" title="View all annotations">
             ${ICONS.list}
             <span>View all</span>
@@ -152,7 +162,7 @@ import { isRecordableHotkey } from './hotkey.js';
           </button>
         </div>
         <div class="vibe-toolbar-annotating">
-          <span class="vibe-toolbar-instruction">Click to capture</span>
+          <span class="vibe-toolbar-instruction vibe-mode-instruction">Click to annotate</span>
           <span class="vibe-toolbar-dot"></span>
           <kbd class="vibe-toolbar-kbd">↑</kbd>
           <kbd class="vibe-toolbar-kbd">↓</kbd>
@@ -219,13 +229,14 @@ import { isRecordableHotkey } from './hotkey.js';
   }
 
   function wireButtons() {
-    // Annotate toggle
-    toolbarEl.querySelector('.vibe-tb-annotate').addEventListener('click', () => {
-      if (isAnnotating) {
-        VibeEvents.emit('inspection:stop');
-      } else {
-        VibeEvents.emit('inspection:start');
-      }
+    // Mode switch: Interact stops the inspector; the others start it in that mode.
+    toolbarEl.querySelectorAll('.vibe-mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mode = btn.dataset.mode;
+        if (mode === 'interact' || (isAnnotating && inspectMode === mode)) VibeEvents.emit('inspection:stop');
+        else VibeEvents.emit('inspection:start', { mode });
+      });
     });
 
     // View all
@@ -327,7 +338,9 @@ import { isRecordableHotkey } from './hotkey.js';
     let routesHTML = '';
     const sortedPaths = Object.keys(routeGroups).sort();
     for (const path of sortedPaths) {
-      const items = routeGroups[path];
+      // What needs you (a variant to pick, an agent question) comes first.
+      const needsYou = a => (variantToPick(a) || needsReply(a)) ? 0 : 1;
+      const items = [...routeGroups[path]].sort((a, b) => needsYou(a) - needsYou(b));
       const cardsHTML = items.map(a => {
         const isStylesheet = a.type === 'stylesheet';
         const selector = isStylesheet ? null : (a.selector || a.element_context?.tag || '?');
@@ -335,15 +348,23 @@ import { isRecordableHotkey } from './hotkey.js';
         const changeCount = hasPendingChanges ? Object.keys(a.pending_changes).length : 0;
         const comment = a.comment || '';
 
+        const kind = iconKindOf(a);
         let headerHTML;
         if (isStylesheet) {
           headerHTML = `<div class="vibe-viewall-design">${sparkleIcon}<span>Stylesheet change</span></div>`;
         } else {
-          headerHTML = `<div class="vibe-viewall-selector">${escapeHTML(selector)}</div>`;
+          headerHTML = `<div class="vibe-viewall-head"><span class="vibe-viewall-kind" data-kind="${kind}" title="${KIND_LABELS[kind]}">${KIND_ICONS[kind]}</span><span class="vibe-viewall-selector">${escapeHTML(selector)}</span></div>`;
         }
 
+        const copy = a.pending_changes?.copyChange;
         let bodyHTML;
-        if (hasPendingChanges && !comment) {
+        if (kindOf(a) === 'text' && copy) {
+          bodyHTML = `<div class="vibe-viewall-copy-change"><s>${escapeHTML(truncate(copy.original, 60))}</s><span>→</span><strong>${escapeHTML(truncate(copy.value, 60))}</strong></div>`;
+        } else if (comment && (threadOf(a).length || a.mode === 'variants')) {
+          // The conversation (last messages): the reply or variant pick reads here
+          // even when the pin on the page is hard to find.
+          bodyHTML = threadHTML(a).replace('class="vibe-thread"', 'class="vibe-thread compact"');
+        } else if (hasPendingChanges && !comment) {
           bodyHTML = `<div class="vibe-viewall-design">${sparkleIcon}<span>${changeCount} design change${changeCount !== 1 ? 's' : ''}</span></div>`;
         } else if (comment) {
           bodyHTML = `<div class="vibe-viewall-comment">${escapeHTML(comment)}</div>`;
@@ -359,7 +380,14 @@ import { isRecordableHotkey } from './hotkey.js';
         // Variant lifecycle chip — signals states that need agent action so the
         // list is self-explanatory (esp. why a "deleted" variant lingers here).
         const vs = variantStatusLabel(a);
-        const statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
+        let statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
+        if (needsReply(a)) statusHTML = '<div class="vibe-viewall-status reply">Needs your reply</div>';
+        else if (inProgress(a)) statusHTML = '<div class="vibe-viewall-status working">In progress with Claude</div>';
+        // Pick a variant right from the list.
+        if (variantToPick(a)) {
+          const opts = (a.variantsPayload?.variants || []).map(v => `<button class="vibe-viewall-variant" type="button" data-id="${a.id}" data-value="${escapeHTML(String(v.value))}">${escapeHTML(v.name || String(v.value))}</button>`).join('');
+          statusHTML = `<div class="vibe-viewall-status ready">Variant to pick</div><div class="vibe-viewall-variants">${opts}</div>`;
+        }
         // A scaffolded variant can't be hard-deleted (it awaits agent cleanup), so
         // hide the trash for the discarded state to avoid a no-op button.
         const deleteHTML = a.status === 'variants-discarded'
@@ -536,10 +564,29 @@ import { isRecordableHotkey } from './hotkey.js';
       });
     });
 
-    // Click card to scroll to element
+    // Pick a variant from the list: same as the popover's choose.
+    viewAllPanel.querySelectorAll('.vibe-viewall-variant').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const a = annotations.find(x => x.id === btn.dataset.id);
+        if (!a) return;
+        const value = btn.dataset.value;
+        const p = a.variantsPayload || {};
+        try { document.querySelector(p.container)?.setAttribute(p.attribute || 'data-vibe-active', value); } catch { /* not on this page */ }
+        VibeEvents.emit('variants:switched', { id: a.id, variant: value });
+        const name = (p.variants || []).find(v => String(v.value) === value)?.name || value;
+        const thread = [...threadOf(a), newMessage('user', `Picked “${name}”.`)];
+        await VibeAPI.updateAnnotation(a.id, { chosenVariant: value, status: 'variant-chosen', thread });
+        VibeAPI.forceSync();
+        openViewAll();
+      });
+    });
+
+    // Click a card: go to its pin and open it (reply, edit, pick).
     viewAllPanel.querySelectorAll('.vibe-viewall-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.vibe-viewall-card-delete')) return;
+        if (VibeBadgeManager.openAnnotation(card.dataset.id)) { closeViewAll(); return; }
         const id = card.dataset.id;
         const a = annotations.find(x => x.id === id);
         if (a && a.selector) {
@@ -810,6 +857,16 @@ import { isRecordableHotkey } from './hotkey.js';
   function updateUI() {
     if (!toolbarEl) return;
 
+    // --- Mode switch ---
+    const current = isAnnotating ? inspectMode : 'interact';
+    toolbarEl.querySelectorAll('.vibe-mode-btn').forEach(b => {
+      const on = b.dataset.mode === current;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    const instruction = toolbarEl.querySelector('.vibe-mode-instruction');
+    if (instruction) instruction.textContent = { annotate: 'Click to annotate', design: 'Click to design', text: 'Click any text to edit' }[inspectMode] || 'Click to capture';
+
     // --- Annotating mode morph (crossfade + width transition) ---
     const wasAnnotating = toolbarEl.classList.contains('annotating');
     const middleEl = toolbarEl.querySelector('.vibe-toolbar-middle');
@@ -952,18 +1009,28 @@ import { isRecordableHotkey } from './hotkey.js';
 
   let sessionPicker = null;
 
-  async function sendToClaude(sessionId) {
+  // ids: only these annotations (Send to Claude from the popover); otherwise
+  // every open annotation on this site.
+  async function sendToClaude(sessionId, ids) {
     closeSessionPicker();
     const sendBtn = toolbarEl.querySelector('.vibe-tb-send');
     sendBtn.disabled = true;
     sendBtn.classList.add('sending');
     let r = { success: false };
-    try { r = await VibeAPI.sendToClaude(sessionId); } catch { /* server gone */ }
+    const all = await VibeAPI.loadProjectAnnotations().catch(() => []);
+    const sending = ids ? all.filter(a => ids.includes(a.id)) : all.filter(a => (a.status || 'pending') === 'pending');
+    try { r = await VibeAPI.sendToClaude(sessionId, ids); } catch { /* server gone */ }
     if (r.choose) {
       sendBtn.classList.remove('sending');
       sendBtn.disabled = false;
-      openSessionPicker(r.choose);
+      openSessionPicker(r.choose, ids);
       return;
+    }
+    if (r.success) {
+      // In progress on the pins until Claude deletes, resolves or answers.
+      const at = new Date().toISOString();
+      for (const a of sending) await VibeAPI.updateAnnotation(a.id, { claude_sent_at: at }).catch(() => {});
+      VibeAPI.forceSync();
     }
     // Icon-only button: confirm with a check + a floating chip, so the bar keeps its width
     sendBtn.classList.add(r.success ? 'sent' : 'failed');
@@ -992,7 +1059,7 @@ import { isRecordableHotkey } from './hotkey.js';
 
   // Several Claude sessions are open and none works in this site's project:
   // ask which one. The server remembers the pick for this site.
-  function openSessionPicker(sessions) {
+  function openSessionPicker(sessions, ids) {
     closeSettings();
     closeViewAll();
     const rect = toolbarEl.getBoundingClientRect();
@@ -1007,7 +1074,7 @@ import { isRecordableHotkey } from './hotkey.js';
     sessionPicker.addEventListener('click', (e) => {
       e.stopPropagation();
       const pick = e.target.closest('[data-session]');
-      if (pick) sendToClaude(pick.dataset.session);
+      if (pick) sendToClaude(pick.dataset.session, ids);
     });
     toolbarEl.appendChild(sessionPicker);
     setTimeout(() => document.addEventListener('click', closeSessionPicker), 0);

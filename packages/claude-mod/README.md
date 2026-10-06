@@ -22,6 +22,13 @@ and hands them to Claude as one prompt when you press **Implement**.
   server on that port (found with `lsof`, macOS/Linux), else the session it was
   last sent to, else the only session. If none of those settles it, Send asks
   which session. Each band only shows its own sites.
+- **Send to Claude** in the annotation popover (a checkbox, remembered) sends
+  just that annotation when you save or reply. Sent annotations spin on their
+  pin and read "In progress with Claude" in View all until Claude is done.
+- **Threads:** when Claude can't finish one, it replies on the annotation
+  (MCP `reply_to_annotation`, or `POST /api/annotations/<id>/thread`) instead of
+  deleting it. The pin gets a dot; you answer in the popover, and the answer
+  makes the annotation new again for the mod.
 - After each turn, a toast flags annotations Claude was given but left open.
 - `/vibe` sends new annotations, `/vibe list` opens the pane, `/vibe auto on|off`
   toggles auto-send.

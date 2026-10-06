@@ -6,8 +6,14 @@ import VibeEvents from './event-bus.js';
 import VibeShadowDOMUtils from './shadow-dom-utils.js';
 import VibeShadowHost from './shadow-host.js';
 import VibeElementContext from './element-context.js';
+import VibeTextEdit from './text-edit.js';
 
+  // Inspector modes: 'annotate' (drop a comment), 'design' (design controls),
+  // 'text' (retype copy in place). The hotkey reopens the last one used.
+  const MODES = ['annotate', 'design', 'text'];
   let active = false;
+  let mode = 'annotate';
+  let lastMode = 'annotate';
   let highlightEl = null;
   let labelEl = null;
   let hoveredElement = null;
@@ -28,8 +34,19 @@ import VibeElementContext from './element-context.js';
     VibeEvents.on('inspection:stop', stop);
   }
 
-  function start() {
-    if (active) return;
+  function start(opts) {
+    const next = MODES.includes(opts?.mode) ? opts.mode : lastMode;
+    if (active) {
+      // Already inspecting: switching mode keeps the listeners, just retargets.
+      if (next !== mode) {
+        mode = lastMode = next;
+        if (highlightEl) highlightEl.style.display = 'none';
+        hoveredElement = null;
+        VibeEvents.emit('inspection:started', { mode });
+      }
+      return;
+    }
+    mode = lastMode = next;
     active = true;
 
     const root = VibeShadowHost.getRoot();
@@ -65,10 +82,10 @@ import VibeElementContext from './element-context.js';
     // Crosshair cursor on all host page elements
     const cursorStyle = document.createElement('style');
     cursorStyle.setAttribute('data-vibe-cursor', '');
-    cursorStyle.textContent = '*, *::before, *::after { cursor: crosshair !important; }';
+    cursorStyle.textContent = '*, *::before, *::after { cursor: crosshair !important; } [data-vibe-editing], [data-vibe-editing] * { cursor: text !important; }';
     document.head.appendChild(cursorStyle);
 
-    VibeEvents.emit('inspection:started');
+    VibeEvents.emit('inspection:started', { mode });
   }
 
   function stop() {
@@ -105,6 +122,20 @@ import VibeElementContext from './element-context.js';
 
   function isActive() {
     return active;
+  }
+
+  function getMode() {
+    return active ? mode : 'interact';
+  }
+
+  function getLastMode() {
+    return lastMode;
+  }
+
+  // Text mode only targets elements that own visible text.
+  function resolveTarget(el) {
+    if (!el) return null;
+    return mode === 'text' ? VibeTextEdit.findEditable(el) : el;
   }
 
   let listenersAttached = false;
@@ -174,8 +205,8 @@ import VibeElementContext from './element-context.js';
     if (!active || isOurUI(e)) return;
     e.stopPropagation();
 
-    const target = getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY);
-    if (!target) return;
+    const target = resolveTarget(getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY));
+    if (!target) { hoveredElement = null; if (highlightEl) highlightEl.style.display = 'none'; return; }
 
     hoveredElement = target;
     updateHighlight(target);
@@ -198,8 +229,9 @@ import VibeElementContext from './element-context.js';
   function handlePointerMove(e) {
     if (!active || isOurUI(e)) return;
 
-    const target = getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY);
-    if (!target || target === document.body || target === document.documentElement) return;
+    const target = resolveTarget(getDeepTarget(e) || VibeShadowDOMUtils.elementFromPointDeep(e.clientX, e.clientY));
+    if (!target) { if (mode === 'text' && !navigatedByKeyboard) { hoveredElement = null; if (highlightEl) highlightEl.style.display = 'none'; } return; }
+    if (target === document.body || target === document.documentElement) return;
     if (target === hoveredElement) return;
 
     // After keyboard nav, ignore mousemove within the selected element's subtree
@@ -219,17 +251,20 @@ import VibeElementContext from './element-context.js';
     e.stopImmediatePropagation();
 
     // Prefer keyboard-navigated element over click target
-    const target = (navigatedByKeyboard && hoveredElement?.isConnected) ? hoveredElement : getDeepTarget(e);
+    const target = (navigatedByKeyboard && hoveredElement?.isConnected) ? hoveredElement : resolveTarget(getDeepTarget(e));
     if (!target || target === document.body || target === document.documentElement) return;
 
     tempDisable();
-    VibeEvents.emit('inspection:elementClicked', { element: target, clientX: e.clientX, clientY: e.clientY });
+    emitPick(target, e.clientX, e.clientY);
   }
 
   // Arrow key DOM navigation — ↑ parent, ↓ retrace path back to anchor
   function handleKeyDown(e) {
     if (!active) return;
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
+    // Typing in a pinned popover while inspecting: leave its keys alone.
+    const focused = VibeShadowHost.getRoot()?.activeElement;
+    if (focused && (focused.tagName === 'TEXTAREA' || focused.tagName === 'INPUT' || focused.isContentEditable)) return;
 
     // Always handle these keys in inspection mode, even if focus is on our toolbar
     e.preventDefault();
@@ -246,11 +281,7 @@ import VibeElementContext from './element-context.js';
     if (e.key === 'Enter') {
       const rect = current.getBoundingClientRect();
       tempDisable();
-      VibeEvents.emit('inspection:elementClicked', {
-        element: current,
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2
-      });
+      emitPick(current, rect.left + rect.width / 2, rect.top + rect.height / 2);
       return;
     }
 
@@ -271,6 +302,15 @@ import VibeElementContext from './element-context.js';
     hoveredElement = next;
     navigatedByKeyboard = true;
     updateHighlight(next);
+  }
+
+  // Text mode edits in place; the other modes open the popover.
+  function emitPick(element, clientX, clientY) {
+    if (mode === 'text') {
+      VibeEvents.emit('text:edit', { element, clientX, clientY });
+      return;
+    }
+    VibeEvents.emit('inspection:elementClicked', { element, clientX, clientY, mode });
   }
 
   // Safety nets — swallow mousedown/click so frameworks never see the interaction
@@ -319,5 +359,5 @@ import VibeElementContext from './element-context.js';
     return out.length > 42 ? out.slice(0, 41) + '…' : out;
   }
 
-const VibeInspectionMode = { init, start, stop, isActive, tempDisable, reEnable };
+const VibeInspectionMode = { init, start, stop, isActive, getMode, getLastMode, tempDisable, reEnable };
 export default VibeInspectionMode;

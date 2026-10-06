@@ -2353,4 +2353,220 @@ export const VIBE_STYLES = `
 }
 .vibe-variant-row input { accent-color: var(--v-accent, #d97757); margin: 0; }
 
+
+/* ===== Toolbar modes: [Interact | Annotate / Design / Text] ===== */
+.vibe-modes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  flex-shrink: 0;
+}
+.vibe-modes-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 2px;
+  background: var(--v-separator);
+}
+.vibe-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--v-toolbar-text);
+  font: 500 13px/1 var(--v-font);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.vibe-mode-btn:hover { background: var(--v-toolbar-btn-hover); color: var(--v-toolbar-text-active); }
+.vibe-mode-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.vibe-mode-btn.active {
+  background: rgba(255,255,255,0.1);
+  color: var(--v-toolbar-text-active);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.vibe-mode-btn.active:not([data-mode="interact"]) {
+  background: var(--v-pill-gradient);
+  color: #fff;
+  box-shadow: none;
+}
+/* While inspecting, the labels of the inactive inspector modes fold to icons. */
+.vibe-toolbar.annotating .vibe-mode-btn:not(.active) span { display: none; }
+
+/* ===== Pins: kind icon + state ===== */
+.vibe-badge .vibe-badge-label svg { width: 12px; height: 12px; display: block; }
+.vibe-badge.in-progress::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(0,0,0,0.25);
+  border-top-color: #fff;
+  border-right-color: #fff;
+  animation: vibe-pin-spin 0.9s linear infinite;
+  pointer-events: none;
+}
+@keyframes vibe-pin-spin { to { transform: rotate(360deg); } }
+.vibe-badge.needs-reply::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibe-badge.in-progress::after { animation: none; border-color: #fff; }
+}
+
+/* ===== Popover: pin to toolbar, thread, send to Claude ===== */
+.vibe-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--v-radius-xs);
+  background: none;
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.vibe-design-reset + .vibe-pin-btn { margin-left: 0; }
+.vibe-pin-btn:hover { color: var(--v-text-primary); background: var(--v-surface-hover); }
+.vibe-pin-btn.on { color: #fff; background: var(--v-pill-gradient); transform: rotate(-30deg); }
+.vibe-popover-anchor.docked { pointer-events: none; }
+.vibe-popover-anchor.docked .vibe-popover { pointer-events: auto; animation: none; }
+
+.vibe-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0 14px 10px;
+}
+.vibe-msg { display: flex; flex-direction: column; gap: 3px; }
+.vibe-msg-who {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font: 600 11px/1 var(--v-font);
+  color: var(--v-text-secondary);
+}
+.vibe-msg-who span { font-weight: 400; opacity: 0.7; }
+.vibe-msg-body {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--v-surface-hover);
+  color: var(--v-text-primary);
+  font: 450 12.5px/1.4 var(--v-font);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.vibe-msg.agent .vibe-msg-who { color: #93c5fd; }
+.vibe-msg.agent .vibe-msg-body { background: rgba(59,130,246,0.14); }
+.vibe-thread.compact { margin: 2px 0 0; max-height: none; gap: 5px; }
+.vibe-thread.compact .vibe-msg-body { padding: 5px 8px; font-size: 12px; }
+
+.vibe-send-claude {
+  display: flex;
+  padding: 2px 14px 0;
+  align-items: center;
+  gap: 5px;
+  font: 500 11.5px/1 var(--v-font);
+  color: var(--v-text-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.vibe-send-claude[hidden] { display: none; }
+.vibe-send-claude input { margin: 0; accent-color: #D03D68; }
+.vibe-send-claude:has(input:checked) { color: var(--v-text-primary); }
+
+/* ===== Text mode ===== */
+.vibe-text-hint {
+  position: fixed;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--v-panel-bg);
+  box-shadow: var(--v-panel-shadow);
+  color: var(--v-text-secondary);
+  font: 500 11.5px/1 var(--v-font);
+  pointer-events: none;
+}
+.vibe-text-hint kbd {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--v-kbd-bg);
+  color: var(--v-text-primary);
+  font: 500 10.5px/1 var(--v-font);
+}
+
+/* ===== View all: kind, copy change, thread, states, variant pick ===== */
+.vibe-viewall-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.vibe-viewall-head .vibe-viewall-selector { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vibe-viewall-kind {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--v-badge-bg);
+  color: #fff;
+  flex-shrink: 0;
+}
+.vibe-viewall-kind svg { width: 10px; height: 10px; }
+.vibe-viewall-copy-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  font: 450 12.5px/1.4 var(--v-font);
+  color: var(--v-toolbar-text);
+}
+.vibe-viewall-copy-change s { color: var(--v-text-secondary); }
+.vibe-viewall-copy-change span { color: var(--v-text-secondary); }
+.vibe-viewall-status.reply {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.vibe-viewall-status.working {
+  color: #f9a8d4;
+  background: rgba(208, 61, 104, 0.12);
+  border-color: rgba(208, 61, 104, 0.3);
+}
+.vibe-viewall-variants { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.vibe-viewall-variant {
+  padding: 4px 9px;
+  border: 1px solid var(--v-outline-highlight, rgba(255,255,255,0.14));
+  border-radius: var(--v-radius-full);
+  background: none;
+  color: var(--v-text-primary);
+  font: 500 11.5px/1 var(--v-font);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.vibe-viewall-variant:hover { background: var(--v-pill-gradient); border-color: transparent; color: #fff; }
 `;

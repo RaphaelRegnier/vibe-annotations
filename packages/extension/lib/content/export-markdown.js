@@ -60,6 +60,12 @@ export function renderAnnotationsMarkdown(annotations, host) {
 
     if (a.css) md += `- **CSS:**\n\`\`\`css\n${a.css}\n\`\`\`\n`;
 
+    const thread = Array.isArray(a.thread) ? a.thread : [];
+    if (thread.length) {
+      md += `- **Thread:**\n`;
+      for (const m of thread) md += `    - ${m.author === 'agent' ? 'Agent' : 'Me'}: ${m.body}\n`;
+    }
+
     for (const att of (a.attachments || [])) {
       const label = att.kind === 'capture' ? 'Screenshot' : 'Reference';
       md += `- **${label}:** ![${label}](${attachmentPath(a.id, att)})\n`;

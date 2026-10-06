@@ -1,4 +1,6 @@
-// Renders numbered pins (badges) inside shadow DOM
+// Renders pins (badges) inside shadow DOM. Each pin shows what kind of edit it
+// holds (comment, design, text, variants) and where it stands (in progress with
+// Claude, waiting on your reply, variant to pick).
 // Position-tracked via RAF loop (only runs when badges exist)
 // Zero host DOM modification for display
 
@@ -6,6 +8,8 @@ import VibeAPI from './api-bridge.js';
 import VibeElementContext from './element-context.js';
 import VibeEvents from './event-bus.js';
 import VibeShadowHost from './shadow-host.js';
+import VibeTextEdit from './text-edit.js';
+import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, needsReply, variantToPick, inProgress } from './annotation-meta.js';
 
   const DESIGN_PROPS = [
     'fontSize','fontWeight','lineHeight','textAlign',
@@ -32,7 +36,7 @@ import VibeShadowHost from './shadow-host.js';
   function revertPendingChanges(el, pc) {
     for (const prop of Object.keys(pc)) {
       if (prop === 'copyChange') {
-        el.textContent = pc.copyChange.original;
+        VibeTextEdit.setText(el, pc.copyChange.original);
         continue;
       }
       const entry = pc[prop];
@@ -76,16 +80,9 @@ import VibeShadowHost from './shadow-host.js';
   function onWatchChanged({ active }) {
     watchMode = active;
     // Update all existing badges
-    badges.forEach((entry, i) => {
-      const label = entry.el.querySelector('.vibe-badge-label');
-      if (!label) return;
-      if (watchMode) {
-        label.innerHTML = EYE_SVG;
-        entry.el.classList.add('watching');
-      } else {
-        label.textContent = (i + 1).toString();
-        entry.el.classList.remove('watching');
-      }
+    badges.forEach(entry => {
+      entry.el.classList.toggle('watching', watchMode);
+      paintBadge(entry);
     });
   }
 
@@ -144,7 +141,7 @@ import VibeShadowHost from './shadow-host.js';
             for (const prop of getStyleProps(pc)) {
               if (pc[prop]) newTarget.style[prop] = pc[prop].value;
             }
-            if (pc.copyChange) newTarget.textContent = pc.copyChange.value;
+            if (pc.copyChange) VibeTextEdit.setText(newTarget, pc.copyChange.value);
           }
           changed = true;
         }
@@ -153,7 +150,7 @@ import VibeShadowHost from './shadow-host.js';
     // Re-matched badges after framework re-render
   }
 
-  function onProvisionalPin({ clientX, clientY }) {
+  function onProvisionalPin({ clientX, clientY, mode }) {
     removeProvisional();
     const root = VibeShadowHost.getRoot();
     if (!root || clientX == null) return;
@@ -162,7 +159,7 @@ import VibeShadowHost from './shadow-host.js';
     badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
     const label = document.createElement('span');
     label.className = 'vibe-badge-label';
-    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = (lastProjectTotal + 1).toString(); }
+    label.innerHTML = watchMode ? EYE_SVG : KIND_ICONS[mode === 'design' ? 'design' : 'comment'];
     badge.appendChild(label);
     root.appendChild(badge);
     provisionalBadge = badge;
@@ -258,7 +255,7 @@ import VibeShadowHost from './shadow-host.js';
           for (const prop of getStyleProps(rpc)) {
             if (rpc[prop]) target.style[prop] = rpc[prop].value;
           }
-          if (rpc.copyChange) target.textContent = rpc.copyChange.value;
+          if (rpc.copyChange) VibeTextEdit.setText(target, rpc.copyChange.value);
         }
         // Inject companion CSS rules if present
         if (annotation.css) {
@@ -319,23 +316,19 @@ import VibeShadowHost from './shadow-host.js';
     badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
     badge.dataset.annotationId = annotation.id;
 
-    // Label span (number or eye)
+    // Label span (kind icon, or the eye while watching)
     const label = document.createElement('span');
     label.className = 'vibe-badge-label';
-    if (watchMode) { label.innerHTML = EYE_SVG; } else { label.textContent = index.toString(); }
     badge.appendChild(label);
 
-    // Tooltip
-    if (annotation.comment) {
-      const tooltip = document.createElement('div');
-      tooltip.className = 'vibe-badge-tooltip';
-      tooltip.textContent = annotation.comment;
-      badge.appendChild(tooltip);
-    }
+    const tooltip = document.createElement('div');
+    tooltip.className = 'vibe-badge-tooltip';
+    badge.appendChild(tooltip);
 
     root.appendChild(badge);
 
     const entry = { el: badge, annotation, targetElement, variant: variant || null };
+    paintBadge(entry);
 
     // Click → edit (read from entry so we get the latest annotation after updates)
     badge.addEventListener('click', (e) => {
@@ -349,6 +342,31 @@ import VibeShadowHost from './shadow-host.js';
 
     // Start RAF loop if not running
     if (!rafId) startRAF();
+  }
+
+  // Icon, state ring / dot and tooltip, from the annotation's current data.
+  function paintBadge(entry) {
+    const a = entry.annotation;
+    const kind = iconKindOf(a);
+    const label = entry.el.querySelector('.vibe-badge-label');
+    if (label) label.innerHTML = watchMode ? EYE_SVG : KIND_ICONS[kind];
+    entry.el.dataset.kind = kind;
+    const reply = needsReply(a);
+    const pick = variantToPick(a);
+    const working = inProgress(a);
+    entry.el.classList.toggle('in-progress', working);
+    entry.el.classList.toggle('needs-reply', reply || pick);
+    const tooltip = entry.el.querySelector('.vibe-badge-tooltip');
+    if (tooltip) {
+      const k = kindOf(a);
+      const copy = a.pending_changes?.copyChange;
+      let text = (a.comment || '').trim()
+        || (k === 'text' && copy ? `“${copy.original}” → “${copy.value}”` : KIND_LABELS[k]);
+      if (pick) text = 'Variants ready, pick one';
+      else if (reply) text = `Agent: ${a.thread[a.thread.length - 1].body}`;
+      else if (working) text = `In progress with Claude · ${text}`;
+      tooltip.textContent = text;
+    }
   }
 
   function positionBadge(entry) {
@@ -489,43 +507,25 @@ import VibeShadowHost from './shadow-host.js';
     }
     if (!badges.length) stopRAF();
 
-    // Re-number remaining badges (or keep eye icons in watch mode)
-    badges.forEach((entry, i) => {
-      const label = entry.el.querySelector('.vibe-badge-label');
-      if (!label) return;
-      if (watchMode) {
-        label.innerHTML = EYE_SVG;
-      } else {
-        label.textContent = (i + 1).toString();
-      }
-    });
+
   }
 
-  function onUpdated({ id, comment, pending_changes, css }) {
+  function onUpdated({ id, comment, pending_changes, css, thread }) {
     const entry = badges.find(b => b.annotation.id === id);
     if (entry) {
-      let tooltip = entry.el.querySelector('.vibe-badge-tooltip');
-      if (comment) {
-        if (!tooltip) {
-          tooltip = document.createElement('div');
-          tooltip.className = 'vibe-badge-tooltip';
-          entry.el.appendChild(tooltip);
-        }
-        tooltip.textContent = comment;
-      } else if (tooltip) {
-        tooltip.remove();
-      }
       const oldPC = entry.annotation.pending_changes;
       // Revert old changes before applying new state
       if (oldPC) {
         revertPendingChanges(entry.targetElement, oldPC);
       }
       entry.annotation = { ...entry.annotation, comment, pending_changes, css };
+      if (thread) entry.annotation.thread = thread;
+      paintBadge(entry);
       if (pending_changes) {
         for (const prop of getStyleProps(pending_changes)) {
           if (pending_changes[prop]) entry.targetElement.style[prop] = pending_changes[prop].value;
         }
-        if (pending_changes.copyChange) entry.targetElement.textContent = pending_changes.copyChange.value;
+        if (pending_changes.copyChange) VibeTextEdit.setText(entry.targetElement, pending_changes.copyChange.value);
       }
 
       // Update companion style tag
@@ -562,9 +562,18 @@ import VibeShadowHost from './shadow-host.js';
     }, 3000);
   }
 
+  // Scroll to an annotation's pin and open it. False when it isn't on this page.
+  function openAnnotation(id) {
+    const entry = badges.find(b => b.annotation.id === id);
+    if (!entry || !entry.targetElement.isConnected) return false;
+    entry.targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => VibeEvents.emit('annotation:edit', { annotation: entry.annotation, element: entry.targetElement }), 400);
+    return true;
+  }
+
   function getCount() {
     return badges.length;
   }
 
-const VibeBadgeManager = { init, render, clearAll, targetBadge, highlightElement, getCount };
+const VibeBadgeManager = { init, render, clearAll, targetBadge, highlightElement, openAnnotation, getCount };
 export default VibeBadgeManager;

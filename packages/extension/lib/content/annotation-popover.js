@@ -7,6 +7,7 @@ import VibeEvents, { vibeLocationPath } from './event-bus.js';
 import VibeInspectionMode from './inspection-mode.js';
 import VibePopoverPanels from './popover-panels.js';
 import VibeShadowHost from './shadow-host.js';
+import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
   let currentPopover = null;
   let currentTargetHighlight = null;
@@ -23,6 +24,13 @@ import VibeShadowHost from './shadow-host.js';
   let activePendingAttachments = null;
 
   const P = VibePopoverPanels; // shorthand
+
+  // Pinned popover: docked to the toolbar instead of the element, and it stays
+  // open while you keep inspecting (the next pick replaces it in place).
+  let docked = false;
+  try { docked = sessionStorage.getItem('vibe-popover-docked') === '1'; } catch { /* storage blocked */ }
+  const SEND_KEY = 'vibe-send-to-claude'; // "Send to Claude" checkbox, remembered
+  const VIBE_PIN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
 
   const VIBE_IMG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
   const VIBE_X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
@@ -55,26 +63,90 @@ import VibeShadowHost from './shadow-host.js';
     VibeEvents.on('annotation:edit', onEditRequested);
   }
 
-  async function onElementClicked({ element, clientX, clientY }) {
+  async function onElementClicked({ element, clientX, clientY, mode }) {
     const context = await VibeElementContext.generate(element);
-    show(element, context, null, clientX, clientY);
+    show(element, context, null, clientX, clientY, mode === 'design' ? 'design' : 'annotate');
   }
 
   async function onEditRequested({ annotation, element }) {
+    const kind = kindOf(annotation);
+    // A text edit reopens in place, like Text mode.
+    if (kind === 'text' && annotation.mode !== 'variants') {
+      VibeEvents.emit('text:edit', { element, annotation });
+      return;
+    }
     VibeInspectionMode.tempDisable();
     const context = await VibeElementContext.generate(element);
-    show(element, context, annotation);
+    show(element, context, annotation, undefined, undefined, kind === 'design' ? 'design' : 'annotate');
+  }
+
+  // Dock to the toolbar: under it, or above when the toolbar sits low.
+  function positionDocked(popover) {
+    const bar = VibeShadowHost.getRoot()?.querySelector('.vibe-toolbar');
+    if (!bar || !popover) return false;
+    const r = bar.getBoundingClientRect();
+    const h = popover.offsetHeight || 300;
+    const w = popover.offsetWidth || 340;
+    const below = r.top < window.innerHeight / 2;
+    const top = below ? r.bottom + 8 : r.top - 8 - h;
+    const left = Math.max(10, Math.min(r.right - w, window.innerWidth - w - 10));
+    popover.style.position = 'fixed';
+    popover.style.top = `${Math.max(10, top)}px`;
+    popover.style.left = `${left}px`;
+    return true;
+  }
+
+  function setDocked(anchor, popover, targetElement, clickX, clickY, on) {
+    docked = on;
+    try { sessionStorage.setItem('vibe-popover-docked', on ? '1' : '0'); } catch { /* storage blocked */ }
+    anchor.classList.toggle('docked', on);
+    popover.querySelector('.vibe-pin-btn')?.classList.toggle('on', on);
+    popover.querySelector('.vibe-pin-btn')?.setAttribute('title', on ? 'Unpin from the toolbar' : 'Pin to the toolbar');
+    if (on) {
+      positionDocked(popover);
+      // Docked: keep inspecting; the next pick replaces this popover.
+      VibeInspectionMode.reEnable();
+    } else {
+      positionPopover(anchor, targetElement, clickX, clickY);
+      VibeInspectionMode.tempDisable();
+    }
+  }
+
+  function wirePin(anchor, popover, targetElement, clickX, clickY) {
+    const btn = popover.querySelector('.vibe-pin-btn');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setDocked(anchor, popover, targetElement, clickX, clickY, !docked);
+    });
+    if (docked) setDocked(anchor, popover, targetElement, clickX, clickY, true);
+  }
+
+  // "Send to Claude" checkbox: only while the Claude Code mod is connected.
+  function wireSendToClaude(popover) {
+    const wrap = popover.querySelector('.vibe-send-claude');
+    if (!wrap) return () => false;
+    const box = wrap.querySelector('input');
+    try { box.checked = localStorage.getItem(SEND_KEY) === '1'; } catch { /* storage blocked */ }
+    box.addEventListener('change', () => {
+      try { localStorage.setItem(SEND_KEY, box.checked ? '1' : '0'); } catch { /* storage blocked */ }
+    });
+    VibeAPI.getClaudeStatus().then(s => { if (s?.connected) wrap.hidden = false; }).catch(() => {});
+    return () => !wrap.hidden && box.checked;
   }
 
   // --- Show popover ---
 
-  async function show(targetElement, context, existingAnnotation, clickX, clickY) {
+  async function show(targetElement, context, existingAnnotation, clickX, clickY, intent = 'annotate') {
     dismiss();
 
     const root = VibeShadowHost.getRoot();
     if (!root) return;
 
     const isEdit = !!existingAnnotation;
+    const isDesign = intent === 'design';
+    // An existing comment opens as a conversation: the composer adds a reply.
+    const isThread = isEdit && !isDesign && existingAnnotation.mode !== 'variants';
     const isFile = VibeAPI.isFileProtocol();
     const elType = P.classifyElement(targetElement);
     // Once the agent has generated variants, reopening shows the live variant
@@ -93,7 +165,7 @@ import VibeShadowHost from './shadow-host.js';
 
     // Anchor wrapper
     const anchor = document.createElement('div');
-    anchor.className = 'vibe-popover-anchor';
+    anchor.className = 'vibe-popover-anchor' + (docked ? ' docked' : '');
     root.appendChild(anchor);
 
     // Popover card
@@ -170,24 +242,26 @@ import VibeShadowHost from './shadow-host.js';
       ? `${context.tag}.${context.classes[0]}`
       : context.tag;
 
+    const titleText = isDesign ? 'Design' : (isThread ? 'Comment on' : 'Annotate');
     popover.innerHTML = `
       <div class="vibe-drag-handle"></div>
       <div class="vibe-popover-title">
-        <span>Editing <code>${P.escapeHTML(selectorLabel)}</code></span>
-        <button class="vibe-design-reset" type="button" title="Reset design changes">${P.ICONS.reset}</button>
+        <span>${titleText} <code>${P.escapeHTML(selectorLabel)}</code></span>
+        <button class="vibe-design-reset" type="button" title="Reset design changes"${isDesign ? '' : ' style="display:none"'}>${P.ICONS.reset}</button>
+        <button class="vibe-pin-btn${docked ? ' on' : ''}" type="button" title="${docked ? 'Unpin from the toolbar' : 'Pin to the toolbar'}">${VIBE_PIN_ICON}</button>
       </div>
-      <div class="vibe-mode-bar">
+      ${(isDesign || isThread) ? '' : `<div class="vibe-mode-bar">
         <button class="vibe-mode-tab active" data-mode="comment" type="button" title="Comment — an AI instruction">${VIBE_COMMENT_ICON}<span>Comment</span></button>
-        <button class="vibe-mode-tab" data-mode="design" type="button" title="Design edit — tweak CSS visually">${VIBE_DESIGN_ICON}<span>Design</span><span class="vibe-mode-dot"></span></button>
         ${isEdit ? '' : `<button class="vibe-mode-tab" data-mode="variants" type="button" disabled title="Requires the MCP server">${VIBE_VARIANTS_ICON}<span>Variants</span></button>`}
-      </div>
+      </div>`}
       ${warningHTML}
-      <div class="vibe-mode-panel" data-mode="comment">
+      ${isThread ? threadHTML(existingAnnotation) : ''}
+      <div class="vibe-mode-panel" data-mode="comment"${isDesign ? ' hidden' : ''}>
         <div class="vibe-input-wrap">
-          <textarea class="vibe-textarea vibe-textarea-add" placeholder="Describe the change for your AI agent…" maxlength="1000">${isEdit ? P.escapeHTML(existingAnnotation.comment) : ''}</textarea>
+          <textarea class="vibe-textarea vibe-textarea-add" placeholder="${isThread ? 'Reply…' : 'Describe the change for your AI agent…'}" maxlength="1000">${(isEdit && !isThread && !isDesign) ? P.escapeHTML(existingAnnotation.comment || '') : ''}</textarea>
           <div class="vibe-input-foot">
             <button class="vibe-add-btn" type="button" title="Add an attachment">${VIBE_PLUS_ICON}</button>
-            <span class="vibe-kbd-hint">${P.kbdHint} to save</span>
+            <span class="vibe-kbd-hint">${P.kbdHint} to ${isThread ? 'reply' : 'save'}</span>
           </div>
           <span class="vibe-resize-grip" title="Drag to resize">
             <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M8 1L1 8M8 5L5 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
@@ -201,17 +275,18 @@ import VibeShadowHost from './shadow-host.js';
         <div class="vibe-attachments empty"></div>
         <input type="file" accept="${ATTACH_ACCEPT}" class="vibe-attach-input" hidden multiple>
       </div>
-      <div class="vibe-mode-panel vibe-design-accordion" data-mode="design" hidden>
+      <div class="vibe-mode-panel vibe-design-accordion" data-mode="design"${isDesign ? '' : ' hidden'}>
         ${designAccordionHTML}
       </div>
+      <label class="vibe-send-claude" hidden title="Hand it to the Claude Code session right after saving"><input type="checkbox"><span>Send to Claude when ${isThread ? 'replying' : 'saved'}</span></label>
       <div class="vibe-popover-footer">
         <div class="vibe-footer-left">
-          ${isEdit ? `<button class="vibe-btn-icon vibe-delete-btn" title="Delete">${P.ICONS.trash}</button>` : ''}
+          ${isEdit ? `<button class="vibe-btn-icon vibe-delete-btn" title="${isThread ? 'Resolve and delete' : 'Delete'}">${P.ICONS.trash}</button>` : ''}
           <span class="vibe-viewport-info">${P.getDeviceIcon(window.innerWidth)} ${window.innerWidth}w</span>
         </div>
         <div class="vibe-footer-right">
-          <button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">Cancel</button>
-          <button class="vibe-btn vibe-btn-primary vibe-save-btn">${isEdit ? 'Save' : 'Save as pointer'}</button>
+          <button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">${isThread ? 'Close' : 'Cancel'}</button>
+          <button class="vibe-btn vibe-btn-primary vibe-save-btn">${isThread ? 'Reply' : (isEdit ? 'Save' : 'Save as pointer')}</button>
         </div>
       </div>
     `;
@@ -221,6 +296,10 @@ import VibeShadowHost from './shadow-host.js';
 
     positionPopover(anchor, targetElement, clickX, clickY);
     wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
+    wirePin(anchor, popover, targetElement, clickX, clickY);
+    const sendChecked = wireSendToClaude(popover);
+    const threadEl = popover.querySelector('.vibe-thread');
+    if (threadEl) requestAnimationFrame(() => { threadEl.scrollTop = threadEl.scrollHeight; });
 
     const textarea = popover.querySelector('.vibe-textarea');
     const saveBtn = popover.querySelector('.vibe-save-btn');
@@ -459,7 +538,7 @@ import VibeShadowHost from './shadow-host.js';
     // Comment + Design are combinable views on ONE annotation (both save together).
     // Variants is a distinct save path (mode:"variants") — new annotations only,
     // gated on the MCP server being connected.
-    let activeMode = 'comment';
+    let activeMode = isDesign ? 'design' : 'comment';
     const modeTabs = popover.querySelectorAll('.vibe-mode-tab');
     const instructionPanel = popover.querySelector('.vibe-mode-panel[data-mode="comment"]');
     const designPanel = popover.querySelector('.vibe-mode-panel[data-mode="design"]');
@@ -702,8 +781,14 @@ import VibeShadowHost from './shadow-host.js';
       // An image attachment (pending/added) or a screenshot that will be captured
       // on save counts as content — the annotation isn't just a bare pointer.
       const hasImage = pendingAttachments.length > 0 || VibeAPI.isScreenshotEnabled();
-      if (isEdit) {
-        const commentChanged = text !== (existingAnnotation.comment || '');
+      if (isThread) {
+        saveBtn.textContent = 'Reply';
+        saveBtn.disabled = !text && !attachmentsDirty;
+      } else if (isDesign && !isEdit) {
+        saveBtn.disabled = !hasDesignChanges && !(cssRulesTextarea?.value.trim());
+        saveBtn.textContent = 'Save';
+      } else if (isEdit) {
+        const commentChanged = !isDesign && text !== (existingAnnotation.comment || '');
         const savedPC = existingAnnotation.pending_changes || null;
         const designChanged = JSON.stringify(buildPendingChanges()) !== JSON.stringify(savedPC);
         const cssRulesVal = cssRulesTextarea ? cssRulesTextarea.value : '';
@@ -727,8 +812,13 @@ import VibeShadowHost from './shadow-host.js';
     };
     document.addEventListener('blur', blurBlocker, true);
     document.addEventListener('focusout', blurBlocker, true);
-    textarea.focus();
-    if (isEdit) textarea.select();
+    if (isDesign) {
+      popover.querySelectorAll('.vibe-design-sec-body').forEach(body => {
+        if (body.style.display !== 'none') refreshDesignSection(body);
+      });
+    }
+    if (isDesign) popover.querySelector('.vibe-design-sec-toggle')?.focus();
+    else textarea.focus();
     document.removeEventListener('blur', blurBlocker, true);
     document.removeEventListener('focusout', blurBlocker, true);
     textarea.addEventListener('pointerdown', () => textarea.focus());
@@ -737,7 +827,7 @@ import VibeShadowHost from './shadow-host.js';
     const close = () => dismiss(true);
     cancelBtn.addEventListener('click', close);
     anchor.addEventListener('pointerdown', (e) => {
-      if (e.target === anchor) close();
+      if (e.target === anchor && !docked) close();
     });
 
     // ESC / Cmd+Enter
@@ -786,10 +876,15 @@ import VibeShadowHost from './shadow-host.js';
         // and skip design edits. Otherwise the comment comes from the Comment tab and
         // design edits from the accordion (the two combine on one annotation).
         const isVariants = activeMode === 'variants';
-        const comment = textarea.value.trim();
-        const pendingChanges = isVariants ? null : buildPendingChanges();
-        const cssRulesVal = (!isVariants && cssRulesTextarea) ? cssRulesTextarea.value.trim() : '';
-        const cssField = cssRulesVal || null;
+        const text = textarea.value.trim();
+        // Annotate leaves an existing annotation's design edits alone; Design
+        // keeps its comment (older annotations can carry both).
+        const comment = isDesign ? (existingAnnotation?.comment || '') : (isThread ? existingAnnotation.comment : text);
+        const pendingChanges = isVariants ? null
+          : (isDesign ? buildPendingChanges() : (existingAnnotation?.pending_changes || null));
+        const cssRulesVal = (!isVariants && isDesign && cssRulesTextarea) ? cssRulesTextarea.value.trim() : '';
+        const cssField = isDesign ? (cssRulesVal || null) : (existingAnnotation?.css || null);
+        let sentId = null;
 
         targetElement.style.cssText = activeOriginalCssText || '';
         if (pendingChanges) {
@@ -799,12 +894,21 @@ import VibeShadowHost from './shadow-host.js';
           }
         }
 
-        if (isEdit) {
+        if (isThread) {
+          // A reply: append to the thread. The annotation stays open for the agent.
+          const thread = text ? [...threadOf(existingAnnotation), newMessage('user', text)] : threadOf(existingAnnotation);
+          await VibeAPI.updateAnnotation(existingAnnotation.id, { thread });
+          VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField, thread });
+          VibeAPI.forceSync();
+          sentId = existingAnnotation.id;
+        } else if (isEdit) {
           const updates = { comment, updated_at: new Date().toISOString(), pending_changes: pendingChanges, css: cssField };
           await VibeAPI.updateAnnotation(existingAnnotation.id, updates);
           VibeEvents.emit('annotation:updated', { id: existingAnnotation.id, comment, pending_changes: pendingChanges, css: cssField });
+          sentId = existingAnnotation.id;
         } else {
           const annotation = buildAnnotation(context, comment, pendingChanges);
+          annotation.kind = isDesign ? 'design' : 'comment';
           if (isVariants) annotation.mode = 'variants';
           annotation.selector_preview = getElementOpenTagPreview(targetElement);
           annotation.element_context.id = targetElement.id || null;
@@ -819,7 +923,11 @@ import VibeShadowHost from './shadow-host.js';
             }
           }
           VibeEvents.emit('annotation:saved', { annotation, element: targetElement });
+          sentId = annotation.id;
         }
+
+        // Hand just this one to Claude (the toolbar handles the session picker).
+        if (sentId && sendChecked()) VibeEvents.emit('claude:send', { ids: [sentId] });
 
         dismiss(true, true);
       } catch (err) {
@@ -883,7 +991,8 @@ import VibeShadowHost from './shadow-host.js';
 
     popover.innerHTML = `
       <div class="vibe-drag-handle"></div>
-      <div class="vibe-popover-title"><span>${title}</span></div>
+      <div class="vibe-popover-title"><span>Variants</span></div>
+      ${threadHTML(annotation)}
       <div class="vibe-variants-review">
         <p class="vibe-variants-hint">${chosenValue != null ? 'Chosen — now ask your agent to finalize.' : 'Pick a variant to preview it live in the page.'}</p>
         <div class="vibe-variant-list">${rows}</div>
@@ -946,7 +1055,11 @@ import VibeShadowHost from './shadow-host.js';
       const active = popover.querySelector('input[name="vibe-variant"]:checked')?.value
         || container.getAttribute(attribute) || String(variants[0].value);
       try {
-        await VibeAPI.updateAnnotation(annotation.id, { chosenVariant: active, status: 'variant-chosen' });
+        // The pick also lands in the thread, so it reads in View all and for the agent.
+        const name = variants.find(v => String(v.value) === String(active))?.name || active;
+        const thread = [...threadOf(annotation), newMessage('user', `Picked “${name}”.`)];
+        await VibeAPI.updateAnnotation(annotation.id, { chosenVariant: active, status: 'variant-chosen', thread });
+        annotation.thread = thread;
         VibeAPI.forceSync(); // push to server so the agent can finalize right away
         chosenValue = String(active);
         refreshChoose();
@@ -1086,6 +1199,8 @@ import VibeShadowHost from './shadow-host.js';
       currentTargetHighlight.style.left = `${rect.left - 2}px`;
       currentTargetHighlight.style.width = `${rect.width + 4}px`;
       currentTargetHighlight.style.height = `${rect.height + 4}px`;
+      // A docked popover follows the toolbar when it's dragged.
+      if (docked && currentPopover) positionDocked(currentPopover.querySelector('.vibe-popover'));
       highlightRafId = requestAnimationFrame(update);
     };
     update();

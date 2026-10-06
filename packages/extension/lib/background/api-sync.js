@@ -114,6 +114,24 @@ export async function deleteOne(id) {
   }
 }
 
+// Fields both sides write: the agent replies on the server while the user
+// replies in the browser, so threads are merged by message id rather than
+// last-writer-wins, and the latest Claude send time is kept.
+export function mergeShared(winner, other) {
+  if (!other) return winner;
+  const out = { ...winner };
+  const a = Array.isArray(winner.thread) ? winner.thread : [];
+  const b = Array.isArray(other.thread) ? other.thread : [];
+  if (a.length || b.length) {
+    const byId = new Map();
+    for (const m of [...a, ...b]) if (m && m.id && !byId.has(m.id)) byId.set(m.id, m);
+    out.thread = [...byId.values()].sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+  }
+  const sent = [winner.claude_sent_at, other.claude_sent_at].filter(Boolean).sort();
+  if (sent.length) out.claude_sent_at = sent[sent.length - 1];
+  return out;
+}
+
 export async function smartSync(storageLockFn) {
   let serverAnnotations;
   try {
@@ -142,8 +160,12 @@ export async function smartSync(storageLockFn) {
         if (local && server) {
           const lt = new Date(local.updated_at || local.created_at || 0).getTime();
           const st = new Date(server.updated_at || server.created_at || 0).getTime();
-          if (st > lt) { server._synced = true; merged.push(server); changed = true; }
-          else { if (!local._synced) flagsChanged = true; local._synced = true; merged.push(local); if (lt > st) changed = true; }
+          if (st > lt) { const m = mergeShared(server, local); m._synced = true; merged.push(m); changed = true; }
+          else {
+            if (!local._synced) flagsChanged = true;
+            const m = mergeShared(local, server); m._synced = true; merged.push(m);
+            if (lt > st || JSON.stringify(m.thread) !== JSON.stringify(local.thread) || m.claude_sent_at !== local.claude_sent_at) changed = true;
+          }
         } else if (local && !server) {
           if (local._synced) { changed = true; } else { merged.push(local); changed = true; }
         } else if (!local && server) { server._synced = true; merged.push(server); changed = true; }

@@ -519,6 +519,19 @@ class LocalAnnotationsServer {
       res.json({ success: true });
     });
 
+    // Reply on an annotation's thread. The agent uses this (or the MCP tool
+    // reply_to_annotation) when it can't finish an annotation without an answer.
+    this.app.post('/api/annotations/:id/thread', async (req, res) => {
+      try {
+        const { body, author = 'agent' } = req.body || {};
+        const a = await this.addThreadMessage(req.params.id, author, body);
+        if (!a) return res.status(404).json({ error: 'Annotation not found' });
+        res.json({ success: true, thread: a.thread });
+      } catch (error) {
+        res.status(400).json({ error: error.message });
+      }
+    });
+
     // Claude Code mod status (for the extension's "Send to Claude" button)
     this.app.get('/api/claude', (req, res) => {
       const sessions = this.liveClaudeSessions().map(({ id, name }) => ({ id, name }));
@@ -530,6 +543,7 @@ class LocalAnnotationsServer {
     // as `session`; otherwise answers { choose: sessions } so the user picks.
     this.app.post('/api/claude/send', async (req, res) => {
       const { origin, session } = req.body || {};
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(x => typeof x === 'string') : null;
       if (!origin || typeof origin !== 'string') {
         return res.status(400).json({ error: 'origin is required' });
       }
@@ -545,7 +559,24 @@ class LocalAnnotationsServer {
       }
       this.claudeRoutes.set(origin, target);
       const s = this.claudeSessions.get(target);
-      if (!s.sends.some(x => x.origin === origin)) s.sends.push({ origin, at: new Date().toISOString() });
+      const at = new Date().toISOString();
+      if (ids?.length) s.sends.push({ origin, ids, at });
+      else if (!s.sends.some(x => x.origin === origin && !x.ids)) s.sends.push({ origin, at });
+      // Mark what was sent, so pins show it in progress until Claude is done.
+      try {
+        const all = await this.loadAnnotations();
+        let touched = false;
+        for (const a of all) {
+          let o = '';
+          try { o = new URL(a.url).origin; } catch { /* skip */ }
+          if (ids?.length ? ids.includes(a.id) : (o === origin && (a.status || 'pending') === 'pending')) {
+            a.claude_sent_at = at;
+            a.updated_at = at;
+            touched = true;
+          }
+        }
+        if (touched) await this.saveAnnotations(all);
+      } catch { /* marking is best-effort */ }
       res.json({ success: true, session: { id: target, name: live.find(x => x.id === target).name } });
     });
 
@@ -717,7 +748,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design. VARIANT INTENT FROM A PLAIN COMMENT: a normal comment annotation whose text asks for several design options (e.g. "make variants of this", "show me a few versions", "try some different layouts") is flagged with variant_intent_detected:true and also carries variant_instructions — telling you to promote it into the variants lifecycle (update_annotation with mode:"variants") and generate variants rather than implementing one design, so the user gets the same preview-and-pick UI as the UI button. DELETION DISCIPLINE (IMPORTANT): after you implement a normal annotation in source, you MUST delete it with delete_annotation — never leave finished annotations behind. This matters most for design edits (annotations with pending_changes, also flagged cleanup_required): the extension applies pending_changes as a LIVE inline-style overlay, so a design-edit annotation left undeleted is re-applied on top of your already-implemented source change on the next page reload (doubling it), and reverting it later snaps the page to a stale state. The ONLY annotations you keep are variants annotations — they persist through their own lifecycle until finalized (status resolved). Never generalize a variant\'s "don\'t delete yet" to the other annotations in the same batch: keep deleting every non-variant annotation as you finish it.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design. VARIANT INTENT FROM A PLAIN COMMENT: a normal comment annotation whose text asks for several design options (e.g. "make variants of this", "show me a few versions", "try some different layouts") is flagged with variant_intent_detected:true and also carries variant_instructions — telling you to promote it into the variants lifecycle (update_annotation with mode:"variants") and generate variants rather than implementing one design, so the user gets the same preview-and-pick UI as the UI button. DELETION DISCIPLINE (IMPORTANT): after you implement a normal annotation in source, you MUST delete it with delete_annotation — never leave finished annotations behind. This matters most for design edits (annotations with pending_changes, also flagged cleanup_required): the extension applies pending_changes as a LIVE inline-style overlay, so a design-edit annotation left undeleted is re-applied on top of your already-implemented source change on the next page reload (doubling it), and reverting it later snaps the page to a stale state. The ONLY annotations you keep are variants annotations — they persist through their own lifecycle until finalized (status resolved). Never generalize a variant\'s "don\'t delete yet" to the other annotations in the same batch: keep deleting every non-variant annotation as you finish it. KINDS: kind is "comment" (a written instruction), "design" (pending_changes / css style edits) or "text" (the user retyped copy in place: pending_changes.copyChange has the original and new text — change that string in source). THREADS: a comment may carry a thread [{ author: "user" | "agent", body, created_at }] of follow-ups after the first comment; the latest user message is the current ask. If you cannot finish an annotation (unclear, needs a decision, blocked), do NOT delete it: call reply_to_annotation with your question or what you need. Annotations flagged awaiting_user_reply are waiting on the user\'s answer to your last reply: skip them until the user answers, then continue and delete when done.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -765,6 +796,19 @@ class LocalAnnotationsServer {
                 }
               },
               required: ['id'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'reply_to_annotation',
+            description: 'Reply on an annotation\'s thread instead of deleting it, when you cannot finish it right away: ask your question, say what is unclear, or explain what you need. The reply shows in the browser on the annotation\'s pin and in its popover, and the user answers there. The annotation stays open; read_annotations flags it awaiting_user_reply until the user answers. After the user answers, continue the work and delete the annotation when it is done. Not for variants picks (those have their own lifecycle).',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                id: { type: 'string', description: 'Annotation ID' },
+                body: { type: 'string', description: 'Your message to the user, plain text' }
+              },
+              required: ['id', 'body'],
               additionalProperties: false
             }
           },
@@ -916,6 +960,24 @@ class LocalAnnotationsServer {
                     tool: 'delete_annotation',
                     status: 'success',
                     data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              ]
+            };
+          }
+
+          case 'reply_to_annotation': {
+            const a = await this.addThreadMessage(args?.id, 'agent', args?.body);
+            if (!a) throw new Error(`Annotation ${args?.id} not found`);
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'reply_to_annotation',
+                    status: 'success',
+                    data: { id: a.id, thread: a.thread, note: 'Leave this annotation open. The user answers in the browser; it shows up again without awaiting_user_reply once they do.' },
                     timestamp: new Date().toISOString()
                   }, null, 2)
                 }
@@ -1306,13 +1368,47 @@ class LocalAnnotationsServer {
   // server the single source of truth and avoids sync races (e.g. an in-flight
   // capture being wiped, or a cleared attachment resurrected).
   withServerAttachments(incoming, existing) {
-    const out = { ...incoming };
+    const out = this.mergeShared(incoming, existing);
     if (existing && Array.isArray(existing.attachments) && existing.attachments.length) {
       out.attachments = existing.attachments;
     } else {
       delete out.attachments;
     }
     return out;
+  }
+
+  // Fields both sides write: the agent replies here while the user replies in
+  // the browser, so a sync from the extension must not drop an agent reply it
+  // hasn't pulled yet. Threads merge by message id; the latest Claude send wins.
+  mergeShared(incoming, existing) {
+    const out = { ...incoming };
+    if (!existing) return out;
+    const a = Array.isArray(incoming.thread) ? incoming.thread : [];
+    const b = Array.isArray(existing.thread) ? existing.thread : [];
+    if (a.length || b.length) {
+      const byId = new Map();
+      for (const m of [...a, ...b]) if (m && m.id && !byId.has(m.id)) byId.set(m.id, m);
+      out.thread = [...byId.values()].sort((x, y) => new Date(x.created_at) - new Date(y.created_at));
+    }
+    const sent = [incoming.claude_sent_at, existing.claude_sent_at].filter(Boolean).sort();
+    if (sent.length) out.claude_sent_at = sent[sent.length - 1];
+    return out;
+  }
+
+  // Append a message to an annotation's thread (agent replies, or the user via
+  // the REST API). Returns the updated annotation, or null if it doesn't exist.
+  async addThreadMessage(id, author, body) {
+    const text = String(body || '').trim();
+    if (!text) throw new Error('body is required');
+    const annotations = await this.loadAnnotations();
+    const a = annotations.find(x => x.id === id);
+    if (!a) return null;
+    const now = new Date().toISOString();
+    const msg = { id: 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), author: author === 'user' ? 'user' : 'agent', body: text, created_at: now };
+    a.thread = [...(Array.isArray(a.thread) ? a.thread : []), msg];
+    a.updated_at = now;
+    await this.saveAnnotations(annotations);
+    return a;
   }
 
   // --- Shareable exports (markdown for agents, self-contained HTML for humans) ---
@@ -1589,6 +1685,10 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
    */
   optimizeForAgent(annotation) {
     const { _synced, badge_offset, ...clean } = annotation;
+
+    // Thread state: the agent replied last, so it's the user's turn.
+    const thread = Array.isArray(clean.thread) ? clean.thread : [];
+    if (thread.length && thread[thread.length - 1].author === 'agent') clean.awaiting_user_reply = true;
 
     // Strip computed styles — agents use classes/path/selector_preview to find elements,
     // and pending_changes for design deltas. Computed styles are never useful.
