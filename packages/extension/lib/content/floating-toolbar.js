@@ -11,6 +11,7 @@ import { renderAnnotationsMarkdown } from './export-markdown.js';
 import { isRecordableHotkey } from './hotkey.js';
 import VibeBadgeManager from './badge-manager.js';
 import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, needsReply, variantToPick, inProgress, newMessage } from './annotation-meta.js';
+import { createMascot } from './mascot.js';
 
   let toolbarEl = null;
   let settingsDropdown = null;
@@ -26,6 +27,11 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
   let badgeColor = '#D03D68';
   let watcherActive = false;
   let claudeConnected = false; // Claude Code mod is polling the server
+  let mascot = null; // devil mascot, shown with "Send to Claude"
+  let mascotFlash = null; // { state, until }: short-lived done / error moments
+  let lastActivityAt = Date.now();
+  const MASCOT_SLEEP_MS = 120_000; // idle this long → sleepy
+  const SENT_KEY = 'vibe-claude-sent'; // sessionStorage: { annotationId: status when sent }
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -96,6 +102,8 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     VibeEvents.on('inspection:started', ({ mode } = {}) => { isAnnotating = true; inspectMode = mode || inspectMode; updateUI(); });
     VibeEvents.on('claude:send', ({ ids } = {}) => sendToClaude(undefined, ids));
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
+    ['inspection:started', 'inspection:stopped', 'annotation:saved', 'annotation:deleted', 'variants:switched']
+      .forEach(ev => VibeEvents.on(ev, () => { lastActivityAt = Date.now(); scheduleMascot(); }));
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { resetPosition(); stopPolling(); });
@@ -179,6 +187,11 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
         ${ICONS.close}
       </button>`}
     `;
+
+    // Devil mascot (Claude mod): after the buttons so it stays visible while annotating
+    mascot = createMascot();
+    mascot.el.style.display = 'none';
+    toolbarEl.querySelector('.vibe-toolbar-middle').after(mascot.el);
 
     root.appendChild(toolbarEl);
     wireButtons();
@@ -965,6 +978,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     const sendEl = toolbarEl.querySelector('.vibe-tb-send');
     if (sendEl) {
       sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
+      scheduleMascot();
       if (!sendEl.classList.contains('sending')) {
         sendEl.disabled = totalCount === 0;
         sendEl.title = totalCount === 0
@@ -1027,11 +1041,12 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       return;
     }
     if (r.success) {
+      markSent(sending);
       // In progress on the pins until Claude deletes, resolves or answers.
       const at = new Date().toISOString();
       for (const a of sending) await VibeAPI.updateAnnotation(a.id, { claude_sent_at: at }).catch(() => {});
       VibeAPI.forceSync();
-    }
+    } else flashMascot('error', 3000);
     // Icon-only button: confirm with a check + a floating chip, so the bar keeps its width
     sendBtn.classList.add(r.success ? 'sent' : 'failed');
     sendBtn.innerHTML = r.success ? ICONS.check : ICONS.send;
@@ -1091,8 +1106,81 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     if (was !== claudeConnected) updateUI();
   }
 
+  // --- Devil mascot: acts out where this site's annotations are ---
+  // reply (a variant to pick) > waiting (not sent yet) > working (sent, Claude
+  // hasn't finished) > idle / sleepy. "done" plays when the last sent annotation
+  // is deleted or resolved; "error" when a send fails.
+
+  const OPEN_STATUSES = new Set(['pending', 'variant-chosen', 'variants-discarded']);
+  const statusOf = a => a.status || 'pending';
+
+  function readSent() {
+    try { return JSON.parse(sessionStorage.getItem(SENT_KEY)) || {}; } catch { return {}; }
+  }
+
+  function writeSent(sent) {
+    try {
+      if (Object.keys(sent).length) sessionStorage.setItem(SENT_KEY, JSON.stringify(sent));
+      else sessionStorage.removeItem(SENT_KEY);
+    } catch { /* storage blocked: state resets on reload */ }
+  }
+
+  function markSent(annotations) {
+    const sent = readSent();
+    for (const a of annotations) if (OPEN_STATUSES.has(statusOf(a))) sent[a.id] = statusOf(a);
+    writeSent(sent);
+    lastActivityAt = Date.now();
+    scheduleMascot();
+  }
+
+  function flashMascot(state, ms) {
+    mascotFlash = { state, until: Date.now() + ms };
+    scheduleMascot();
+    setTimeout(scheduleMascot, ms + 50);
+  }
+
+  let mascotTimer = null;
+  function scheduleMascot() {
+    if (!mascotTimer) mascotTimer = setTimeout(() => { mascotTimer = null; refreshMascot(); }, 150);
+  }
+
+  async function refreshMascot() {
+    if (!mascot) return;
+    // A failed send usually means Claude just went away: keep the mascot up
+    // for its "error" moment, then let it leave with the Send button.
+    const erroring = mascotFlash?.state === 'error' && Date.now() < mascotFlash.until;
+    const visible = (serverOnline && claudeConnected) || erroring;
+    mascot.el.style.display = visible ? '' : 'none';
+    if (!visible) return;
+    const all = await VibeAPI.loadProjectAnnotations();
+    const byId = new Map(all.map(a => [a.id, a]));
+    const sent = readSent();
+    let finished = false;
+    for (const id of Object.keys(sent)) {
+      const a = byId.get(id);
+      if (!a || statusOf(a) === 'resolved') { delete sent[id]; finished = true; }
+    }
+    if (finished) {
+      writeSent(sent);
+      if (!Object.keys(sent).length) { lastActivityAt = Date.now(); flashMascot('done', 4500); }
+    }
+    mascot.setState(pickMascotState(all, sent));
+  }
+
+  function pickMascotState(all, sent) {
+    if (mascotFlash && Date.now() < mascotFlash.until) return mascotFlash.state;
+    mascotFlash = null;
+    if (isAnnotating) return 'annotating';
+    if (all.some(a => statusOf(a) === 'variants-ready')) return 'reply';
+    const open = all.filter(a => OPEN_STATUSES.has(statusOf(a)));
+    if (open.some(a => sent[a.id] !== statusOf(a))) return 'waiting';
+    if (open.length) return 'working';
+    return Date.now() - lastActivityAt > MASCOT_SLEEP_MS ? 'sleepy' : 'idle';
+  }
+
   async function refreshWatchers() {
     refreshClaude();
+    scheduleMascot();
     if (!serverOnline) {
       if (watcherActive) {
         watcherActive = false;

@@ -1297,6 +1297,31 @@ export const VIBE_STYLES = `
   to { transform: translate(2px, -2px); }
 }
 
+/* Devil mascot (Claude mod): decorative, after Send. The figure is a bit
+   taller than its slot so the horns peek over the bar; it never takes clicks. */
+.vibe-mascot {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 28px;
+  margin: 0 2px 0 4px;
+  pointer-events: none;
+}
+
+.vibe-mascot svg {
+  position: absolute;
+  left: -5px;
+  bottom: -4px;
+  width: 40px;
+  height: 42px;
+  overflow: visible;
+}
+
+.vibe-mascot svg g,
+.vibe-mascot svg ellipse {
+  transform-box: view-box;
+}
+
 /* Floating confirmation under the bar (keeps the toolbar width stable) */
 .vibe-send-chip {
   position: absolute;
