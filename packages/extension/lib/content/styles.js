@@ -2447,7 +2447,9 @@ export const VIBE_STYLES = `
 }
 .vibe-design-reset + .vibe-pin-btn { margin-left: 0; }
 .vibe-pin-btn:hover { color: var(--v-text-primary); background: var(--v-surface-hover); }
-.vibe-pin-btn.on { color: #fff; background: var(--v-pill-gradient); transform: rotate(-30deg); }
+.vibe-pin-btn svg path { fill: transparent; transition: fill 0.2s ease; }
+.vibe-pin-btn.on { color: var(--v-text-primary); }
+.vibe-pin-btn.on svg path { fill: currentColor; }
 .vibe-popover-anchor.docked { pointer-events: none; }
 .vibe-popover-anchor.docked .vibe-popover { pointer-events: auto; animation: none; }
 
@@ -2569,4 +2571,142 @@ export const VIBE_STYLES = `
   transition: background 0.15s ease;
 }
 .vibe-viewall-variant:hover { background: var(--v-pill-gradient); border-color: transparent; color: #fff; }
+
+/* ===== Minimal toolbar: icon-only buttons, tooltips, no morph ===== */
+.vibe-toolbar {
+  gap: 2px;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(24, 24, 27, 0.86);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.28), 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.vibe-toolbar:hover { box-shadow: 0 12px 34px rgba(0,0,0,0.32), 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06); }
+.vibe-toolbar-logo { width: 20px; height: 20px; margin: 0 6px 0 5px; }
+.vibe-toolbar-separator { height: 16px; margin: 0 4px; background: rgba(255,255,255,0.1); }
+.vibe-toolbar-default { gap: 2px; }
+.vibe-modes { gap: 2px; padding: 0; background: none; }
+.vibe-mode-btn,
+.vibe-toolbar-btn,
+.vibe-toolbar-status,
+.vibe-toolbar-close,
+.vibe-toolbar-send {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  gap: 0;
+  justify-content: center;
+  border-radius: 9px;
+  color: #a1a1aa;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+.vibe-mode-btn svg, .vibe-toolbar-btn svg, .vibe-toolbar-close svg, .vibe-toolbar-send svg { width: 16px; height: 16px; }
+.vibe-mode-btn:hover, .vibe-toolbar-btn:hover, .vibe-toolbar-status:hover, .vibe-toolbar-close:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fafafa;
+}
+.vibe-mode-btn:active, .vibe-toolbar-btn:active, .vibe-toolbar-close:active { transform: scale(0.92); }
+.vibe-mode-btn.active, .vibe-toolbar-btn.active {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  box-shadow: none;
+}
+.vibe-mode-btn.active:not([data-mode="interact"]) {
+  background: color-mix(in srgb, var(--v-badge-bg) 26%, transparent);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v-badge-bg) 45%, transparent);
+}
+.vibe-toolbar-pill {
+  top: 3px;
+  right: 3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font: 600 9px/1 var(--v-font);
+  box-shadow: 0 0 0 2px rgba(24,24,27,0.95);
+}
+.vibe-toolbar-send { color: #fff; margin-left: 2px; }
+.vibe-toolbar-send:disabled { color: #71717a; }
+.vibe-toolbar-close { color: #71717a; }
+/* MCP status: a single LED */
+.vibe-status-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--v-status-offline);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.04);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.vibe-toolbar-status[data-state="online"] .vibe-status-led { background: var(--v-status-online); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v-status-online) 18%, transparent); }
+.vibe-toolbar-status[data-state="outdated"] .vibe-status-led { background: var(--v-status-watching); }
+.vibe-toolbar-status[data-state="watching"] .vibe-status-led { background: var(--v-status-watching); animation: vibe-led-pulse 1.4s ease-in-out infinite; }
+@keyframes vibe-led-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--v-status-watching) 25%, transparent); } }
+
+/* Tooltip */
+.vibe-tip {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 240px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgba(24, 24, 27, 0.96);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  color: #fafafa;
+  font: 500 12px/1.3 var(--v-font);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px) scale(0.98);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.vibe-tip.below { transform: translateY(-3px) scale(0.98); }
+.vibe-tip.on { opacity: 1; transform: none; }
+.vibe-tip-main { display: flex; align-items: center; gap: 8px; }
+.vibe-tip-main kbd {
+  margin-left: auto;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #a1a1aa;
+  font: 500 10.5px/1.4 var(--v-font);
+}
+.vibe-tip-sub { color: #a1a1aa; font-weight: 400; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .vibe-tip { transition: none; } }
+
+/* ===== An annotation opened from its pin lives inside the list ===== */
+.vibe-viewall-panel { min-width: 360px; }
+.vibe-viewall-card.focused { background: color-mix(in srgb, var(--v-badge-bg) 12%, transparent); }
+.vibe-viewall-card.expanded {
+  background: rgba(255,255,255,0.03);
+  cursor: default;
+  padding-bottom: 4px;
+}
+.vibe-viewall-card.expanded .vibe-viewall-card-content > :not(.vibe-viewall-head):not(.vibe-viewall-slot):not(.vibe-viewall-status) { display: none; }
+.vibe-viewall-card.expanded .vibe-viewall-card-delete { display: none; }
+.vibe-viewall-slot { margin: 6px -16px 0; }
+.vibe-popover-anchor.in-list {
+  position: static;
+  width: auto;
+  height: auto;
+  z-index: auto;
+}
+.vibe-popover-anchor.in-list .vibe-popover {
+  position: static !important;
+  width: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: vibe-list-open 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.vibe-popover-anchor.in-list .vibe-drag-handle,
+.vibe-popover-anchor.in-list .vibe-popover-title { display: none; }
+@keyframes vibe-list-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 `;

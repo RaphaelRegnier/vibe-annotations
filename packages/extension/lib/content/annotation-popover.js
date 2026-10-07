@@ -28,6 +28,9 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
   // Pinned popover: docked to the toolbar instead of the element, and it stays
   // open while you keep inspecting (the next pick replaces it in place).
   let docked = false;
+  // Reopening an existing annotation from its pin shows it inside the
+  // "All annotations" list, in this slot, instead of floating by the pin.
+  let listSlot = null;
   try { docked = sessionStorage.getItem('vibe-popover-docked') === '1'; } catch { /* storage blocked */ }
   const SEND_KEY = 'vibe-send-to-claude'; // "Send to Claude" checkbox, remembered
   const VIBE_PIN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
@@ -61,6 +64,19 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
   function init() {
     VibeEvents.on('inspection:elementClicked', onElementClicked);
     VibeEvents.on('annotation:edit', onEditRequested);
+    VibeEvents.on('popover:dismiss', () => { if (currentPopover) dismiss(); });
+  }
+
+  // Ask the toolbar to open the list on this annotation; resolves with the slot
+  // to render into (null when the list can't host it).
+  function requestListSlot(id, wantSlot = true) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const done = (slot) => { if (!settled) { settled = true; resolve(slot || null); } };
+      VibeEvents.emit('viewall:focus', { id, done: wantSlot ? done : null });
+      if (!wantSlot) done(null);
+      setTimeout(() => done(null), 1500);
+    });
   }
 
   async function onElementClicked({ element, clientX, clientY, mode }) {
@@ -70,18 +86,21 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
   async function onEditRequested({ annotation, element }) {
     const kind = kindOf(annotation);
-    // A text edit reopens in place, like Text mode.
+    dismiss();
+    // A text edit reopens in place, like Text mode; the list just points at it.
     if (kind === 'text' && annotation.mode !== 'variants') {
+      requestListSlot(annotation.id, false);
       VibeEvents.emit('text:edit', { element, annotation });
       return;
     }
     VibeInspectionMode.tempDisable();
-    const context = await VibeElementContext.generate(element);
-    show(element, context, annotation, undefined, undefined, kind === 'design' ? 'design' : 'annotate');
+    const [context, slot] = await Promise.all([VibeElementContext.generate(element), requestListSlot(annotation.id)]);
+    show(element, context, annotation, undefined, undefined, kind === 'design' ? 'design' : 'annotate', slot);
   }
 
   // Dock to the toolbar: under it, or above when the toolbar sits low.
   function positionDocked(popover) {
+    if (listSlot) return false;
     const bar = VibeShadowHost.getRoot()?.querySelector('.vibe-toolbar');
     if (!bar || !popover) return false;
     const r = bar.getBoundingClientRect();
@@ -115,6 +134,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
   function wirePin(anchor, popover, targetElement, clickX, clickY) {
     const btn = popover.querySelector('.vibe-pin-btn');
     if (!btn) return;
+    if (listSlot) { btn.remove(); return; }
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       setDocked(anchor, popover, targetElement, clickX, clickY, !docked);
@@ -137,8 +157,9 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
   // --- Show popover ---
 
-  async function show(targetElement, context, existingAnnotation, clickX, clickY, intent = 'annotate') {
+  async function show(targetElement, context, existingAnnotation, clickX, clickY, intent = 'annotate', slot = null) {
     dismiss();
+    listSlot = slot && slot.isConnected ? slot : null;
 
     const root = VibeShadowHost.getRoot();
     if (!root) return;
@@ -165,8 +186,8 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
     // Anchor wrapper
     const anchor = document.createElement('div');
-    anchor.className = 'vibe-popover-anchor' + (docked ? ' docked' : '');
-    root.appendChild(anchor);
+    anchor.className = 'vibe-popover-anchor' + (listSlot ? ' in-list' : (docked ? ' docked' : ''));
+    (listSlot || root).appendChild(anchor);
 
     // Popover card
     const popover = document.createElement('div');
@@ -1089,6 +1110,8 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
   function dismiss(reEnableInspection = false, saved = false) {
     const hadPopover = !!currentPopover;
+    const wasInList = hadPopover && !!listSlot;
+    listSlot = null;
 
     if (hadPopover && !saved && activeElement && activeOriginalCssText !== null) {
       activeElement.style.cssText = activeOriginalCssText;
@@ -1121,6 +1144,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
     activeTextDirty = false;
     activeOriginalCssText = null;
     if (hadPopover && !saved) VibeEvents.emit('popover:cancelled');
+    if (wasInList) VibeEvents.emit('viewall:collapse');
     if (reEnableInspection) VibeInspectionMode.reEnable();
   }
 
@@ -1161,6 +1185,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
     const popoverWidth = 340;
     const popover = anchor.querySelector('.vibe-popover');
     if (!popover) return;
+    if (listSlot) { popover.style.position = ''; popover.style.left = ''; popover.style.top = ''; return; }
 
     popover.style.position = 'fixed';
     popover.style.left = '-9999px';

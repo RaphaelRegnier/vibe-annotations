@@ -100,6 +100,12 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { resetPosition(); stopPolling(); });
     VibeEvents.on('overlay:shown', () => { startPolling(); animateToolbarIn(); });
+    VibeEvents.on('viewall:focus', focusInList);
+    VibeEvents.on('viewall:collapse', () => {
+      if (!viewAllPanel) return;
+      viewAllPanel._expanded = null;
+      openViewAll();
+    });
 
     // Start periodic checks
     startPolling();
@@ -134,53 +140,38 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
 
     toolbarEl.innerHTML = `
       <img class="vibe-toolbar-logo" src="${logoUrl}" />
-      <div class="vibe-toolbar-separator"></div>
       <div class="vibe-modes" role="radiogroup" aria-label="Mode">
-        <button class="vibe-mode-btn active" data-mode="interact" role="radio" title="Interact: use the page normally">${ICONS.pointer}<span>Interact</span></button>
-        <span class="vibe-modes-sep"></span>
-        <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" title="Annotate: click an element to leave a comment (${shortcutHint})">${ICONS.annotate}<span>Annotate</span></button>
-        <button class="vibe-mode-btn" data-mode="design" role="radio" title="Design: click an element to tweak its styles">${ICONS.palette}<span>Design</span></button>
-        <button class="vibe-mode-btn" data-mode="text" role="radio" title="Text: click any text to retype it">${ICONS.textMode}<span>Text</span></button>
+        <button class="vibe-mode-btn active" data-mode="interact" role="radio" aria-label="Interact" data-tip="Interact" data-tip-sub="Use the page normally">${ICONS.pointer}</button>
+        <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" aria-label="Annotate" data-tip="Annotate" data-tip-kbd="${escapeHTML(shortcutHint)}" data-tip-sub="Click an element to comment">${ICONS.annotate}</button>
+        <button class="vibe-mode-btn" data-mode="design" role="radio" aria-label="Design" data-tip="Design" data-tip-sub="Click an element to tweak its styles">${ICONS.palette}</button>
+        <button class="vibe-mode-btn" data-mode="text" role="radio" aria-label="Edit text" data-tip="Edit text" data-tip-sub="Click any text to retype it">${ICONS.textMode}</button>
       </div>
       <div class="vibe-toolbar-separator"></div>
       <div class="vibe-toolbar-middle">
         <div class="vibe-toolbar-default">
-          <button class="vibe-toolbar-btn vibe-tb-viewall" title="View all annotations">
+          <button class="vibe-toolbar-btn vibe-tb-viewall" aria-label="All annotations" data-tip="All annotations">
             ${ICONS.list}
-            <span>View all</span>
             <span class="vibe-toolbar-pill" style="display:none">0</span>
           </button>
-          <button class="vibe-toolbar-btn vibe-tb-settings" title="Settings">
+          <button class="vibe-toolbar-btn vibe-tb-settings" aria-label="Settings" data-tip="Settings">
             ${ICONS.settings}
-            <span>Settings</span>
           </button>
-          <button class="vibe-toolbar-status vibe-tb-status" title="Offline" style="margin-left:4px;">
-            ${ICONS.serverRack}
+          <button class="vibe-toolbar-status vibe-tb-status" aria-label="MCP server" data-tip="MCP server offline">
+            <span class="vibe-status-led"></span>
           </button>
-          <button class="vibe-toolbar-send vibe-tb-send" title="Send to Claude Code" aria-label="Send to Claude Code" style="display:none">
+          <button class="vibe-toolbar-send vibe-tb-send" aria-label="Send to Claude Code" data-tip="Send to Claude Code" style="display:none">
             ${ICONS.send}
           </button>
         </div>
-        <div class="vibe-toolbar-annotating">
-          <span class="vibe-toolbar-instruction vibe-mode-instruction">Click to annotate</span>
-          <span class="vibe-toolbar-dot"></span>
-          <kbd class="vibe-toolbar-kbd">↑</kbd>
-          <kbd class="vibe-toolbar-kbd">↓</kbd>
-          <kbd class="vibe-toolbar-kbd">⏎</kbd>
-          <span class="vibe-toolbar-instruction">to fine-tune target</span>
-          <span class="vibe-toolbar-dot"></span>
-          <kbd class="vibe-toolbar-kbd">Esc</kbd>
-          <span class="vibe-toolbar-instruction">to stop</span>
-        </div>
       </div>
       ${isEmbeddedHost ? '' : `
-      <div class="vibe-toolbar-separator"></div>
-      <button class="vibe-toolbar-close vibe-tb-close" title="Close Vibe Annotations">
+      <button class="vibe-toolbar-close vibe-tb-close" aria-label="Close" data-tip="Close Vibe Annotations">
         ${ICONS.close}
       </button>`}
     `;
 
     root.appendChild(toolbarEl);
+    wireTooltips(root);
     wireButtons();
     setupDrag();
     updateUI();
@@ -298,8 +289,31 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     }
   }
 
+  // A pin was clicked: open the list on that annotation and hand the popover a
+  // slot inside its card (done = null: just point at it).
+  async function focusInList({ id, done } = {}) {
+    closeSettings();
+    hideTip(true);
+    await openViewAll();
+    const card = viewAllPanel?.querySelector(`.vibe-viewall-card[data-id="${CSS.escape(id)}"]`);
+    if (!card) { done?.(null); return; }
+    card.classList.add('focused');
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (!done) { setTimeout(() => card.classList.remove('focused'), 1600); return; }
+    viewAllPanel._expanded = id;
+    card.classList.add('expanded');
+    const slot = document.createElement('div');
+    slot.className = 'vibe-viewall-slot';
+    card.querySelector('.vibe-viewall-card-content').appendChild(slot);
+    done(slot);
+    requestAnimationFrame(() => card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  }
+
+  let viewAllToken = 0;
+
   async function openViewAll() {
     closeViewAll();
+    const token = ++viewAllToken;
 
     const btn = toolbarEl.querySelector('.vibe-tb-viewall');
     if (btn) btn.classList.add('active');
@@ -307,6 +321,9 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     // Exclude resolved (agent finalized/cleaned them — done). variants-discarded and
     // variant-chosen stay, shown with a "pending agent" label; the count pill matches.
     const annotations = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
+    if (token !== viewAllToken) return; // a newer open/refresh won
+    closeViewAll();
+    if (btn) btn.classList.add('active');
     const hostname = window.location.host || window.location.hostname;
 
     // Group by route (path)
@@ -582,11 +599,12 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       });
     });
 
-    // Click a card: go to its pin and open it (reply, edit, pick).
+    // Click a card: go to its pin and open it here in the list (reply, edit, pick).
     viewAllPanel.querySelectorAll('.vibe-viewall-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.closest('.vibe-viewall-card-delete')) return;
-        if (VibeBadgeManager.openAnnotation(card.dataset.id)) { closeViewAll(); return; }
+        if (card.classList.contains('expanded') || e.target.closest('.vibe-viewall-slot')) return;
+        if (VibeBadgeManager.openAnnotation(card.dataset.id)) return;
         const id = card.dataset.id;
         const a = annotations.find(x => x.id === id);
         if (a && a.selector) {
@@ -605,7 +623,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     // Skip refresh if the panel itself triggered the change (via delete actions)
     let refreshPending = false;
     const refreshHandler = () => {
-      if (!viewAllPanel || refreshPending || viewAllPanel._suppressRefresh) return;
+      if (!viewAllPanel || refreshPending || viewAllPanel._suppressRefresh || viewAllPanel._expanded) return;
       refreshPending = true;
       setTimeout(() => { refreshPending = false; if (viewAllPanel && !viewAllPanel._suppressRefresh) openViewAll(); }, 600);
     };
@@ -622,9 +640,12 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
 
   function closeViewAll() {
     if (viewAllPanel) {
+      const hadExpanded = viewAllPanel._expanded;
       if (viewAllPanel._cleanupEvents) viewAllPanel._cleanupEvents();
       viewAllPanel.remove();
       viewAllPanel = null;
+      // The annotation opened inside the list goes with it.
+      if (hadExpanded) VibeEvents.emit('popover:dismiss');
     }
     const btn = toolbarEl.querySelector('.vibe-tb-viewall');
     if (btn) btn.classList.remove('active');
@@ -864,90 +885,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       b.classList.toggle('active', on);
       b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
-    const instruction = toolbarEl.querySelector('.vibe-mode-instruction');
-    if (instruction) instruction.textContent = { annotate: 'Click to annotate', design: 'Click to design', text: 'Click any text to edit' }[inspectMode] || 'Click to capture';
-
-    // --- Annotating mode morph (crossfade + width transition) ---
-    const wasAnnotating = toolbarEl.classList.contains('annotating');
-    const middleEl = toolbarEl.querySelector('.vibe-toolbar-middle');
-    const defaultEl = toolbarEl.querySelector('.vibe-toolbar-default');
-    const annotatingEl = toolbarEl.querySelector('.vibe-toolbar-annotating');
-
-    if (isAnnotating && !wasAnnotating && middleEl && defaultEl && annotatingEl) {
-      // Measure current width, then target width
-      const startWidth = middleEl.offsetWidth;
-      annotatingEl.style.position = 'relative';
-      annotatingEl.style.opacity = '0';
-      annotatingEl.style.visibility = 'hidden';
-      const endWidth = annotatingEl.scrollWidth;
-      annotatingEl.style.position = '';
-      annotatingEl.style.opacity = '';
-      annotatingEl.style.visibility = '';
-
-      // Phase 1: fade out old content
-      middleEl.style.overflow = 'hidden';
-      middleEl.style.width = startWidth + 'px';
-      middleEl.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-      defaultEl.style.transition = 'opacity 0.2s ease';
-      defaultEl.style.opacity = '0';
-
-      // Phase 2: swap layout + animate width
-      setTimeout(() => {
-        toolbarEl.classList.add('annotating');
-        middleEl.style.width = endWidth + 'px';
-      }, 200);
-
-      // Phase 3: fade in new content (delayed so it appears after width settles)
-      setTimeout(() => {
-        annotatingEl.style.transition = 'opacity 0.25s ease';
-      }, 250);
-
-      // Cleanup
-      setTimeout(() => {
-        middleEl.style.width = ''; middleEl.style.transition = ''; middleEl.style.overflow = '';
-        defaultEl.style.transition = '';
-        annotatingEl.style.transition = '';
-      }, 500);
-
-    } else if (!isAnnotating && wasAnnotating && middleEl && defaultEl && annotatingEl) {
-      const startWidth = middleEl.offsetWidth;
-
-      // Phase 1: fade out annotating content
-      annotatingEl.style.transition = 'opacity 0.2s ease';
-      annotatingEl.style.opacity = '0';
-
-      // Measure target
-      defaultEl.style.position = 'relative';
-      defaultEl.style.opacity = '0';
-      defaultEl.style.visibility = 'hidden';
-      defaultEl.style.height = '';
-      defaultEl.style.overflow = '';
-      const endWidth = defaultEl.scrollWidth;
-      defaultEl.style.position = '';
-      defaultEl.style.visibility = '';
-
-      middleEl.style.overflow = 'hidden';
-      middleEl.style.width = startWidth + 'px';
-      middleEl.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-
-      // Phase 2: swap layout + animate width
-      setTimeout(() => {
-        toolbarEl.classList.remove('annotating');
-        annotatingEl.style.opacity = '';
-        annotatingEl.style.transition = '';
-        defaultEl.style.transition = 'opacity 0.25s ease';
-        defaultEl.style.opacity = '0';
-        middleEl.style.width = endWidth + 'px';
-        // Phase 3: fade in default content
-        requestAnimationFrame(() => { defaultEl.style.opacity = ''; });
-      }, 200);
-
-      // Cleanup
-      setTimeout(() => {
-        middleEl.style.width = ''; middleEl.style.transition = ''; middleEl.style.overflow = '';
-        defaultEl.style.transition = '';
-      }, 500);
-    }
+    toolbarEl.classList.toggle('inspecting', isAnnotating);
 
     // --- Count pill on View all ---
     const totalCount = annotationCount + styleAnnotationCount;
@@ -967,34 +905,83 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
       if (!sendEl.classList.contains('sending')) {
         sendEl.disabled = totalCount === 0;
-        sendEl.title = totalCount === 0
+        const tip = totalCount === 0
           ? 'Add annotations to send them to Claude Code'
           : `Send ${totalCount} annotation${totalCount === 1 ? '' : 's'} to Claude Code`;
-        sendEl.setAttribute('aria-label', sendEl.title);
+        sendEl.dataset.tip = tip;
+        sendEl.setAttribute('aria-label', tip);
       }
     }
 
     // --- Status indicator (icon-only, label in tooltip) ---
     const statusEl = toolbarEl.querySelector('.vibe-tb-status');
     if (statusEl) {
-      if (watcherActive) {
-        statusEl.innerHTML = ICONS.eye;
-        statusEl.style.color = 'var(--v-status-watching)';
-        statusEl.title = 'Watching — click to stop';
-      } else if (serverOnline && serverOutdated) {
-        statusEl.innerHTML = ICONS.serverRack;
-        statusEl.style.color = 'var(--v-status-watching)';
-        statusEl.title = 'MCP Server online — update available (npm update -g vibe-annotations-server)';
-      } else if (serverOnline) {
-        statusEl.innerHTML = ICONS.serverRack;
-        statusEl.style.color = 'var(--v-status-online)';
-        statusEl.title = 'MCP Server online';
-      } else {
-        statusEl.innerHTML = ICONS.serverRack;
-        statusEl.style.color = 'var(--v-status-offline)';
-        statusEl.title = 'MCP Server offline';
-      }
+      const state = watcherActive ? 'watching' : (serverOnline ? (serverOutdated ? 'outdated' : 'online') : 'offline');
+      statusEl.dataset.state = state;
+      statusEl.dataset.tip = {
+        watching: 'Agent watching · click to stop',
+        outdated: 'MCP server online · update available',
+        online: 'MCP server online',
+        offline: 'MCP server offline · click to set up',
+      }[state];
+      if (tipFor === statusEl) showTip(statusEl, true);
     }
+  }
+
+  // --- Tooltips: icon-only buttons get a label (and shortcut) on hover ---
+  // One floating tip for the whole bar. The first one waits a beat; moving to
+  // the next button shows it at once, like native toolbars.
+  let tipEl = null;
+  let tipFor = null;
+  let tipTimer = null;
+  let tipWarmUntil = 0;
+
+  function wireTooltips(root) {
+    tipEl = document.createElement('div');
+    tipEl.className = 'vibe-tip';
+    tipEl.setAttribute('role', 'tooltip');
+    root.appendChild(tipEl);
+    toolbarEl.addEventListener('pointerover', (e) => {
+      const btn = e.target.closest('[data-tip]');
+      if (!btn || !toolbarEl.contains(btn) || btn === tipFor) return;
+      clearTimeout(tipTimer);
+      if (Date.now() < tipWarmUntil) showTip(btn);
+      else tipTimer = setTimeout(() => showTip(btn), 450);
+      tipFor = btn;
+    });
+    toolbarEl.addEventListener('pointerout', (e) => {
+      const to = e.relatedTarget && e.relatedTarget.closest?.('[data-tip]');
+      if (to && toolbarEl.contains(to)) return;
+      hideTip();
+    });
+    toolbarEl.addEventListener('pointerdown', () => hideTip(true));
+  }
+
+  function showTip(btn, refresh = false) {
+    if (!tipEl || !btn.isConnected) return;
+    if (refresh && !tipEl.classList.contains('on')) return;
+    if (viewAllPanel && btn.classList.contains('vibe-tb-viewall')) return;
+    if (settingsDropdown && btn.classList.contains('vibe-tb-settings')) return;
+    const kbd = btn.dataset.tipKbd ? `<kbd>${btn.dataset.tipKbd}</kbd>` : '';
+    const sub = btn.dataset.tipSub ? `<span class="vibe-tip-sub">${escapeHTML(btn.dataset.tipSub)}</span>` : '';
+    tipEl.innerHTML = `<span class="vibe-tip-main">${escapeHTML(btn.dataset.tip)}${kbd}</span>${sub}`;
+    const r = btn.getBoundingClientRect();
+    const bar = toolbarEl.getBoundingClientRect();
+    const below = bar.top < 64;
+    tipEl.classList.toggle('below', below);
+    tipEl.classList.add('on');
+    const w = tipEl.offsetWidth;
+    const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+    tipEl.style.left = `${left}px`;
+    tipEl.style.top = below ? `${bar.bottom + 8}px` : `${bar.top - 8 - tipEl.offsetHeight}px`;
+    tipFor = btn;
+  }
+
+  function hideTip(cool = false) {
+    clearTimeout(tipTimer);
+    if (tipEl?.classList.contains('on') && !cool) tipWarmUntil = Date.now() + 600;
+    tipEl?.classList.remove('on');
+    tipFor = null;
   }
 
   async function refreshServerStatus() {
@@ -1145,7 +1132,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     const DRAG_THRESHOLD = 4;
 
     toolbarEl.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.vibe-toolbar-btn') || e.target.closest('.vibe-toolbar-close') || e.target.closest('.vibe-toolbar-status') || e.target.closest('.vibe-toolbar-kbd')) return;
+      if (e.target.closest('.vibe-toolbar-btn, .vibe-toolbar-close, .vibe-toolbar-status, .vibe-toolbar-send, .vibe-mode-btn, .vibe-viewall-panel, .vibe-settings-dropdown, .vibe-update-banner')) return;
 
       isDragging = true;
       didDrag = false;
