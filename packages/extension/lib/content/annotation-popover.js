@@ -729,10 +729,18 @@ import VibeShadowHost from './shadow-host.js';
     };
     document.addEventListener('blur', blurBlocker, true);
     document.addEventListener('focusout', blurBlocker, true);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('blur', blurBlocker, true);
+      window.addEventListener('focusout', blurBlocker, true);
+    }
     textarea.focus();
     if (isEdit) textarea.select();
     document.removeEventListener('blur', blurBlocker, true);
     document.removeEventListener('focusout', blurBlocker, true);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('blur', blurBlocker, true);
+      window.removeEventListener('focusout', blurBlocker, true);
+    }
     textarea.addEventListener('pointerdown', () => textarea.focus());
 
     // Cancel / close
