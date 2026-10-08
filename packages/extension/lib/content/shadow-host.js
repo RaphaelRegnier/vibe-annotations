@@ -37,8 +37,10 @@ function init() {
   document.body.appendChild(hostEl);
 
   // Contain composed events at shadow boundary — prevents frameworks
-  // from interpreting shadow DOM interactions as "outside clicks"
-  for (const type of ['pointerdown', 'mousedown', 'click', 'focusin', 'focusout']) {
+  // from interpreting shadow DOM interactions as "outside clicks", and
+  // stops keystrokes inside extension UI from leaking to host pages
+  // (e.g. host delete/backspace shortcuts hijacking typing).
+  for (const type of ['pointerdown', 'mousedown', 'click', 'focusin', 'focusout', 'keydown', 'keyup', 'keypress']) {
     hostEl.addEventListener(type, (e) => e.stopPropagation());
   }
 

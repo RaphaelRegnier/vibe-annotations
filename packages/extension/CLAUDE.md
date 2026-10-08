@@ -81,4 +81,14 @@ Tools: `read_annotations`, `delete_annotation`, `watch_annotations`, `get_projec
 
 ## Testing
 
-Load unpacked in Chrome, navigate to any localhost page. No automated tests — all manual.
+### Automated tests
+
+```bash
+npm test
+# or
+node --test tests/**/*.test.js
+```
+
+### Manual testing
+
+Load unpacked in Chrome (`.output/chrome-mv3` or extension root), navigate to any localhost page.

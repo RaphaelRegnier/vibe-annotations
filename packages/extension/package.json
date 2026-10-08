@@ -10,7 +10,8 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare",
+    "test": "node --test tests/**/*.test.js"
   },
   "devDependencies": {
     "wxt": "^0.20.25"
