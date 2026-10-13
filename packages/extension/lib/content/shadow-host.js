@@ -6,6 +6,53 @@ import VibeEvents from './event-bus.js';
 
 let hostEl = null;
 let shadowRoot = null;
+let modalObserver = null;
+let modalStack = [];
+
+function syncModalHost(records = []) {
+  if (!hostEl) return;
+
+  const modals = Array.from(document.querySelectorAll('dialog:modal'));
+  const initializing = modalStack.length === 0;
+  modalStack = modalStack.filter((dialog) => modals.includes(dialog));
+  // Attribute records preserve opening order even when DOM order is different.
+  for (const { target, type } of records) {
+    if (type !== 'attributes' || !modals.includes(target)) continue;
+    modalStack = modalStack.filter((dialog) => dialog !== target);
+    modalStack.push(target);
+  }
+  for (const dialog of modals) {
+    if (!modalStack.includes(dialog)) modalStack.push(dialog);
+  }
+
+  if (initializing) {
+    const focusedModal = document.activeElement?.closest('dialog:modal');
+    if (focusedModal) {
+      modalStack = modalStack.filter((dialog) => dialog !== focusedModal);
+      modalStack.push(focusedModal);
+    }
+  }
+
+  const parent = modalStack.at(-1) || document.body;
+  const moved = hostEl.parentNode !== parent;
+  const focused = shadowRoot.activeElement;
+  if (moved) {
+    if (hostEl.matches(':popover-open')) hostEl.hidePopover();
+    parent.appendChild(hostEl);
+  }
+
+  // A popover escapes dialog transforms/clipping; modal ancestry removes inertness.
+  if (parent !== document.body) {
+    hostEl.setAttribute('popover', 'manual');
+    if (hostEl.style.display !== 'none' && !hostEl.matches(':popover-open')) {
+      hostEl.showPopover();
+    }
+  } else {
+    if (hostEl.matches(':popover-open')) hostEl.hidePopover();
+    hostEl.removeAttribute('popover');
+  }
+  if (moved && focused) focused.focus({ preventScroll: true });
+}
 
 function init() {
   if (hostEl) return shadowRoot;
@@ -14,8 +61,14 @@ function init() {
   hostEl.id = 'vibe-annotations-root';
   hostEl.style.cssText = `
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
+    inset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+    max-width: none !important;
+    max-height: none !important;
     width: 100vw !important;
     height: 100vh !important;
     pointer-events: none !important;
@@ -35,6 +88,14 @@ function init() {
   hostEl.style.display = 'none';
 
   document.body.appendChild(hostEl);
+  modalObserver = new MutationObserver(syncModalHost);
+  modalObserver.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['open'],
+  });
+  syncModalHost();
 
   // Contain composed events at shadow boundary — prevents frameworks
   // from interpreting shadow DOM interactions as "outside clicks"
@@ -54,6 +115,9 @@ function getHost() {
 }
 
 function destroy() {
+  modalObserver?.disconnect();
+  modalObserver = null;
+  modalStack = [];
   if (hostEl && hostEl.parentNode) {
     hostEl.parentNode.removeChild(hostEl);
   }
@@ -62,12 +126,18 @@ function destroy() {
 }
 
 function hide() {
-  if (hostEl) hostEl.style.display = 'none';
+  if (hostEl) {
+    if (hostEl.matches(':popover-open')) hostEl.hidePopover();
+    hostEl.style.display = 'none';
+  }
   VibeAPI.saveOverlayHidden(true);
 }
 
 function show() {
-  if (hostEl) hostEl.style.display = '';
+  if (hostEl) {
+    hostEl.style.display = '';
+    syncModalHost();
+  }
   VibeAPI.saveOverlayHidden(false);
   VibeEvents.emit('overlay:shown');
 }

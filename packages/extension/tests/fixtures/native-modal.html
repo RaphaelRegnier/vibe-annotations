@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Vibe native modal regression</title>
+<style>
+  body { font: 16px system-ui; padding: 24px; }
+  dialog { transform: translate(20px, 10px); overflow: hidden; width: 360px; }
+  dialog::backdrop { background: #0008; }
+</style>
+<h1>Native modal overlay regression</h1>
+<button id="run">Run Regression Checks</button>
+<pre id="results">Ready</pre>
+<dialog id="second"><h2>Second Dialog</h2><button autofocus>Second Dialog Button</button></dialog>
+<dialog id="first"><h2>Native Modal</h2><button autofocus>Page Dialog Button</button></dialog>
+<script type="module" src="native-modal.js"></script>
