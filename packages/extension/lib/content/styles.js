@@ -2709,4 +2709,41 @@ export const VIBE_STYLES = `
 .vibe-popover-anchor.in-list .vibe-drag-handle,
 .vibe-popover-anchor.in-list .vibe-popover-title { display: none; }
 @keyframes vibe-list-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* ===== Docked popover, existing-only Design panel, delete element ===== */
+.vibe-absent { display: none !important; }
+.vibe-popover-anchor.docked .vibe-popover { animation: vibe-dock-in 0.18s cubic-bezier(.2,.8,.2,1); }
+@keyframes vibe-dock-in { from { opacity: 0; transform: translateY(-4px) scale(0.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .vibe-popover-anchor.docked .vibe-popover { animation: none; } }
+.vibe-del-el-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: none;
+  border-radius: var(--v-radius-xs); background: none;
+  color: var(--v-text-secondary); cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.vibe-design-reset + .vibe-del-el-btn { margin-left: 0; }
+.vibe-del-el-btn:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+.vibe-del-el-btn.on { color: #fff; background: #dc2626; }
+.vibe-remove-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 4px 12px 8px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(220,38,38,0.14); color: #fca5a5; font: 500 12px/1.3 var(--v-font);
+}
+.vibe-remove-banner[hidden] { display: none; }
+.vibe-remove-banner span { display: flex; align-items: center; gap: 6px; }
+.vibe-remove-undo { border: none; background: none; color: var(--v-text-primary); font: 600 12px var(--v-font); cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.vibe-remove-undo:hover { background: var(--v-surface-hover); }
+.vibe-popover.vibe-removing .vibe-design-section,
+.vibe-popover.vibe-removing .vibe-design-note { opacity: 0.35; pointer-events: none; }
+.vibe-design-note { margin: 6px 14px 2px; font-size: 11px; color: var(--v-text-secondary); opacity: 0.8; }
+
+/* Variants inside the thread */
+.vibe-msg-variants .vibe-variants-review { padding: 6px 0 2px; }
+.vibe-msg-variants .vibe-variants-hint { margin: 0 0 6px; font-size: 11px; }
+.vibe-msg-variants .vibe-variant-row { padding: 7px 10px; font-size: 12px; }
+.vibe-variants-reply { margin: 6px 14px 0; }
+.vibe-variants-reply-btn[hidden] { display: none; }
+.vibe-variants-choose { white-space: nowrap; }
+.vibe-variants-reply textarea { min-height: 34px; }
 `;

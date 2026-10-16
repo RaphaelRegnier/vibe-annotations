@@ -7,7 +7,7 @@ import VibeEvents, { vibeLocationPath } from './event-bus.js';
 import VibeInspectionMode from './inspection-mode.js';
 import VibePopoverPanels from './popover-panels.js';
 import VibeShadowHost from './shadow-host.js';
-import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
+import { kindOf, threadHTML, newMessage, threadOf, variantsMessageId } from './annotation-meta.js';
 
   let currentPopover = null;
   let currentTargetHighlight = null;
@@ -25,13 +25,12 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
   const P = VibePopoverPanels; // shorthand
 
-  // Pinned popover: docked to the toolbar instead of the element, and it stays
-  // open while you keep inspecting (the next pick replaces it in place).
-  let docked = false;
+  // Every popover docks next to the toolbar (never by the element or its pin),
+  // and stays open while you keep inspecting: the next pick replaces it in place.
+  const docked = true;
   // Reopening an existing annotation from its pin shows it inside the
   // "All annotations" list, in this slot, instead of floating by the pin.
   let listSlot = null;
-  try { docked = sessionStorage.getItem('vibe-popover-docked') === '1'; } catch { /* storage blocked */ }
   const SEND_KEY = 'vibe-send-to-claude'; // "Send to Claude" checkbox, remembered
   const VIBE_PIN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
 
@@ -44,6 +43,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
   const VIBE_CAMERA_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
   const VIBE_VARIANTS_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>';
   const VIBE_COMMENT_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+  const VIBE_DELETE_EL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" stroke-dasharray="4 3"/><path d="M9 9l6 6M15 9l-6 6"/></svg>';
   const VIBE_DESIGN_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M4 16v3a1 1 0 0 1 1 1h3"/><path d="M12 12l7.5 3-3.2 1.1-1.1 3.2z"/></svg>';
 
   // Maps a pending-change property (camelCase) to its Design-accordion section, so
@@ -115,31 +115,13 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
     return true;
   }
 
-  function setDocked(anchor, popover, targetElement, clickX, clickY, on) {
-    docked = on;
-    try { sessionStorage.setItem('vibe-popover-docked', on ? '1' : '0'); } catch { /* storage blocked */ }
-    anchor.classList.toggle('docked', on);
-    popover.querySelector('.vibe-pin-btn')?.classList.toggle('on', on);
-    popover.querySelector('.vibe-pin-btn')?.setAttribute('title', on ? 'Unpin from the toolbar' : 'Pin to the toolbar');
-    if (on) {
-      positionDocked(popover);
-      // Docked: keep inspecting; the next pick replaces this popover.
-      VibeInspectionMode.reEnable();
-    } else {
-      positionPopover(anchor, targetElement, clickX, clickY);
-      VibeInspectionMode.tempDisable();
-    }
-  }
-
-  function wirePin(anchor, popover, targetElement, clickX, clickY) {
-    const btn = popover.querySelector('.vibe-pin-btn');
-    if (!btn) return;
-    if (listSlot) { btn.remove(); return; }
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setDocked(anchor, popover, targetElement, clickX, clickY, !docked);
-    });
-    if (docked) setDocked(anchor, popover, targetElement, clickX, clickY, true);
+  // Dock next to the toolbar and keep inspecting: the next pick replaces this
+  // popover. Inside the list, the list hosts it instead.
+  function dock(anchor, popover) {
+    if (listSlot) return;
+    anchor.classList.add('docked');
+    positionDocked(popover);
+    VibeInspectionMode.reEnable();
   }
 
   // "Send to Claude" checkbox: only while the Claude Code mod is connected.
@@ -245,7 +227,9 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
     // Design edit is a vertical accordion — reuse the design panels as collapsible
     // sections (same order as the old tab bar). First section opens by default.
-    const sections = P.getTabsForType(elType);
+    // Only the controls for properties the element already has (no free CSS):
+    // the raw CSS section is left out, the rest is pruned after wiring.
+    const sections = P.getTabsForType(elType).filter(sec => sec.key !== 'raw-css');
     const designAccordionHTML = sections.map((sec, i) => {
       const open = i === 0;
       return `
@@ -269,7 +253,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
       <div class="vibe-popover-title">
         <span>${titleText} <code>${P.escapeHTML(selectorLabel)}</code></span>
         <button class="vibe-design-reset" type="button" title="Reset design changes"${isDesign ? '' : ' style="display:none"'}>${P.ICONS.reset}</button>
-        <button class="vibe-pin-btn${docked ? ' on' : ''}" type="button" title="${docked ? 'Unpin from the toolbar' : 'Pin to the toolbar'}">${VIBE_PIN_ICON}</button>
+        ${isDesign ? `<button class="vibe-del-el-btn" type="button" title="Delete element" aria-pressed="false">${VIBE_DELETE_EL_ICON}</button>` : ''}
       </div>
       ${(isDesign || isThread) ? '' : `<div class="vibe-mode-bar">
         <button class="vibe-mode-tab active" data-mode="comment" type="button" title="Comment — an AI instruction">${VIBE_COMMENT_ICON}<span>Comment</span></button>
@@ -297,7 +281,12 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
         <input type="file" accept="${ATTACH_ACCEPT}" class="vibe-attach-input" hidden multiple>
       </div>
       <div class="vibe-mode-panel vibe-design-accordion" data-mode="design"${isDesign ? '' : ' hidden'}>
+        <div class="vibe-remove-banner" hidden>
+          <span>${VIBE_DELETE_EL_ICON}This element will be deleted.</span>
+          <button class="vibe-remove-undo" type="button">Undo</button>
+        </div>
         ${designAccordionHTML}
+        <p class="vibe-design-note">Showing the properties this element already uses.</p>
       </div>
       <label class="vibe-send-claude" hidden title="Hand it to the Claude Code session right after saving"><input type="checkbox"><span>Send to Claude when ${isThread ? 'replying' : 'saved'}</span></label>
       <div class="vibe-popover-footer">
@@ -317,7 +306,8 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
 
     positionPopover(anchor, targetElement, clickX, clickY);
     wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
-    wirePin(anchor, popover, targetElement, clickX, clickY);
+    popover.querySelector('.vibe-drag-handle')?.remove();
+    dock(anchor, popover);
     const sendChecked = wireSendToClaude(popover);
     const threadEl = popover.querySelector('.vibe-thread');
     if (threadEl) requestAnimationFrame(() => { threadEl.scrollTop = threadEl.scrollHeight; });
@@ -726,7 +716,12 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
       return Object.keys(changes).length ? changes : null;
     }
 
+    // Delete element: one design edit that hides it live and tells the agent to
+    // remove it from source.
+    let removeOn = !!(pc && pc.removeElement);
+    const origDisplay = (pc && pc.display) ? pc.display.original : (getComputedStyle(targetElement).display || 'block');
     function buildPendingChanges() {
+      if (removeOn) return { removeElement: { original: 'present', value: 'removed' }, display: { original: origDisplay, value: 'none' } };
       const merged = {};
       for (const fn of bpcFns) {
         const result = fn();
@@ -769,6 +764,27 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
       if (pc.copyChange) targetElement.textContent = pc.copyChange.value;
     }
     updateResetVisibility();
+
+    // Hide everything but what the element already has.
+    if (isDesign) P.pruneToExisting(popover, targetElement, pc);
+
+    const restoreDisplay = (pc && pc.removeElement) ? '' : targetElement.style.display;
+    const delElBtn = popover.querySelector('.vibe-del-el-btn');
+    const removeBanner = popover.querySelector('.vibe-remove-banner');
+    function setRemove(on) {
+      removeOn = on;
+      delElBtn?.classList.toggle('on', on);
+      delElBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (removeBanner) removeBanner.hidden = !on;
+      popover.classList.toggle('vibe-removing', on);
+      targetElement.style.display = on ? 'none' : restoreDisplay;
+      if (currentTargetHighlight) currentTargetHighlight.style.display = on ? 'none' : '';
+      popover._updateSave?.();
+    }
+    if (delElBtn) delElBtn.addEventListener('click', (e) => { e.stopPropagation(); setRemove(!removeOn); });
+    popover.querySelector('.vibe-remove-undo')?.addEventListener('click', () => setRemove(false));
+    resetBtn.addEventListener('click', () => { if (removeOn) setRemove(false); });
+    if (removeOn) setRemove(true);
 
     // Light a "changed" dot on each Design section header (and the Design tab) that
     // currently carries a pending change, so edits are visible without opening every
@@ -1010,25 +1026,63 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
       </label>`;
     }).join('');
 
+    // The pick lives in the conversation: the options sit inside the agent's
+    // message, and the composer below lets you ask for changes before picking.
     popover.innerHTML = `
-      <div class="vibe-drag-handle"></div>
       <div class="vibe-popover-title"><span>Variants</span></div>
       ${threadHTML(annotation)}
-      <div class="vibe-variants-review">
-        <p class="vibe-variants-hint">${chosenValue != null ? 'Chosen — now ask your agent to finalize.' : 'Pick a variant to preview it live in the page.'}</p>
-        <div class="vibe-variant-list">${rows}</div>
+      <div class="vibe-input-wrap vibe-variants-reply">
+        <textarea class="vibe-textarea vibe-textarea-add" placeholder="Ask for changes, or a question…" maxlength="1000" rows="1"></textarea>
       </div>
       <div class="vibe-popover-footer">
         <div class="vibe-footer-left"><button class="vibe-btn-icon vibe-variants-delete" title="Discard variants">${P.ICONS.trash}</button></div>
         <div class="vibe-footer-right">
+          <button class="vibe-btn vibe-btn-secondary vibe-variants-reply-btn" hidden>Reply</button>
           <button class="vibe-btn vibe-btn-secondary vibe-cancel-btn">Close</button>
           <button class="vibe-btn vibe-btn-primary vibe-variants-choose"${chosenValue != null ? ' disabled' : ''}>${chosenValue != null ? 'Chosen ✓' : 'Choose this variant'}</button>
         </div>
       </div>
     `;
+    const pickHTML = `<div class="vibe-variants-review">
+        <p class="vibe-variants-hint">${chosenValue != null ? 'Chosen — now ask your agent to finalize.' : 'Pick a variant to preview it live in the page.'}</p>
+        <div class="vibe-variant-list">${rows}</div>
+      </div>`;
+    const msgId = variantsMessageId(annotation);
+    const slots = popover.querySelectorAll('.vibe-msg-variants');
+    const slot = [...slots].find(el => el.getAttribute('data-msg') === msgId) || slots[slots.length - 1];
+    if (slot) slot.innerHTML = pickHTML;
+    else popover.querySelector('.vibe-popover-title').insertAdjacentHTML('afterend', pickHTML);
 
     anchor.appendChild(popover);
     currentPopover = anchor;
+    const threadEl = popover.querySelector('.vibe-thread');
+    if (threadEl) requestAnimationFrame(() => { threadEl.scrollTop = threadEl.scrollHeight; });
+
+    // Reply in the thread: the agent sees it on its next read (the annotation
+    // surfaces with user_replied_on_variants) and answers or regenerates.
+    const replyTA = popover.querySelector('.vibe-variants-reply textarea');
+    const replyBtn = popover.querySelector('.vibe-variants-reply-btn');
+    replyTA.addEventListener('input', () => { replyBtn.hidden = !replyTA.value.trim(); });
+    const sendReply = async () => {
+      const text = replyTA.value.trim();
+      if (!text) return;
+      const msg = newMessage('user', text);
+      const thread = [...threadOf(annotation), msg];
+      try {
+        await VibeAPI.updateAnnotation(annotation.id, { thread });
+        annotation.thread = thread;
+        VibeEvents.emit('annotation:updated', { id: annotation.id, comment: annotation.comment, pending_changes: annotation.pending_changes || null, css: annotation.css || null, thread });
+        VibeAPI.forceSync();
+        threadEl?.insertAdjacentHTML('beforeend', `<div class="vibe-msg user"><div class="vibe-msg-who">You<span>now</span></div><div class="vibe-msg-body">${P.escapeHTML(text)}</div></div>`);
+        if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+        replyTA.value = '';
+        replyBtn.hidden = true;
+      } catch (err) { console.warn('[Vibe] reply failed:', err); }
+    };
+    replyBtn.addEventListener('click', sendReply);
+    replyTA.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendReply(); }
+    });
     // The badge (and thus targetElement) anchors to the container, which is
     // display:contents and has an empty rect at (0,0) — positioning against it
     // would fling the popover to the top-left. Position against the active variant
@@ -1039,7 +1093,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
       posEl = container.querySelector(`:scope > [data-variant="${esc}"]`) || container.querySelector(':scope > [data-variant]');
     } catch (_) {}
     positionPopover(anchor, posEl || targetElement, clickX, clickY);
-    wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
+    if (!listSlot) anchor.classList.add('docked');
 
     popover.querySelector('.vibe-cancel-btn').addEventListener('click', close);
     anchor.addEventListener('pointerdown', (e) => { if (e.target === anchor) close(); });
@@ -1186,6 +1240,7 @@ import { kindOf, threadHTML, newMessage, threadOf } from './annotation-meta.js';
     const popover = anchor.querySelector('.vibe-popover');
     if (!popover) return;
     if (listSlot) { popover.style.position = ''; popover.style.left = ''; popover.style.top = ''; return; }
+    if (docked && positionDocked(popover)) return;
 
     popover.style.position = 'fixed';
     popover.style.left = '-9999px';

@@ -748,7 +748,7 @@ class LocalAnnotationsServer {
         tools: [
           {
             name: 'read_annotations',
-            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design. VARIANT INTENT FROM A PLAIN COMMENT: a normal comment annotation whose text asks for several design options (e.g. "make variants of this", "show me a few versions", "try some different layouts") is flagged with variant_intent_detected:true and also carries variant_instructions — telling you to promote it into the variants lifecycle (update_annotation with mode:"variants") and generate variants rather than implementing one design, so the user gets the same preview-and-pick UI as the UI button. DELETION DISCIPLINE (IMPORTANT): after you implement a normal annotation in source, you MUST delete it with delete_annotation — never leave finished annotations behind. This matters most for design edits (annotations with pending_changes, also flagged cleanup_required): the extension applies pending_changes as a LIVE inline-style overlay, so a design-edit annotation left undeleted is re-applied on top of your already-implemented source change on the next page reload (doubling it), and reverting it later snaps the page to a stale state. The ONLY annotations you keep are variants annotations — they persist through their own lifecycle until finalized (status resolved). Never generalize a variant\'s "don\'t delete yet" to the other annotations in the same batch: keep deleting every non-variant annotation as you finish it. KINDS: kind is "comment" (a written instruction), "design" (pending_changes / css style edits) or "text" (the user retyped copy in place: pending_changes.copyChange has the original and new text — change that string in source). THREADS: a comment may carry a thread [{ author: "user" | "agent", body, created_at }] of follow-ups after the first comment; the latest user message is the current ask. If you cannot finish an annotation (unclear, needs a decision, blocked), do NOT delete it: call reply_to_annotation with your question or what you need. Annotations flagged awaiting_user_reply are waiting on the user\'s answer to your last reply: skip them until the user answers, then continue and delete when done.',
+            description: 'Retrieves user-created visual annotations with pagination support. Returns annotation data with has_screenshot flag instead of full screenshot data for token efficiency. Use url parameter to filter by project. MULTI-PROJECT SAFETY: This tool detects when annotations exist across multiple localhost projects and provides warnings with specific URL filtering guidance. CRITICAL WORKFLOW: (1) First call WITHOUT url parameter to see all projects, (2) Use get_project_context tool to determine current project, (3) Call again WITH url parameter (e.g., "http://localhost:3000/*") to filter for current project only. This prevents cross-project contamination where you might implement changes in wrong codebase. DESIGN CHANGES: Annotations may include pending_changes with original→new values for CSS properties. When implementing these changes, map values to the project design system (Tailwind classes, CSS variables, or design tokens) rather than using raw values. Use limit and offset parameters for pagination when handling large annotation sets. Use this tool when users mention: annotations, comments, feedback, suggestions, notes, marked changes, or visual issues they\'ve identified. IMAGE ATTACHMENTS: an annotation may include an attachments array, each { kind, mime, path } where path is an absolute local image file you can open/read directly (no extra tool needed). kind="capture" is an auto screenshot of the annotated element = its CURRENT visual state; kind="user" is an image the user attached = usually a DESIGN REFERENCE/TARGET ("make it look like this") — treat the two differently. Only attachments whose file exists locally are included; a shared/imported annotation may legitimately have none (its images live on another machine). Attachment files are deleted automatically when the annotation is deleted. VARIANTS: an annotation with mode="variants" carries a self-contained variant_instructions field — a complete contract for generating (status pending) or finalizing (variant-chosen / variants-discarded) several coexisting, previewable design variants in the codebase. When present, follow variant_instructions EXACTLY and write back with update_annotation; do not implement a single design. VARIANT INTENT FROM A PLAIN COMMENT: a normal comment annotation whose text asks for several design options (e.g. "make variants of this", "show me a few versions", "try some different layouts") is flagged with variant_intent_detected:true and also carries variant_instructions — telling you to promote it into the variants lifecycle (update_annotation with mode:"variants") and generate variants rather than implementing one design, so the user gets the same preview-and-pick UI as the UI button. DELETION DISCIPLINE (IMPORTANT): after you implement a normal annotation in source, you MUST delete it with delete_annotation — never leave finished annotations behind. This matters most for design edits (annotations with pending_changes, also flagged cleanup_required): the extension applies pending_changes as a LIVE inline-style overlay, so a design-edit annotation left undeleted is re-applied on top of your already-implemented source change on the next page reload (doubling it), and reverting it later snaps the page to a stale state. The ONLY annotations you keep are variants annotations — they persist through their own lifecycle until finalized (status resolved). Never generalize a variant\'s "don\'t delete yet" to the other annotations in the same batch: keep deleting every non-variant annotation as you finish it. KINDS: kind is "comment" (a written instruction), "design" (pending_changes / css style edits) or "text" (the user retyped copy in place: pending_changes.copyChange has the original and new text — change that string in source). A design edit whose pending_changes has removeElement means the user deleted that element in the Design panel: remove the element from source (its display:none entry is only the live preview), then delete the annotation. THREADS: a comment may carry a thread [{ author: "user" | "agent", body, created_at }] of follow-ups after the first comment; the latest user message is the current ask. If you cannot finish an annotation (unclear, needs a decision, blocked), do NOT delete it: call reply_to_annotation with your question or what you need. Annotations flagged awaiting_user_reply are waiting on the user\'s answer to your last reply: skip them until the user answers, then continue and delete when done. Replying is for clarification only; deleting is still the only way to resolve. Variants use the same thread: their pick message and the user\'s pick land in it, and a variants annotation flagged user_replied_on_variants has a new user message to answer before they pick.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -801,7 +801,7 @@ class LocalAnnotationsServer {
           },
           {
             name: 'reply_to_annotation',
-            description: 'Reply on an annotation\'s thread instead of deleting it, when you cannot finish it right away: ask your question, say what is unclear, or explain what you need. The reply shows in the browser on the annotation\'s pin and in its popover, and the user answers there. The annotation stays open; read_annotations flags it awaiting_user_reply until the user answers. After the user answers, continue the work and delete the annotation when it is done. Not for variants picks (those have their own lifecycle).',
+            description: 'Reply on an annotation\'s thread instead of deleting it, when you cannot finish it right away: ask your question, say what is unclear, or explain what you need. The reply shows in the browser on the annotation\'s pin and in its popover, and the user answers there. The annotation stays open; read_annotations flags it awaiting_user_reply until the user answers. After the user answers, continue the work and delete the annotation when it is done. A reply never resolves anything: deleting the annotation is still how you close it. Works on variants annotations too: when the user asks a question or wants changes while picking (flagged user_replied_on_variants), answer here, or regenerate with update_annotation (a new variantsPayload posts a fresh pick message in the same thread). The pick itself happens in the browser.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -1224,6 +1224,14 @@ class LocalAnnotationsServer {
     const surface = new Set();
     if (status === 'pending') surface.add('variants-discarded');
     if (include_variants) { surface.add('variants-discarded'); surface.add('variant-chosen'); }
+    // A variants annotation mid-review surfaces again when the user wrote in its
+    // thread after the pick message (a question or a change request).
+    if (status === 'pending' || include_variants) {
+      const seen = new Set(filtered.map(a => a.id));
+      for (const a of annotations) {
+        if (a.status === 'variants-ready' && !seen.has(a.id) && this.userRepliedOnVariants(a)) filtered.push(a);
+      }
+    }
     if (surface.size) {
       const seen = new Set(filtered.map(a => a.id));
       for (const a of annotations) {
@@ -1634,6 +1642,14 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
 
   // Agent write path: attach generated variantsPayload (pending → variants-ready)
   // and/or transition status (→ resolved on finalization).
+  // Variants under review whose thread ends with a user message: the user asked
+  // something (or wants changes) before picking.
+  userRepliedOnVariants(a) {
+    if (!a || a.mode !== 'variants' || a.status !== 'variants-ready') return false;
+    const t = Array.isArray(a.thread) ? a.thread : [];
+    return t.length > 0 && t[t.length - 1].author === 'user';
+  }
+
   async updateAnnotation(args) {
     const { id, variantsPayload, status, mode } = args || {};
     if (!id || typeof id !== 'string') throw new Error('update_annotation requires "id" (string annotation id)');
@@ -1661,6 +1677,19 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       // passed explicitly, so it never gets stranded as a comment with a payload.
       if (ann.mode !== 'variants') updates.mode = 'variants';
       if (ann.status === 'pending') updates.status = 'variants-ready';
+      // The pick lives in the annotation's thread: post the agent's message with
+      // the options, so the browser shows them in the conversation.
+      const now = new Date().toISOString();
+      const options = variantsPayload.variants.map(v => ({ value: String(v.value), name: v.name || String(v.value) }));
+      const again = (Array.isArray(ann.thread) ? ann.thread : []).some(m => Array.isArray(m.variants));
+      updates.thread = [...(Array.isArray(ann.thread) ? ann.thread : []), {
+        id: 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        author: 'agent',
+        body: `${again ? 'Updated the variants' : `Made ${options.length} variants`}: ${options.map(o => o.name).join(', ')}. Preview them here and pick one, or reply if you want changes.`,
+        variants: options,
+        created_at: now,
+      }];
+      updates.variants_ready_at = now;
     }
     if (status !== undefined) {
       const allowed = ['variants-ready', 'resolved'];
@@ -1689,6 +1718,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     // Thread state: the agent replied last, so it's the user's turn.
     const thread = Array.isArray(clean.thread) ? clean.thread : [];
     if (thread.length && thread[thread.length - 1].author === 'agent') clean.awaiting_user_reply = true;
+    if (this.userRepliedOnVariants(clean)) clean.user_replied_on_variants = true;
 
     // Strip computed styles — agents use classes/path/selector_preview to find elements,
     // and pending_changes for design deltas. Computed styles are never useful.

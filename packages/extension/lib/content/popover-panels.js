@@ -1456,6 +1456,95 @@ import VibeElementContext from './element-context.js';
     if (hexInput) hexInput.value = hex;
   }
 
+  // --- Existing-properties-only Design panel ---
+  // Like Figma's right panel: a control shows only when the element already
+  // uses that property (a border, a background, padding, a gap, a min/max
+  // size…). Nothing offers to add a property the element doesn't have.
+  // Controls are hidden (not removed) so the wiring above keeps working.
+  function pruneToExisting(popover, el, pc) {
+    const cs = getComputedStyle(el);
+    const has = (p) => !!(pc && pc[p]);
+    const px = (v) => parseFloat(v) || 0;
+    const clear = (c) => !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c.replace(/\s+/g, ' '));
+    const hide = (n) => { if (n) n.classList.add('vibe-absent'); };
+    const header = (label) => [...popover.querySelectorAll('.vibe-section-header')]
+      .find(h => h.querySelector('.vibe-section-label')?.textContent.trim() === label);
+    // A labelled control: the icon before it, the stepper/swatch, and the spacer after.
+    const hideCtl = (input) => {
+      if (!input) return;
+      const box = input.closest('.vibe-stepper') || input;
+      const prev = box.previousElementSibling;
+      if (prev && (prev.classList.contains('vibe-design-icon') || prev.classList.contains('vibe-design-icon-label'))) {
+        const before = prev.previousElementSibling;
+        if (before?.classList.contains('vibe-prop-spacer')) hide(before);
+        hide(prev);
+      }
+      hide(box);
+      const next = box.nextElementSibling;
+      if (next?.classList.contains('vibe-prop-spacer') && !next.nextElementSibling?.classList.contains('vibe-absent')) hide(next);
+    };
+
+    // Padding / margin
+    const sides = ['Top', 'Right', 'Bottom', 'Left'];
+    for (const [kind, label] of [['padding', 'Padding'], ['margin', 'Margin']]) {
+      const on = sides.some(sd => has(kind + sd) || px(cs[kind + sd]) !== 0);
+      if (!on) {
+        hide(header(label));
+        popover.querySelectorAll(`.vibe-${kind === 'padding' ? 'padding' : 'margin'}-vh-row, .vibe-${kind === 'padding' ? 'padding' : 'margin'}-split-row`).forEach(hide);
+      }
+    }
+
+    // Border: radius, width + color
+    const radiusOn = has('borderRadius') || ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'].some(c => px(cs[`border${c}Radius`]) > 0);
+    const strokeOn = has('borderWidth') || has('borderColor')
+      || sides.some(sd => px(cs[`border${sd}Width`]) > 0 && cs[`border${sd}Style`] !== 'none');
+    const radiusIn = popover.querySelector('input[data-prop="borderRadius"]');
+    const widthIn = popover.querySelector('input[data-prop="borderWidth"]');
+    if (!radiusOn) hideCtl(radiusIn);
+    if (!strokeOn) {
+      hideCtl(widthIn);
+      const sw = popover.querySelector('.vibe-color-swatch[data-color-prop="borderColor"]');
+      if (sw) { hide(sw.previousElementSibling); hide(sw.previousElementSibling?.previousElementSibling); hide(sw); }
+      hide(popover.querySelector('.vibe-color-input[data-color-prop="borderColor"]'));
+    }
+    if (!radiusOn && !strokeOn) { hide(header('Border')); hide(radiusIn?.closest('.vibe-design-row')); }
+
+    // Background
+    if (!has('backgroundColor') && clear(cs.backgroundColor)) {
+      hide(header('Background'));
+      hide(popover.querySelector('.vibe-color-swatch[data-color-prop="backgroundColor"]')?.closest('.vibe-design-row'));
+    }
+
+    // Gaps (flex / grid)
+    const gapOn = has('gap') || has('columnGap') || has('rowGap') || px(cs.columnGap) > 0 || px(cs.rowGap) > 0;
+    if (!gapOn) {
+      const gapRow = popover.querySelector('.vibe-gap-row');
+      if (gapRow) hide(gapRow.querySelector('.vibe-gap-input-row'));
+      hideCtl(popover.querySelector('.vibe-grid-col-gap'));
+      hideCtl(popover.querySelector('.vibe-grid-row-gap'));
+    }
+
+    // Min / max sizes only when set
+    const UNSET = { minWidth: ['0px', 'auto'], maxWidth: ['none'], minHeight: ['0px', 'auto'], maxHeight: ['none'] };
+    for (const [prop, unset] of Object.entries(UNSET)) {
+      if (has(prop) || !unset.includes(cs[prop])) continue;
+      hide(popover.querySelector(`input[data-sizing="${prop}"]`)?.closest('.vibe-sizing-pair'));
+    }
+
+    // Drop sections left with nothing to edit, then make sure one is open.
+    const sections = [...popover.querySelectorAll('.vibe-design-section')];
+    for (const sec of sections) {
+      const body = sec.querySelector('.vibe-design-sec-body');
+      const live = [...body.querySelectorAll('input, button, textarea, select')].some(c => !c.closest('.vibe-absent'));
+      if (!live) hide(sec);
+    }
+    const visible = sections.filter(sec => !sec.classList.contains('vibe-absent'));
+    if (visible.length && !visible.some(sec => sec.querySelector('.vibe-design-sec-body').style.display !== 'none')) {
+      visible[0].querySelector('.vibe-design-sec-body').style.display = '';
+      visible[0].querySelector('.vibe-design-sec-chevron')?.classList.add('open');
+    }
+  }
+
   // --- Public API ---
 
 const VibePopoverPanels = {
@@ -1477,5 +1566,6 @@ const VibePopoverPanels = {
   escapeHTML,
   kebabToCamel,
   getDeviceIcon,
+  pruneToExisting,
 };
 export default VibePopoverPanels;

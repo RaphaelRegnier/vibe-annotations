@@ -41,6 +41,12 @@ export function lastMessage(a) {
   return t.length ? t[t.length - 1] : null;
 }
 
+// The latest message that carries variant options (the one to pick from).
+export function variantsMessageId(a) {
+  const msgs = threadMessages(a).filter(m => Array.isArray(m.variants));
+  return msgs.length ? msgs[msgs.length - 1].id : null;
+}
+
 // The agent wrote last: it's the user's turn.
 export function needsReply(a) {
   return lastMessage(a)?.author === 'agent';
@@ -85,9 +91,11 @@ function timeAgo(iso) {
 export function threadMessages(a) {
   const msgs = [];
   if ((a?.comment || '').trim()) msgs.push({ id: 'c0', author: 'user', body: a.comment.trim(), created_at: a.created_at });
-  if (a?.mode === 'variants' && a.variantsPayload?.variants?.length) {
-    const names = a.variantsPayload.variants.map(v => v.name || v.value);
-    msgs.push({ id: 'v0', author: 'agent', body: `Made ${names.length} variants: ${names.join(', ')}. Pick one.`, created_at: a.variants_ready_at || a.updated_at, synthetic: true });
+  // Older servers don't post the pick message themselves: synthesize it.
+  const posted = threadOf(a).some(m => Array.isArray(m.variants));
+  if (a?.mode === 'variants' && a.variantsPayload?.variants?.length && !posted) {
+    const variants = a.variantsPayload.variants.map(v => ({ value: String(v.value), name: v.name || String(v.value) }));
+    msgs.push({ id: 'v0', author: 'agent', body: `Made ${variants.length} variants: ${variants.map(v => v.name).join(', ')}. Pick one.`, variants, created_at: a.variants_ready_at || a.updated_at, synthetic: true });
   }
   return [...msgs, ...threadOf(a)];
 }
@@ -99,5 +107,6 @@ export function threadHTML(a, { onlyReplies = false } = {}) {
     <div class="vibe-msg ${m.author === 'agent' ? 'agent' : 'user'}">
       <div class="vibe-msg-who">${m.author === 'agent' ? 'Agent' : 'You'}<span>${m.created_at ? timeAgo(m.created_at) : ''}</span></div>
       <div class="vibe-msg-body">${escapeHTML(m.body)}</div>
+      ${Array.isArray(m.variants) ? `<div class="vibe-msg-variants" data-msg="${escapeHTML(m.id)}"></div>` : ''}
     </div>`).join('')}</div>`;
 }

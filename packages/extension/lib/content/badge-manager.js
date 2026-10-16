@@ -396,6 +396,8 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, needsReply, variantToPick,
       return;
     }
     const rect = entry.targetElement.getBoundingClientRect();
+    // Deleted in the Design panel (or otherwise hidden): no box, no pin.
+    if (!rect.width && !rect.height) { entry.el.style.display = 'none'; return; }
     const off = entry.annotation.badge_offset;
     entry.el.style.display = '';
     entry.el.style.top = `${rect.top + (off ? off.y : 0) - 11}px`;
