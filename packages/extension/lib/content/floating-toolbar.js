@@ -44,6 +44,8 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
     trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
     settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+    inbox: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+    more: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
     list: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>',
     close: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
     pointer: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/></svg>',
@@ -96,8 +98,8 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     VibeEvents.on('inspection:started', ({ mode } = {}) => { isAnnotating = true; inspectMode = mode || inspectMode; updateUI(); });
     VibeEvents.on('claude:send', ({ ids } = {}) => sendToClaude(undefined, ids));
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
-    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); refreshActivity(); });
+    VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); refreshActivity(); });
     VibeEvents.on('overlay:closed', () => { resetPosition(); stopPolling(); });
     VibeEvents.on('overlay:shown', () => { startPolling(); animateToolbarIn(); });
     VibeEvents.on('viewall:focus', focusInList);
@@ -138,43 +140,55 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     toolbarEl = document.createElement('div');
     toolbarEl.className = 'vibe-toolbar';
 
+    // A magnetic dock: it sticks to the left or right edge of the window and
+    // only shows its handle until you reach for it. Hover (or focus) and the
+    // tool groups slide out vertically, away from the nearest screen edge.
+    toolbarEl.classList.add('vibe-dock', 'side-right');
     toolbarEl.innerHTML = `
-      <img class="vibe-toolbar-logo" src="${logoUrl}" />
-      <div class="vibe-modes" role="radiogroup" aria-label="Mode">
+      <div class="vibe-dock-group vibe-dock-handle" data-tip="Vibe Annotations" data-tip-sub="Hover to open · drag to move">
+        <img class="vibe-toolbar-logo" src="${logoUrl}" alt="" />
+        <span class="vibe-dock-led vibe-tb-led"></span>
+        <span class="vibe-dock-count" style="display:none">0</span>
+      </div>
+      <div class="vibe-dock-group vibe-dock-activity" style="display:none">
+        <button class="vibe-toolbar-send vibe-tb-send" aria-label="Send to Claude Code" data-tip="Send to Claude Code" style="display:none">
+          ${ICONS.send}
+        </button>
+        <div class="vibe-dock-dots"></div>
+      </div>
+      <div class="vibe-dock-group vibe-dock-reveal vibe-dock-inbox">
+        <button class="vibe-toolbar-btn vibe-tb-viewall" aria-label="All annotations" data-tip="All annotations">
+          ${ICONS.inbox}
+          <span class="vibe-toolbar-pill" style="display:none">0</span>
+        </button>
+      </div>
+      <div class="vibe-dock-group vibe-dock-reveal vibe-dock-tools vibe-modes" role="radiogroup" aria-label="Mode">
         <button class="vibe-mode-btn active" data-mode="interact" role="radio" aria-label="Interact" data-tip="Interact" data-tip-sub="Use the page normally">${ICONS.pointer}</button>
         <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" aria-label="Annotate" data-tip="Annotate" data-tip-kbd="${escapeHTML(shortcutHint)}" data-tip-sub="Click an element to comment">${ICONS.annotate}</button>
         <button class="vibe-mode-btn" data-mode="design" role="radio" aria-label="Design" data-tip="Design" data-tip-sub="Click an element to tweak its styles">${ICONS.palette}</button>
         <button class="vibe-mode-btn" data-mode="text" role="radio" aria-label="Edit text" data-tip="Edit text" data-tip-sub="Click any text to retype it">${ICONS.textMode}</button>
       </div>
-      <div class="vibe-toolbar-separator"></div>
-      <div class="vibe-toolbar-middle">
-        <div class="vibe-toolbar-default">
-          <button class="vibe-toolbar-btn vibe-tb-viewall" aria-label="All annotations" data-tip="All annotations">
-            ${ICONS.list}
-            <span class="vibe-toolbar-pill" style="display:none">0</span>
-          </button>
-          <button class="vibe-toolbar-btn vibe-tb-settings" aria-label="Settings" data-tip="Settings">
-            ${ICONS.settings}
-          </button>
-          <button class="vibe-toolbar-status vibe-tb-status" aria-label="MCP server" data-tip="MCP server offline">
-            <span class="vibe-status-led"></span>
-          </button>
-          <button class="vibe-toolbar-send vibe-tb-send" aria-label="Send to Claude Code" data-tip="Send to Claude Code" style="display:none">
-            ${ICONS.send}
-          </button>
-        </div>
+      <div class="vibe-dock-group vibe-dock-reveal vibe-dock-more">
+        <button class="vibe-toolbar-status vibe-tb-status" aria-label="MCP server" data-tip="MCP server offline">
+          <span class="vibe-status-led"></span>
+        </button>
+        <button class="vibe-toolbar-btn vibe-tb-settings" aria-label="Settings" data-tip="Settings">
+          ${ICONS.more}
+        </button>
+        ${isEmbeddedHost ? '' : `
+        <button class="vibe-toolbar-close vibe-tb-close" aria-label="Close" data-tip="Close Vibe Annotations">
+          ${ICONS.close}
+        </button>`}
       </div>
-      ${isEmbeddedHost ? '' : `
-      <button class="vibe-toolbar-close vibe-tb-close" aria-label="Close" data-tip="Close Vibe Annotations">
-        ${ICONS.close}
-      </button>`}
     `;
 
     root.appendChild(toolbarEl);
     wireTooltips(root);
     wireButtons();
     setupDrag();
+    wireDock();
     updateUI();
+    refreshActivity();
     injectUpdateBanner();
   }
 
@@ -649,6 +663,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     }
     const btn = toolbarEl.querySelector('.vibe-tb-viewall');
     if (btn) btn.classList.remove('active');
+    closeDock();
   }
 
   // --- Settings dropdown ---
@@ -867,6 +882,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     const btn = toolbarEl?.querySelector('.vibe-tb-settings');
     if (btn) btn.classList.remove('active');
     document.removeEventListener('click', onOutsideClick);
+    if (toolbarEl) closeDock();
   }
 
   function onOutsideClick(e) {
@@ -912,6 +928,16 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
         sendEl.setAttribute('aria-label', tip);
       }
     }
+
+    // --- Handle: count while folded, server LED ---
+    const countEl = toolbarEl.querySelector('.vibe-dock-count');
+    if (countEl) {
+      countEl.textContent = totalCount;
+      countEl.style.display = totalCount > 0 ? '' : 'none';
+    }
+    const led = toolbarEl.querySelector('.vibe-tb-led');
+    if (led) led.dataset.state = watcherActive ? 'watching' : (serverOnline ? (serverOutdated ? 'outdated' : 'online') : 'offline');
+    updateActivityVisibility();
 
     // --- Status indicator (icon-only, label in tooltip) ---
     const statusEl = toolbarEl.querySelector('.vibe-tb-status');
@@ -967,13 +993,18 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     tipEl.innerHTML = `<span class="vibe-tip-main">${escapeHTML(btn.dataset.tip)}${kbd}</span>${sub}`;
     const r = btn.getBoundingClientRect();
     const bar = toolbarEl.getBoundingClientRect();
-    const below = bar.top < 64;
-    tipEl.classList.toggle('below', below);
+    // The dock is vertical: tips open beside it, toward the page.
+    const onLeft = toolbarEl.classList.contains('side-left');
+    tipEl.classList.toggle('below', false);
+    tipEl.classList.toggle('from-left', onLeft);
+    tipEl.classList.toggle('from-right', !onLeft);
     tipEl.classList.add('on');
     const w = tipEl.offsetWidth;
-    const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2));
-    tipEl.style.left = `${left}px`;
-    tipEl.style.top = below ? `${bar.bottom + 8}px` : `${bar.top - 8 - tipEl.offsetHeight}px`;
+    const h = tipEl.offsetHeight;
+    const left = onLeft ? bar.right + 10 : bar.left - 10 - w;
+    const top = Math.max(8, Math.min(window.innerHeight - h - 8, r.top + r.height / 2 - h / 2));
+    tipEl.style.left = `${Math.max(8, left)}px`;
+    tipEl.style.top = `${top}px`;
     tipFor = btn;
   }
 
@@ -1080,6 +1111,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
 
   async function refreshWatchers() {
     refreshClaude();
+    refreshActivity();
     if (!serverOnline) {
       if (watcherActive) {
         watcherActive = false;
@@ -1123,26 +1155,88 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
     });
   }
 
-  // --- Drag ---
+  // --- Dock: magnetic edge, hover to reveal, drag to move ---
+
+  const DOCK_GAP = 12;          // distance from the window edge
+  let dockSide = 'right';       // 'left' | 'right'
+  let dockTop = 96;             // top of the handle, px
+  let dockOpen = false;
+  let dockCloseTimer = null;
+
+  function handleEl() { return toolbarEl?.querySelector('.vibe-dock-handle'); }
+
+  // The groups slide out away from the closest horizontal half of the window:
+  // down when the handle sits high, up when it sits low. The handle never moves.
+  function applyDockPosition() {
+    if (!toolbarEl) return;
+    const hh = handleEl()?.offsetHeight || 44;
+    dockTop = Math.max(DOCK_GAP, Math.min(dockTop, window.innerHeight - hh - DOCK_GAP));
+    const growUp = dockTop + hh / 2 > window.innerHeight / 2;
+    toolbarEl.classList.toggle('side-left', dockSide === 'left');
+    toolbarEl.classList.toggle('side-right', dockSide !== 'left');
+    toolbarEl.classList.toggle('grow-up', growUp);
+    // Pin one horizontal and one vertical edge; 'auto' the others so the
+    // stylesheet defaults never stretch the dock.
+    toolbarEl.style.left = dockSide === 'left' ? `${DOCK_GAP}px` : 'auto';
+    toolbarEl.style.right = dockSide === 'left' ? 'auto' : `${DOCK_GAP}px`;
+    if (growUp) {
+      toolbarEl.style.top = 'auto';
+      toolbarEl.style.bottom = `${window.innerHeight - dockTop - hh}px`;
+    } else {
+      toolbarEl.style.bottom = 'auto';
+      toolbarEl.style.top = `${dockTop}px`;
+    }
+    VibeEvents.emit('toolbar:moved');
+  }
+
+  // Keep it open while a panel hangs off it or the pointer is on it.
+  function dockHeld() {
+    return !!(viewAllPanel || settingsDropdown || sessionPicker || toolbarEl?.matches(':hover'));
+  }
+
+  function openDock() {
+    clearTimeout(dockCloseTimer);
+    if (dockOpen || !toolbarEl || toolbarEl.classList.contains('dragging')) return;
+    dockOpen = true;
+    toolbarEl.classList.add('open');
+  }
+
+  function closeDock(delay = 420) {
+    clearTimeout(dockCloseTimer);
+    dockCloseTimer = setTimeout(() => {
+      if (!toolbarEl || dockHeld()) return;
+      dockOpen = false;
+      toolbarEl.classList.remove('open');
+      hideTip(true);
+    }, delay);
+  }
+
+  function wireDock() {
+    toolbarEl.addEventListener('pointerenter', () => openDock());
+    toolbarEl.addEventListener('pointerleave', () => closeDock());
+    // Keyboard users: tabbing into the dock opens it too.
+    toolbarEl.addEventListener('focusin', (e) => { if (e.target.matches?.(':focus-visible')) openDock(); });
+    toolbarEl.addEventListener('focusout', () => closeDock());
+    window.addEventListener('resize', () => applyDockPosition());
+  }
 
   function setupDrag() {
     let isDragging = false;
     let didDrag = false;
-    let startX, startY, startLeft, startTop;
+    let startX, startY, startLeft, startTop, handleOffset;
     const DRAG_THRESHOLD = 4;
 
     toolbarEl.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.vibe-toolbar-btn, .vibe-toolbar-close, .vibe-toolbar-status, .vibe-toolbar-send, .vibe-mode-btn, .vibe-viewall-panel, .vibe-settings-dropdown, .vibe-update-banner')) return;
-
+      if (e.button !== 0) return;
+      if (e.target.closest('button, .vibe-viewall-panel, .vibe-settings-dropdown, .vibe-update-banner, .vibe-session-picker')) return;
       isDragging = true;
       didDrag = false;
-      toolbarEl.classList.add('dragging');
       const rect = toolbarEl.getBoundingClientRect();
       startX = e.clientX;
       startY = e.clientY;
       startLeft = rect.left;
       startTop = rect.top;
-
+      handleOffset = (handleEl()?.getBoundingClientRect().top ?? rect.top) - rect.top;
       e.preventDefault();
     });
 
@@ -1150,32 +1244,47 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       if (!isDragging) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-
       if (!didDrag && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
         didDrag = true;
+        toolbarEl.classList.add('dragging');
+        closeSettings();
+        closeViewAll();
+        dockOpen = false;
+        toolbarEl.classList.remove('open');
+        hideTip(true);
       }
-
-      const newRight = window.innerWidth - (startLeft + toolbarEl.offsetWidth) - dx;
-      const newTop = startTop + dy;
-
-      const clampedRight = Math.max(8, Math.min(newRight, window.innerWidth - toolbarEl.offsetWidth - 8));
-      const clampedTop = Math.max(8, Math.min(newTop, window.innerHeight - toolbarEl.offsetHeight - 8));
-
-      toolbarEl.style.right = `${clampedRight}px`;
-      toolbarEl.style.top = `${clampedTop}px`;
+      if (!didDrag) return;
+      const w = toolbarEl.offsetWidth;
+      const h = toolbarEl.offsetHeight;
+      const left = Math.max(4, Math.min(startLeft + dx, window.innerWidth - w - 4));
+      const top = Math.max(4, Math.min(startTop + dy, window.innerHeight - h - 4));
+      toolbarEl.style.right = 'auto';
+      toolbarEl.style.bottom = 'auto';
+      toolbarEl.style.left = `${left}px`;
+      toolbarEl.style.top = `${top}px`;
+      // Lean toward the edge it will stick to.
+      const side = left + w / 2 < window.innerWidth / 2 ? 'left' : 'right';
+      toolbarEl.classList.toggle('side-left', side === 'left');
+      toolbarEl.classList.toggle('side-right', side === 'right');
     });
 
     document.addEventListener('mouseup', () => {
       if (!isDragging) return;
       isDragging = false;
+      if (!didDrag) return;
+      const rect = toolbarEl.getBoundingClientRect();
+      dockSide = rect.left + rect.width / 2 < window.innerWidth / 2 ? 'left' : 'right';
+      dockTop = rect.top + handleOffset;
+      // Magnet: spring to the edge, then re-anchor on that edge.
+      const targetLeft = dockSide === 'left' ? DOCK_GAP : window.innerWidth - rect.width - DOCK_GAP;
       toolbarEl.classList.remove('dragging');
-
-      if (didDrag) {
-        VibeAPI.saveToolbarPosition({
-          right: toolbarEl.style.right,
-          top: toolbarEl.style.top
-        });
-      }
+      toolbarEl.classList.add('snapping');
+      toolbarEl.style.left = `${targetLeft}px`;
+      setTimeout(() => {
+        toolbarEl.classList.remove('snapping');
+        applyDockPosition();
+      }, 380);
+      VibeAPI.saveToolbarPosition({ side: dockSide, top: Math.round(dockTop) });
     });
 
     // Suppress clicks after drag on any toolbar button
@@ -1190,22 +1299,64 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
   async function restorePosition() {
     const pos = await VibeAPI.getToolbarPosition();
     if (pos && toolbarEl) {
-      // Clamp to viewport to handle saved positions from old narrower toolbar
-      const rightPx = parseInt(pos.right, 10);
-      const topPx = parseInt(pos.top, 10);
-      const maxRight = window.innerWidth - toolbarEl.offsetWidth - 8;
-      const maxTop = window.innerHeight - toolbarEl.offsetHeight - 8;
-      toolbarEl.style.right = Math.max(8, Math.min(rightPx, maxRight)) + 'px';
-      toolbarEl.style.top = Math.max(8, Math.min(topPx, maxTop)) + 'px';
+      if (pos.side) {
+        dockSide = pos.side === 'left' ? 'left' : 'right';
+        dockTop = parseInt(pos.top, 10) || dockTop;
+      } else {
+        // Saved by the old horizontal bar: keep its height, stick to the right.
+        dockSide = 'right';
+        dockTop = parseInt(pos.top, 10) || dockTop;
+      }
     }
+    applyDockPosition();
   }
 
   function resetPosition() {
-    if (toolbarEl) {
-      toolbarEl.style.right = '';
-      toolbarEl.style.top = '';
-    }
+    dockSide = 'right';
+    dockTop = 96;
+    applyDockPosition();
     VibeAPI.saveToolbarPosition(null);
+  }
+
+  // --- Activity: one dot per open annotation, so the dock tells you what
+  // needs you without opening anything ---
+
+  let activityToken = 0;
+
+  async function refreshActivity() {
+    if (!toolbarEl) return;
+    const token = ++activityToken;
+    let list = [];
+    try {
+      list = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
+    } catch { /* storage unavailable */ }
+    if (token !== activityToken || !toolbarEl) return;
+    const stateOf = a => (needsReply(a) || variantToPick(a)) ? 'reply' : (inProgress(a) ? 'working' : 'idle');
+    const order = { reply: 0, working: 1, idle: 2 };
+    const items = list.map(a => ({ a, st: stateOf(a) })).sort((x, y) => order[x.st] - order[y.st]);
+    const shown = items.slice(0, 6);
+    const dots = toolbarEl.querySelector('.vibe-dock-dots');
+    const label = { reply: 'Waiting for you', working: 'Claude is on it', idle: 'Open' };
+    dots.innerHTML = shown.map(({ a, st }) => {
+      const text = (a.comment || KIND_LABELS[kindOf(a)] || 'Annotation').replace(/\s+/g, ' ');
+      return `<button class="vibe-dock-dot" data-state="${st}" data-id="${escapeHTML(a.id)}" aria-label="${escapeHTML(label[st])}" data-tip="${escapeHTML(label[st])}" data-tip-sub="${escapeHTML(truncate(text, 48))}"><span></span></button>`;
+    }).join('') + (items.length > shown.length ? `<span class="vibe-dock-more-count">+${items.length - shown.length}</span>` : '');
+    dots.querySelectorAll('.vibe-dock-dot').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      focusInList({ id: btn.dataset.id });
+    }));
+    const attention = items.some(i => i.st !== 'idle');
+    toolbarEl.classList.toggle('attention', attention);
+    toolbarEl.querySelector('.vibe-dock-activity').classList.toggle('calm', !attention);
+    updateActivityVisibility();
+  }
+
+  function updateActivityVisibility() {
+    const group = toolbarEl?.querySelector('.vibe-dock-activity');
+    if (!group) return;
+    const hasDots = !!group.querySelector('.vibe-dock-dot');
+    const sendShown = toolbarEl.querySelector('.vibe-tb-send')?.style.display !== 'none';
+    group.style.display = hasDots || sendShown ? '' : 'none';
   }
 
   // --- Delete confirm ---

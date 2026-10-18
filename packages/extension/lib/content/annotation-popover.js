@@ -98,19 +98,25 @@ import { kindOf, threadHTML, newMessage, threadOf, variantsMessageId } from './a
     show(element, context, annotation, undefined, undefined, kind === 'design' ? 'design' : 'annotate', slot);
   }
 
-  // Dock to the toolbar: under it, or above when the toolbar sits low.
+  // Dock beside the toolbar (a vertical dock on the left or right edge), level
+  // with its handle, toward the page.
   function positionDocked(popover) {
     if (listSlot) return false;
     const bar = VibeShadowHost.getRoot()?.querySelector('.vibe-toolbar');
     if (!bar || !popover) return false;
+    const handle = bar.querySelector('.vibe-dock-handle') || bar;
     const r = bar.getBoundingClientRect();
+    const hr = handle.getBoundingClientRect();
     const h = popover.offsetHeight || 300;
     const w = popover.offsetWidth || 340;
-    const below = r.top < window.innerHeight / 2;
-    const top = below ? r.bottom + 8 : r.top - 8 - h;
-    const left = Math.max(10, Math.min(r.right - w, window.innerWidth - w - 10));
+    const onLeft = bar.classList.contains('side-left');
+    const growUp = bar.classList.contains('grow-up');
+    let left = onLeft ? r.right + 10 : r.left - 10 - w;
+    left = Math.max(10, Math.min(left, window.innerWidth - w - 10));
+    let top = growUp ? hr.bottom - h : hr.top;
+    top = Math.max(10, Math.min(top, window.innerHeight - h - 10));
     popover.style.position = 'fixed';
-    popover.style.top = `${Math.max(10, top)}px`;
+    popover.style.top = `${top}px`;
     popover.style.left = `${left}px`;
     return true;
   }

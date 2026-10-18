@@ -2746,4 +2746,192 @@ export const VIBE_STYLES = `
 .vibe-variants-reply-btn[hidden] { display: none; }
 .vibe-variants-choose { white-space: nowrap; }
 .vibe-variants-reply textarea { min-height: 34px; }
+
+/* ===== Magnetic dock: a vertical stack of glass capsules stuck to a window
+   edge. Folded, only the handle shows; hover and the groups slide out. ===== */
+.vibe-toolbar.vibe-dock {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transition: none;
+}
+.vibe-toolbar.vibe-dock:hover { box-shadow: none; }
+.vibe-toolbar.vibe-dock.grow-up { flex-direction: column-reverse; }
+.vibe-toolbar.vibe-dock.dragging { cursor: grabbing; box-shadow: none; }
+.vibe-toolbar.vibe-dock.snapping { transition: left 0.36s cubic-bezier(0.34, 1.45, 0.5, 1); }
+
+.vibe-dock-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 44px;
+  padding: 4px;
+  box-sizing: border-box;
+  background: var(--v-toolbar-bg);
+  border: 1px solid var(--v-toolbar-border);
+  border-radius: 22px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+
+/* Handle: logo, server LED, count while folded */
+.vibe-dock-handle {
+  position: relative;
+  height: 44px;
+  justify-content: center;
+  cursor: grab;
+  transition: transform 0.2s cubic-bezier(0.34, 1.45, 0.5, 1), box-shadow 0.2s ease;
+}
+.vibe-dock-handle .vibe-toolbar-logo { width: 24px; height: 24px; margin: 0; border-radius: 6px; }
+.vibe-toolbar.vibe-dock:not(.open) .vibe-dock-handle:hover { transform: scale(1.06); }
+.vibe-toolbar.vibe-dock.dragging .vibe-dock-handle { transform: scale(1.1); box-shadow: 0 16px 40px rgba(0,0,0,0.5); cursor: grabbing; }
+.vibe-dock-led {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--v-toolbar-bg);
+  background: var(--v-status-offline);
+}
+.vibe-dock-led[data-state="online"] { background: var(--v-status-online); }
+.vibe-dock-led[data-state="outdated"],
+.vibe-dock-led[data-state="watching"] { background: var(--v-status-watching); }
+.vibe-dock-count {
+  position: absolute;
+  top: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--v-badge-bg);
+  color: #fff;
+  font: 600 10px/17px var(--v-font);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.vibe-dock.side-right .vibe-dock-count { left: -6px; }
+.vibe-dock.side-left .vibe-dock-count { right: -6px; }
+.vibe-dock.open .vibe-dock-count { opacity: 0; transform: scale(0.6); }
+
+/* Groups that only exist while open: they grow out of the handle */
+.vibe-dock-reveal {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.92);
+  pointer-events: none;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: -8px;
+  border-width: 0;
+  overflow: hidden;
+  transition: opacity 0.16s ease, transform 0.22s cubic-bezier(0.34, 1.3, 0.5, 1), max-height 0.22s ease, padding 0.22s ease, margin 0.22s ease;
+}
+.vibe-dock.grow-up .vibe-dock-reveal { transform: translateY(10px) scale(0.92); margin-top: 0; margin-bottom: -8px; }
+.vibe-dock.open .vibe-dock-reveal,
+.vibe-dock.inspecting .vibe-dock-tools {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  max-height: 220px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  margin-top: 0;
+  margin-bottom: 0;
+  border-width: 1px;
+  overflow: visible;
+}
+.vibe-dock.open .vibe-dock-reveal:nth-child(3) { transition-delay: 0s, 0.02s; }
+.vibe-dock.open .vibe-dock-reveal:nth-child(4) { transition-delay: 0.03s, 0.05s; }
+.vibe-dock.open .vibe-dock-reveal:nth-child(5) { transition-delay: 0.06s, 0.08s; }
+/* While a tool is on and the dock is folded, only that tool stays out. */
+.vibe-dock.inspecting:not(.open) .vibe-dock-tools .vibe-mode-btn:not(.active) { display: none; }
+
+/* Activity: a dot per open annotation. Out when something needs you. */
+.vibe-dock-activity { padding: 6px 4px; gap: 4px; transition: opacity 0.16s ease, transform 0.22s ease; }
+.vibe-dock-activity.calm { display: none !important; }
+.vibe-dock.open .vibe-dock-activity.calm { display: flex !important; }
+.vibe-dock-dots { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.vibe-dock-dot {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 22px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; cursor: pointer;
+}
+.vibe-dock-dot:hover { background: var(--v-toolbar-btn-hover); }
+.vibe-dock-dot span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.28); box-sizing: border-box; }
+.vibe-dock-dot[data-state="reply"] span { width: 10px; height: 10px; background: var(--v-badge-bg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--v-badge-bg) 25%, transparent); }
+.vibe-dock-dot[data-state="working"] span {
+  width: 12px; height: 12px; background: transparent;
+  border: 2px solid #3b82f6; border-right-color: transparent;
+  animation: vibe-dock-spin 0.9s linear infinite;
+}
+@keyframes vibe-dock-spin { to { transform: rotate(360deg); } }
+.vibe-dock-more-count { font: 600 10px/1 var(--v-font); color: var(--v-toolbar-text); padding: 2px 0 1px; }
+.vibe-dock-activity .vibe-toolbar-send { width: 32px; height: 32px; border-radius: 16px; margin: 0 0 2px; }
+
+/* Buttons inside the dock: round, icon-only, same size everywhere */
+.vibe-dock .vibe-dock-tools.vibe-modes { border-radius: 22px; background: var(--v-toolbar-bg); gap: 2px; flex-direction: column; }
+.vibe-dock .vibe-mode-btn,
+.vibe-dock .vibe-toolbar-btn,
+.vibe-dock .vibe-toolbar-status,
+.vibe-dock .vibe-toolbar-close {
+  width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 17px;
+}
+.vibe-dock .vibe-mode-btn svg,
+.vibe-dock .vibe-toolbar-btn svg { width: 16px; height: 16px; }
+.vibe-dock .vibe-toolbar-pill { top: -2px; right: -2px; }
+
+/* Panels and the update note open beside the dock, toward the page */
+.vibe-dock .vibe-viewall-panel,
+.vibe-dock .vibe-settings-dropdown,
+.vibe-dock .vibe-update-banner,
+.vibe-dock .vibe-send-chip {
+  top: 0;
+  bottom: auto;
+  width: 360px;
+  border-radius: 16px;
+}
+.vibe-dock .vibe-settings-dropdown { width: 300px; }
+.vibe-dock.side-right .vibe-viewall-panel,
+.vibe-dock.side-right .vibe-settings-dropdown,
+.vibe-dock.side-right .vibe-update-banner,
+.vibe-dock.side-right .vibe-send-chip { right: calc(100% + 10px); left: auto; }
+.vibe-dock.side-left .vibe-viewall-panel,
+.vibe-dock.side-left .vibe-settings-dropdown,
+.vibe-dock.side-left .vibe-update-banner,
+.vibe-dock.side-left .vibe-send-chip { left: calc(100% + 10px); right: auto; }
+.vibe-dock.grow-up .vibe-viewall-panel,
+.vibe-dock.grow-up .vibe-settings-dropdown,
+.vibe-dock.grow-up .vibe-update-banner,
+.vibe-dock.grow-up .vibe-send-chip { top: auto; bottom: 0; }
+.vibe-dock .vibe-send-chip { width: auto; }
+.vibe-dock .vibe-viewall-panel { animation-name: vibe-dock-panel-in; }
+.vibe-dock .vibe-settings-dropdown { animation-name: vibe-dock-panel-in; }
+.vibe-dock.side-left .vibe-viewall-panel,
+.vibe-dock.side-left .vibe-settings-dropdown { animation-name: vibe-dock-panel-in-left; }
+@keyframes vibe-dock-panel-in { from { opacity: 0; transform: translateX(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes vibe-dock-panel-in-left { from { opacity: 0; transform: translateX(-8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Same card language for the docked popover */
+.vibe-popover-anchor.docked .vibe-popover { border-radius: 16px; }
+
+/* Tooltips beside a vertical dock */
+.vibe-tip.from-right { transform: translateX(4px) scale(0.98); }
+.vibe-tip.from-left { transform: translateX(-4px) scale(0.98); }
+.vibe-tip.on { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-dock-reveal, .vibe-dock-handle, .vibe-toolbar.vibe-dock.snapping { transition: none; }
+  .vibe-dock-dot[data-state="working"] span { animation: none; border-right-color: #3b82f6; }
+}
 `;
