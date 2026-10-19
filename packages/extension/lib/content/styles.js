@@ -2851,9 +2851,9 @@ export const VIBE_STYLES = `
   border-width: 1px;
   overflow: visible;
 }
-.vibe-dock.open .vibe-dock-reveal:nth-child(3) { transition-delay: 0s, 0.02s; }
-.vibe-dock.open .vibe-dock-reveal:nth-child(4) { transition-delay: 0.03s, 0.05s; }
-.vibe-dock.open .vibe-dock-reveal:nth-child(5) { transition-delay: 0.06s, 0.08s; }
+.vibe-dock.open .vibe-dock-tools { transition-delay: 0s, 0.02s; }
+.vibe-dock.open .vibe-dock-inbox { transition-delay: 0.03s, 0.05s; }
+.vibe-dock.open .vibe-dock-more { transition-delay: 0.06s, 0.08s; }
 /* While a tool is on and the dock is folded, only that tool stays out. */
 .vibe-dock.inspecting:not(.open) .vibe-dock-tools .vibe-mode-btn:not(.active) { display: none; }
 
@@ -2861,6 +2861,8 @@ export const VIBE_STYLES = `
 .vibe-dock-activity { padding: 6px 4px; gap: 4px; transition: opacity 0.16s ease, transform 0.22s ease; }
 .vibe-dock-activity.calm { display: none !important; }
 .vibe-dock.open .vibe-dock-activity.calm { display: flex !important; }
+.vibe-dock .vibe-dock-activity.empty,
+.vibe-dock.open .vibe-dock-activity.calm.empty { display: none !important; }
 .vibe-dock-dots { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .vibe-dock-dot {
   display: flex; align-items: center; justify-content: center;
@@ -2877,7 +2879,7 @@ export const VIBE_STYLES = `
 }
 @keyframes vibe-dock-spin { to { transform: rotate(360deg); } }
 .vibe-dock-more-count { font: 600 10px/1 var(--v-font); color: var(--v-toolbar-text); padding: 2px 0 1px; }
-.vibe-dock-activity .vibe-toolbar-send { width: 32px; height: 32px; border-radius: 16px; margin: 0 0 2px; }
+.vibe-dock-inbox .vibe-toolbar-send { width: 32px; height: 32px; border-radius: 16px; margin: 2px 0 0; }
 
 /* Buttons inside the dock: round, icon-only, same size everywhere */
 .vibe-dock .vibe-dock-tools.vibe-modes { border-radius: 22px; background: var(--v-toolbar-bg); gap: 2px; flex-direction: column; }

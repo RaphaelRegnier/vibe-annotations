@@ -30,10 +30,6 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  // Embedded Chromium hosts (Electron, etc.) have no extension toolbar icon and no
-  // chrome.commands shortcut, so closing the overlay would be a one-way door with no
-  // way to reopen it. Hide the close button there — the toolbar stays put instead.
-  const isEmbeddedHost = /\bElectron\//.test(navigator.userAgent);
   const defaultShortcutHint = isMac ? '\u2318\u21E7,' : 'Ctrl+Shift+,';
   let shortcutHint = defaultShortcutHint;
   let customShortcut = null;
@@ -150,10 +146,13 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
         <span class="vibe-dock-led vibe-tb-led"></span>
         <span class="vibe-dock-count" style="display:none">0</span>
       </div>
+      <div class="vibe-dock-group vibe-dock-reveal vibe-dock-tools vibe-modes" role="radiogroup" aria-label="Mode">
+        <button class="vibe-mode-btn active" data-mode="interact" role="radio" aria-label="Interact" data-tip="Interact" data-tip-sub="Use the page normally">${ICONS.pointer}</button>
+        <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" aria-label="Annotate" data-tip="Annotate" data-tip-kbd="${escapeHTML(shortcutHint)}" data-tip-sub="Click an element to comment">${ICONS.annotate}</button>
+        <button class="vibe-mode-btn" data-mode="design" role="radio" aria-label="Design" data-tip="Design" data-tip-sub="Click an element to tweak its styles">${ICONS.palette}</button>
+        <button class="vibe-mode-btn" data-mode="text" role="radio" aria-label="Edit text" data-tip="Edit text" data-tip-sub="Click any text to retype it">${ICONS.textMode}</button>
+      </div>
       <div class="vibe-dock-group vibe-dock-activity" style="display:none">
-        <button class="vibe-toolbar-send vibe-tb-send" aria-label="Send to Claude Code" data-tip="Send to Claude Code" style="display:none">
-          ${ICONS.send}
-        </button>
         <div class="vibe-dock-dots"></div>
       </div>
       <div class="vibe-dock-group vibe-dock-reveal vibe-dock-inbox">
@@ -161,12 +160,9 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
           ${ICONS.inbox}
           <span class="vibe-toolbar-pill" style="display:none">0</span>
         </button>
-      </div>
-      <div class="vibe-dock-group vibe-dock-reveal vibe-dock-tools vibe-modes" role="radiogroup" aria-label="Mode">
-        <button class="vibe-mode-btn active" data-mode="interact" role="radio" aria-label="Interact" data-tip="Interact" data-tip-sub="Use the page normally">${ICONS.pointer}</button>
-        <button class="vibe-mode-btn vibe-tb-annotate" data-mode="annotate" role="radio" aria-label="Annotate" data-tip="Annotate" data-tip-kbd="${escapeHTML(shortcutHint)}" data-tip-sub="Click an element to comment">${ICONS.annotate}</button>
-        <button class="vibe-mode-btn" data-mode="design" role="radio" aria-label="Design" data-tip="Design" data-tip-sub="Click an element to tweak its styles">${ICONS.palette}</button>
-        <button class="vibe-mode-btn" data-mode="text" role="radio" aria-label="Edit text" data-tip="Edit text" data-tip-sub="Click any text to retype it">${ICONS.textMode}</button>
+        <button class="vibe-toolbar-send vibe-tb-send" aria-label="Send to Claude Code" data-tip="Send to Claude Code" style="display:none">
+          ${ICONS.send}
+        </button>
       </div>
       <div class="vibe-dock-group vibe-dock-reveal vibe-dock-more">
         <button class="vibe-toolbar-status vibe-tb-status" aria-label="MCP server" data-tip="MCP server offline">
@@ -175,10 +171,6 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
         <button class="vibe-toolbar-btn vibe-tb-settings" aria-label="Settings" data-tip="Settings">
           ${ICONS.more}
         </button>
-        ${isEmbeddedHost ? '' : `
-        <button class="vibe-toolbar-close vibe-tb-close" aria-label="Close" data-tip="Close Vibe Annotations">
-          ${ICONS.close}
-        </button>`}
       </div>
     `;
 
@@ -263,10 +255,8 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       toggleSettings();
     });
 
-    // Close — animate out then hide. Absent in embedded hosts (see isEmbeddedHost).
-    toolbarEl.querySelector('.vibe-tb-close')?.addEventListener('click', () => {
-      animateToolbarOut();
-    });
+    // No close button: the dock folds itself when the pointer leaves, and the
+    // overlay is turned off from the extension icon or the shortcut.
 
     // Status — watching: stop watchers; offline/online: open MCP setup docs
     toolbarEl.querySelector('.vibe-tb-status').addEventListener('click', async (e) => {
@@ -915,7 +905,7 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
       }
     }
 
-    // --- Send to Claude: only while the server and the Claude Code mod are up ---
+    // --- Send to Claude: only when the Claude Code mod is installed and connected ---
     const sendEl = toolbarEl.querySelector('.vibe-tb-send');
     if (sendEl) {
       sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
@@ -1354,9 +1344,9 @@ import { KIND_ICONS, KIND_LABELS, iconKindOf, kindOf, threadHTML, threadOf, need
   function updateActivityVisibility() {
     const group = toolbarEl?.querySelector('.vibe-dock-activity');
     if (!group) return;
-    const hasDots = !!group.querySelector('.vibe-dock-dot');
-    const sendShown = toolbarEl.querySelector('.vibe-tb-send')?.style.display !== 'none';
-    group.style.display = hasDots || sendShown ? '' : 'none';
+    // A class, not an inline style: the open-dock rule below is !important.
+    group.style.display = '';
+    group.classList.toggle('empty', !group.querySelector('.vibe-dock-dot'));
   }
 
   // --- Delete confirm ---
