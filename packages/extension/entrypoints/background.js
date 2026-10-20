@@ -2,6 +2,8 @@
 // Body is unchanged from the pre-WXT build; paths updated + wrapped in defineBackground().
 
 import { isSupportedUrl, isLocalhostUrl } from '../lib/background/url-filter.js';
+import { pairServer, attachmentDataUrl } from '../lib/background/server-fetch.js';
+import { captureSenderTab } from '../lib/background/capture.js';
 import { updateBadge, clearBadge, updateBadgeForUrl, updateAllBadges } from '../lib/background/badge.js';
 import { isConnected, checkConnection, getCachedStatus, syncAll, saveOne, deleteOne, smartSync, fetchAnnotations, uploadAttachment, deleteAttachment, fetchExport, fetchWatchers, stopWatchers } from '../lib/background/api-sync.js';
 import { formatExport } from '../lib/background/export.js';
@@ -36,7 +38,7 @@ async function seedBootIntent(tabId, intent, data) {
   });
 }
 
-class VibeAnnotationsBackground {
+export class VibeAnnotationsBackground {
   constructor() {
     this._storageQueue = Promise.resolve();
     this.init();
@@ -48,6 +50,7 @@ class VibeAnnotationsBackground {
   }
 
   init() {
+    chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
     this.setupInstallListener();
     this.setupMessageListener();
     this.setupTabListener();
@@ -114,7 +117,35 @@ class VibeAnnotationsBackground {
 
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'pairServer') {
+        if (sender.id !== chrome.runtime.id || sender.url !== chrome.runtime.getURL('options.html')) {
+          sendResponse({ success: false, error: 'Pairing is only available in extension Options.' });
+          return false;
+        }
+        pairServer(request.token)
+          .then(() => checkConnection())
+          .then(() => sendResponse({ success: true }))
+          .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+      }
       switch (request.action) {
+        case 'openOptions':
+          chrome.runtime.openOptionsPage()
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        case 'openAttachment': {
+          const query = new URLSearchParams({ id: request.id, attId: request.attId });
+          chrome.tabs.create({ url: chrome.runtime.getURL(`image.html?${query}`) })
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
+        }
+        case 'getAttachment':
+          attachmentDataUrl(request.id, request.attId)
+            .then(dataUrl => sendResponse({ success: true, dataUrl }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+          break;
         case 'getAnnotations':
           fetchAnnotations(request.url)
             .then(annotations => sendResponse({ success: true, annotations }))
@@ -146,7 +177,7 @@ class VibeAnnotationsBackground {
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
         case 'captureVisibleTab':
-          chrome.tabs.captureVisibleTab(sender?.tab?.windowId, { format: 'png' })
+          captureSenderTab(sender)
             .then(dataUrl => sendResponse({ success: true, dataUrl }))
             .catch(error => sendResponse({ success: false, error: error.message }));
           break;
@@ -380,7 +411,7 @@ class VibeAnnotationsBackground {
   async captureAnnotationScreenshot(id, crop, sender) {
     if (!crop || !(crop.sw > 0) || !(crop.sh > 0)) return;
 
-    const dataUrl = await chrome.tabs.captureVisibleTab(sender?.tab?.windowId, { format: 'png' });
+    const dataUrl = await captureSenderTab(sender);
     const fullBlob = await (await fetch(dataUrl)).blob();
     const bitmap = await createImageBitmap(fullBlob, crop.sx, crop.sy, crop.sw, crop.sh);
 
@@ -422,18 +453,10 @@ class VibeAnnotationsBackground {
     return attachment;
   }
 
-  // Request the broad host permission captureVisibleTab needs (screenshots). The
-  // user gesture from the toggle click propagates through sendMessage → here.
-  // Already-granted returns true without a prompt.
+  // Capture itself checks Chrome's activeTab grant and provides a useful error
+  // when the user needs to activate the extension again. No broad host request.
   async requestScreenshotPermission() {
-    try {
-      // Must be '<all_urls>' specifically — captureVisibleTab does not accept
-      // '*://*/*'. Already-granted returns true without a prompt.
-      return await chrome.permissions.request({ origins: ['<all_urls>'] });
-    } catch (err) {
-      console.error('Screenshot permission request failed:', err);
-      return false;
-    }
+    return true;
   }
 
   // Remove an attachment: unlink the file server-side, drop the metadata locally.
@@ -514,6 +537,10 @@ class VibeAnnotationsBackground {
 
   async restoreEnabledSites() {
     try {
+      // Revoke blanket grants left by older screenshot/all-sites flows.
+      const permissions = await chrome.permissions.getAll();
+      const broad = (permissions.origins || []).filter(p => ['<all_urls>', '*://*/*', 'http://*/*', 'https://*/*'].includes(p));
+      if (broad.length) await chrome.permissions.remove({ origins: broad });
       const result = await chrome.storage.local.get(['vibeEnabledSites']);
       const sites = result.vibeEnabledSites || [];
       for (const originPattern of sites) {
@@ -529,7 +556,11 @@ class VibeAnnotationsBackground {
   // from the modal click is still valid for chrome.permissions.request (MV3 propagates the
   // gesture through sendMessage → onMessage).
   async requestSitePermission({ originPattern, allSites }, sender) {
-    const target = allSites ? { origins: ['*://*/*'] } : { origins: [originPattern] };
+    const expected = sender?.url && new URL(sender.url).origin + '/*';
+    if (allSites || sender?.frameId !== 0 || originPattern !== expected) {
+      throw new Error('Only the current site can be enabled.');
+    }
+    const target = { origins: [originPattern] };
     let granted = false;
     try {
       granted = await chrome.permissions.request(target);

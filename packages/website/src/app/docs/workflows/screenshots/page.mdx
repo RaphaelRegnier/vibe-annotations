@@ -19,7 +19,9 @@ The agent is told which is which, so "current state" and "design target" are nev
 
 ## Enabling auto-screenshots
 
-Auto-capture is **off by default**. Turn it on in the toolbar settings — the extension will request the screenshot permission the first time, since capturing the tab needs broader host access than annotating alone.
+Auto-capture is **off by default**. Turn it on in toolbar settings. Screenshots use temporary `activeTab` access: click the extension icon or its registered keyboard shortcut before capturing. After navigating away, activate it again. A click inside the page toolbar alone does not grant access. Captures are discarded if the active tab changes. No all-websites screenshot permission is requested.
+
+Pair the updated server in the extension Options page before uploading or viewing attachments. Raster formats are supported; SVG attachments are not displayed.
 
 ## Tips
 

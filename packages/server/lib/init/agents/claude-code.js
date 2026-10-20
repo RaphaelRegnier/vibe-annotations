@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { homedir } from 'os';
 import { existsSync } from 'fs';
-import { hasBinary, MCP_URL, MCP_NAME } from './shared.js';
+import { hasBinary, mcpConfig, MCP_COMMAND, MCP_ARGS, MCP_NAME } from './shared.js';
 
 const USER_PATH = join(homedir(), '.claude.json');
 const PROJECT_PATH = (cwd) => join(cwd, '.mcp.json');
@@ -19,7 +19,7 @@ export default {
       path: USER_PATH,
       format: 'json',
       keyPath: ['mcpServers', MCP_NAME],
-      value: { type: 'http', url: MCP_URL },
+      value: { type: 'stdio', ...mcpConfig() },
     };
   },
 
@@ -28,7 +28,7 @@ export default {
       path: PROJECT_PATH(cwd),
       format: 'json',
       keyPath: ['mcpServers', MCP_NAME],
-      value: { type: 'http', url: MCP_URL },
+      value: { type: 'stdio', ...mcpConfig() },
     };
   },
 
@@ -36,8 +36,8 @@ export default {
     return [
       'claude', 'mcp', 'add',
       '--scope', 'user',
-      '--transport', 'http',
-      MCP_NAME, MCP_URL,
+      '--transport', 'stdio',
+      MCP_NAME, '--', MCP_COMMAND, ...MCP_ARGS,
     ];
   },
 
@@ -45,8 +45,8 @@ export default {
     return [
       'claude', 'mcp', 'add',
       '--scope', 'project',
-      '--transport', 'http',
-      MCP_NAME, MCP_URL,
+      '--transport', 'stdio',
+      MCP_NAME, '--', MCP_COMMAND, ...MCP_ARGS,
     ];
   },
 

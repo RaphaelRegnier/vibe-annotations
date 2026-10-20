@@ -8,7 +8,6 @@ import VibeThemeManager from '../../lib/content/theme-manager.js';
 import VibeBadgeManager from '../../lib/content/badge-manager.js';
 import VibeInspectionMode from '../../lib/content/inspection-mode.js';
 import VibeAnnotationPopover from '../../lib/content/annotation-popover.js';
-import VibeBridgeHandler from '../../lib/content/bridge-handler.js';
 import VibeToolbar from '../../lib/content/floating-toolbar.js';
 import VibeScreenshot from '../../lib/content/screenshot.js';
 import { shouldTriggerHotkey } from '../../lib/content/hotkey.js';
@@ -71,7 +70,6 @@ async function bootNormal() {
   VibeBadgeManager.init();
   VibeInspectionMode.init();
   VibeAnnotationPopover.init();
-  VibeBridgeHandler.init(() => annotations);
   VibeScreenshot.init();
   await VibeToolbar.init();
 
@@ -101,7 +99,6 @@ function showPermissionOverlay({ originPattern, hostname } = {}) {
       <p class="vibe-permission-body">Grant access to <strong>${escapeForModal(hostname || 'this site')}</strong> so the annotation toolbar can load here.</p>
       <div class="vibe-permission-actions">
         <button class="vibe-permission-btn vibe-permission-primary" data-scope="site" type="button">Enable on this site</button>
-        <button class="vibe-permission-btn vibe-permission-secondary" data-scope="all" type="button">Enable on all sites</button>
         <button class="vibe-permission-btn vibe-permission-cancel" type="button">Cancel</button>
       </div>
       <div class="vibe-permission-status" aria-live="polite"></div>
@@ -114,14 +111,13 @@ function showPermissionOverlay({ originPattern, hostname } = {}) {
 
   backdrop.querySelector('.vibe-permission-cancel').addEventListener('click', dismiss);
 
-  async function request(allSites) {
+  async function request() {
     setBusy(true);
     statusEl.textContent = 'Requesting permission…';
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'requestSitePermission',
         originPattern,
-        allSites,
       });
       if (response?.success && response.granted) {
         statusEl.textContent = 'Granted — loading toolbar…';
@@ -146,7 +142,7 @@ function showPermissionOverlay({ originPattern, hostname } = {}) {
   }
 
   backdrop.querySelectorAll('[data-scope]').forEach(btn => {
-    btn.addEventListener('click', () => request(btn.dataset.scope === 'all'));
+    btn.addEventListener('click', () => request());
   });
 }
 
@@ -301,7 +297,7 @@ function setupKeyboardShortcuts() {
       return;
     }
 
-    if (shouldTriggerHotkey(e, customShortcut)) {
+    if (shouldTriggerHotkey(e, customShortcut, VibeShadowHost.getRoot()?.activeElement)) {
       e.preventDefault();
       if (VibeInspectionMode.isActive()) {
         VibeEvents.emit('inspection:stop');

@@ -40,8 +40,10 @@ export function isRecordableHotkey(e) {
 // Whether the event's deepest target is an editable element. Uses the composed
 // path so inputs inside the extension's shadow-DOM popover are detected too
 // (keydown is a composed event, but retargets to the shadow host on document).
-function isEditableTarget(e) {
-  const deep = (e.composedPath && e.composedPath()[0]) || e.target;
+function isEditableTarget(e, focusedElement) {
+  // The document's composedPath hides inputs inside our closed shadow root.
+  // Its owner can still pass the root's activeElement explicitly.
+  const deep = focusedElement || (e.composedPath && e.composedPath()[0]) || e.target;
   if (!deep) return false;
   return deep.isContentEditable
     || (deep.tagName && /^(INPUT|TEXTAREA|SELECT)$/i.test(deep.tagName))
@@ -58,10 +60,10 @@ function matchesShortcut(e, shortcut) {
 
 // Whether a stored shortcut may fire for the given keydown. Space/Backspace,
 // editable targets and modifier-less shortcuts never trigger the hotkey.
-export function shouldTriggerHotkey(e, shortcut) {
+export function shouldTriggerHotkey(e, shortcut, focusedElement) {
   if (!shortcut) return false;
   if (isEditingKey(e.key)) return false;
   if (!hasModifier(shortcut)) return false;
-  if (isEditableTarget(e)) return false;
+  if (isEditableTarget(e, focusedElement)) return false;
   return matchesShortcut(e, shortcut);
 }

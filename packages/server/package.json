@@ -17,7 +17,7 @@
     "start": "node lib/server.js",
     "dev": "node --watch lib/server.js",
     "prepublishOnly": "npm test",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "node --test"
   },
   "keywords": [
     "mcp",

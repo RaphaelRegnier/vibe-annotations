@@ -4,6 +4,7 @@
   "version": "2.1.0",
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
     "build": "wxt build",

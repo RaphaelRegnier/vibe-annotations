@@ -13,7 +13,10 @@ function init() {
     if (!VibeAPI.isScreenshotEnabled()) return;
     if (!annotation?.id || !element) return;
     // Fire-and-forget, but surface failures (e.g. missing capture permission).
-    captureZoned(annotation.id, element).catch((err) => console.warn('[Vibe] screenshot capture failed:', err));
+    captureZoned(annotation.id, element).catch((err) => {
+      console.warn('[Vibe] screenshot capture failed:', err);
+      VibeEvents.emit('screenshot:error', { message: err.message });
+    });
   });
 }
 

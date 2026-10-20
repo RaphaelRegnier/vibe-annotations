@@ -2,9 +2,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { spawnSync } from 'child_process';
 import { homedir } from 'os';
+import { fileURLToPath } from 'url';
 
 export const MCP_URL = 'http://127.0.0.1:3846/mcp';
 export const MCP_NAME = 'vibe-annotations';
+export const MCP_COMMAND = process.execPath;
+export const MCP_ARGS = [fileURLToPath(new URL('../../../bin/cli.js', import.meta.url)), 'mcp'];
+export const mcpConfig = () => ({ command: MCP_COMMAND, args: [...MCP_ARGS] });
 
 export function hasBinary(name) {
   const cmd = process.platform === 'win32' ? 'where' : 'sh';

@@ -1,0 +1,25 @@
+name: Security regression tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global pnpm@10.28.2
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter vibe-annotations-server --filter vibe-annotations-extension
+      - run: pnpm test
+      - run: pnpm --filter vibe-annotations-extension build

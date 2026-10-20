@@ -1,7 +1,6 @@
 // Wraps all chrome.runtime.sendMessage and chrome.storage calls
 // Single interface for data operations used by all modules
 
-const SERVER_URL = 'http://127.0.0.1:3846';
 let statusCache = null;
 let statusCacheTime = 0;
 const CACHE_TTL = 2000;
@@ -132,35 +131,20 @@ function isServerOutdated(version) {
 
   // --- Image attachments ---
 
-  // Server URL that serves an attachment's bytes (img src on localhost, open-in-tab anywhere).
-  function attachmentUrl(annotationId, attId) {
-    return `${SERVER_URL}/api/annotations/${annotationId}/attachments/${attId}`;
+  // Only image bytes cross into the page. Server credentials remain in the
+  // background, including for localhost pages and attachment thumbnails.
+  async function attachmentDataUrl(annotationId, attId) {
+    const r = await chrome.runtime.sendMessage({ action: 'getAttachment', id: annotationId, attId });
+    if (!r?.success) throw new Error(r?.error || 'attachment read failed');
+    return r.dataUrl;
   }
 
-  // Upload a user image (paste/drop/file-picker). On local origins we POST the
-  // blob straight to the server (no base64); on other origins we can't reach
-  // localhost directly (mixed content), so we hand the bytes to the background as
-  // a transient data URL and it uploads. Either way the background mirrors the new
-  // attachment into chrome.storage so the UI can render it immediately.
+  async function openAttachment(id, attId) {
+    await chrome.runtime.sendMessage({ action: 'openAttachment', id, attId });
+  }
+
+  // Send image bytes to the background for authenticated upload on every origin.
   async function uploadUserImage(annotationId, blob, mime, kind = 'user') {
-    if (isLocalOrigin()) {
-      // Retry on 404: a brand-new annotation's server-side create can lag behind
-      // this upload, so the annotation may not exist for a moment.
-      let res;
-      for (let i = 0; i < 5; i++) {
-        res = await fetch(`${SERVER_URL}/api/annotations/${annotationId}/attachments`, {
-          method: 'POST',
-          headers: { 'Content-Type': mime, 'X-Attachment-Kind': kind },
-          body: blob,
-        });
-        if (res.ok) break;
-        if (res.status === 404 && i < 4) { await new Promise(r => setTimeout(r, 300)); continue; }
-        throw new Error(`attachment upload failed: ${res.status}`);
-      }
-      const { attachment } = await res.json();
-      chrome.runtime.sendMessage({ action: 'recordAttachment', id: annotationId, att: attachment }).catch(() => {});
-      return attachment;
-    }
     const dataUrl = await blobToDataUrl(blob);
     const r = await chrome.runtime.sendMessage({ action: 'uploadUserImage', id: annotationId, mime, dataUrl, kind });
     if (!r || !r.success) throw new Error(r?.error || 'attachment upload failed');
@@ -202,7 +186,7 @@ function isServerOutdated(version) {
 
   // --- Settings ---
 
-  let _screenshotEnabledCache = false; // default OFF (needs all-sites permission for captureVisibleTab)
+  let _screenshotEnabledCache = false; // default OFF; capture uses temporary activeTab access
 
   async function getScreenshotEnabled() {
     try {
@@ -214,10 +198,7 @@ function isServerOutdated(version) {
     }
   }
 
-  // Screenshots require chrome.tabs.captureVisibleTab, which needs the broad
-  // host permission (activeTab is gesture-scoped + revoked on navigation, and the
-  // localhost host permission doesn't satisfy it). Request it when the user turns
-  // screenshots on. Returns true if granted (or already held).
+  // Screenshot capture uses activeTab after an extension action or shortcut.
   async function requestScreenshotPermission() {
     const r = await chrome.runtime.sendMessage({ action: 'requestScreenshotPermission' });
     return !!(r && r.success && r.granted);
@@ -339,25 +320,8 @@ function isServerOutdated(version) {
     } catch { /* ignore */ }
   }
 
-  // Fetch a shareable export (markdown or self-contained HTML) from the server.
-  // A direct fetch only works on local origins: from an https:// page, reaching
-  // http://127.0.0.1 is blocked by mixed-content / private-network rules before
-  // the request ever leaves the browser. Elsewhere (and if the direct attempt
-  // fails) we route through the background worker, which holds the localhost
-  // host permission and isn't bound by the page's origin.
+  // Export through the authenticated background on every origin.
   async function getShareExport(urlPattern, format) {
-    if (isLocalOrigin() && !isFileProtocol()) {
-      try {
-        const res = await fetch(
-          `${SERVER_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
-          { signal: AbortSignal.timeout(15000) }
-        );
-        if (!res.ok) throw new Error(`export failed: ${res.status}`);
-        return { content: await res.text(), mime: res.headers.get('Content-Type') || 'text/plain' };
-      } catch {
-        // fall through to the background route
-      }
-    }
     return _exportViaBg(urlPattern, format);
   }
 
@@ -400,7 +364,8 @@ const VibeAPI = {
   deleteAnnotationsByUrl,
   captureScreenshot,
   captureVisibleTab,
-  attachmentUrl,
+  attachmentDataUrl,
+  openAttachment,
   uploadUserImage,
   removeAttachment,
   onAnnotationsChanged,

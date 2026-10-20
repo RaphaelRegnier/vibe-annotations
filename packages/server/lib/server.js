@@ -17,6 +17,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import chalk from 'chalk';
+import { DATA_DIR, EXTENSION_ORIGIN, getAuthToken, requestGuard } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +27,6 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 
 // Configuration
 const PORT = 3846;
-const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
 // Image attachments (auto element captures + user paste/upload) are stored as
 // files here, one per attachment, named by annotation id + attachment id. The
@@ -40,8 +40,11 @@ const extForMime = (mime) => EXT_BY_MIME[mime] || 'bin';
 const attachmentFileFor = (annotationId, att) =>
   path.join(ATTACH_DIR, `${annotationId}__${att.id}.${extForMime(att.mime)}`);
 
-class LocalAnnotationsServer {
-  constructor() {
+export class LocalAnnotationsServer {
+  constructor({ token = getAuthToken(), port = PORT, extensionOrigin = EXTENSION_ORIGIN } = {}) {
+    this.port = port;
+    this.extensionOrigin = extensionOrigin;
+    this.authToken = token;
     this.app = express();
     this.loggedProtocolRewrites = new Set();
     this.mcpServer = new Server(
@@ -105,32 +108,18 @@ class LocalAnnotationsServer {
   }
 
   setupExpress() {
+    this.app.use(requestGuard(this.authToken, () => this.port, this.extensionOrigin));
     this.app.use(cors({
-      origin: (origin, cb) => {
-        // Allow: localhost/loopback, chrome-extension://, no origin (curl/MCP)
-        if (!origin
-          || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)
-          || origin.startsWith('chrome-extension://')
-          || origin.endsWith('.local') || origin.endsWith('.test') || origin.endsWith('.localhost')
-        ) {
-          cb(null, origin || '*');
-        } else {
-          cb(null, false);
-        }
-      }
+      origin: this.extensionOrigin,
     }));
     this.app.use(express.json({ limit: '5mb' }));
 
-    // MCP clients (e.g. Claude Code) eagerly attempt OAuth 2.1 Dynamic Client
-    // Registration against /register before knowing whether the server even
-    // supports auth. This server is unauthenticated, so we return a
-    // spec-shaped JSON error instead of Express's default HTML 404 — that
-    // lets the client parse the response, conclude DCR isn't supported, and
-    // fall through to no-auth instead of erroring out on "JSON Parse error".
+    // Local pairing uses a private bearer token rather than dynamic OAuth
+    // registration. Authenticated clients receive a structured discovery error.
     this.app.all('/register', (req, res) => {
       res.status(404).json({
         error: 'registration_not_supported',
-        error_description: 'This MCP server does not require authentication; dynamic client registration is not available.'
+        error_description: 'Use a local pairing token; dynamic OAuth registration is not available.'
       });
     });
     // Same shape for the well-known discovery endpoints — return a JSON 404
@@ -147,7 +136,8 @@ class LocalAnnotationsServer {
       res.json({ 
         status: 'ok', 
         version: packageJson.version,
-        minExtensionVersion: '1.0.0', // Minimum compatible extension version
+        authentication: 'bearer',
+        minExtensionVersion: '2.1.0', // Minimum compatible extension version
         timestamp: new Date().toISOString() 
       });
     });
@@ -557,8 +547,9 @@ class LocalAnnotationsServer {
         
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined, // Stateless mode
-          allowedOrigins: ['*'], // Allow all origins for MCP
-          enableDnsRebindingProtection: false // Disable for localhost
+          allowedOrigins: [this.extensionOrigin],
+          allowedHosts: [`127.0.0.1:${this.port}`, `localhost:${this.port}`],
+          enableDnsRebindingProtection: true
         });
         
         // Newer clients (e.g. Claude Code with MCP 2026-07-28) send a protocol
@@ -2064,16 +2055,15 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     // Check for updates (non-blocking)
     this.checkForUpdates().catch(() => {});
     
-    // Bind explicitly to 0.0.0.0 (IPv4 wildcard). Without a host argument
-    // Node defaults to the IPv6 wildcard, which WSL2 NAT-mode localhost
-    // forwarding doesn't relay back to Windows — Chrome extensions then
-    // see "Failed to fetch" against 127.0.0.1:3846.
-    this.server = this.app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Vibe Annotations server running on http://127.0.0.1:${PORT}`);
-      console.log(`SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
-      console.log(`HTTP API: http://127.0.0.1:${PORT}/api/annotations`);
-      console.log(`MCP Endpoint: http://127.0.0.1:${PORT}/mcp`);
-      console.log(`Health: http://127.0.0.1:${PORT}/health`);
+    // Never expose the local annotation store to the LAN. Cross-host/WSL setups
+    // need an explicitly secured tunnel rather than a wildcard listener.
+    this.server = this.app.listen(this.port, '127.0.0.1', () => {
+      this.port = this.server.address().port;
+      console.log(`Vibe Annotations server running on http://127.0.0.1:${this.port}`);
+      console.log(`SSE Endpoint: http://127.0.0.1:${this.port}/sse`);
+      console.log(`HTTP API: http://127.0.0.1:${this.port}/api/annotations`);
+      console.log(`MCP Endpoint: http://127.0.0.1:${this.port}/mcp`);
+      console.log(`Health: http://127.0.0.1:${this.port}/health`);
       console.log(`Data: ${DATA_FILE}`);
       console.log('\nServer ready to handle requests');
     });
@@ -2104,4 +2094,6 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch(console.error);
+}

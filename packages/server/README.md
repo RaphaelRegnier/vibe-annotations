@@ -54,90 +54,32 @@ vibe-annotations-server logs -f
 
 ## AI Coding Agent Integration
 
-After starting the server, connect it to your AI coding agent. The server supports multiple agents via MCP (Model Context Protocol) using both HTTP and SSE transports.
-
-### Claude Code
-
-Run once (from any directory — `--scope user` makes it available across all projects):
+Run the setup wizard again after upgrading to migrate old HTTP-only agent configurations:
 
 ```bash
-# Recommended (HTTP transport - more stable)
-claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
-
-# Alternative (SSE transport - for compatibility)
-claude mcp add --scope user --transport sse vibe-annotations http://127.0.0.1:3846/sse
+vibe-annotations-server init
+vibe-annotations-server token
 ```
 
-### Cursor
+Paste the token only into the extension's **Options** page (open it from Chrome's extension menu or chrome://extensions). Pair again after restarting Chrome. The credential is stored only in trusted extension session storage. Do not paste it into a website or commit it to a project config.
 
-1. Open Cursor → Settings → Cursor Settings
-2. Go to the Tools & Integrations tab
-3. Click + Add new global MCP server
-4. Enter the following configuration and save:
+The wizard configures agents to run a local stdio proxy. The proxy reads `~/.vibe-annotations/auth-token` and authenticates to the running server. A generic manual configuration is:
 
 ```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
+{ "mcpServers": { "vibe-annotations": { "command": "vibe-annotations-server", "args": ["mcp"] } } }
 ```
 
-### Windsurf
+For Claude Code:
 
-1. Navigate to Windsurf → Settings → Advanced Settings
-2. Scroll down to the Cascade section
-3. Click "Add new server" or edit the raw JSON config file
-4. Add the following configuration:
-
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
+```bash
+claude mcp add --scope user --transport stdio vibe-annotations -- vibe-annotations-server mcp
 ```
 
-### VS Code
+All data endpoints, including legacy SSE, require bearer authentication. Only the non-sensitive health check and approved extension preflights are public. HTTP clients may explicitly configure an Authorization header; prefer the local proxy to keep credentials out of configuration files.
 
-1. Install an AI extension that supports MCP (like GitHub Copilot Chat or Continue)
-2. Go to Code → Settings → Settings or use the shortcut ⌘,
-3. In the search bar, type "MCP"
-4. Look for MCP server configurations in your AI extension settings
-5. Add the following SSE configuration:
+The listener binds only to `127.0.0.1:3846`. WSL/cross-host development requires an explicitly secured tunnel; do not expose the port to a network. An unpacked extension has a different ID: start the server with `VIBE_ANNOTATIONS_EXTENSION_ID` set to its exact 32-character ID from chrome://extensions.
 
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "type": "sse",
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-**Note:** MCP support varies by AI extension. Check your extension's documentation for specific setup instructions.
-
-### Other Editors
-
-Other code editors and tools that support SSE (Server-Sent Events) can also connect to the Vibe Annotations MCP server. If you're using a different editor or tool, check its documentation to confirm it supports SSE-based communication. If it does, you can manually add the server using this configuration:
-
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-**Note:** The Vibe Annotations MCP server supports both HTTP and SSE transports. HTTP transport is recommended for better stability. Use the URL: `http://127.0.0.1:3846/mcp` (HTTP) or `http://127.0.0.1:3846/sse` (SSE).
+Screenshots use temporary `activeTab` permission. Activate the extension with its toolbar icon or registered keyboard shortcut before capturing. The unauthenticated `window.__vibeAnnotations` page API is removed; agents still read and resolve user-created feedback over authenticated MCP.
 
 ## Architecture
 

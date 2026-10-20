@@ -90,6 +90,7 @@ import { isRecordableHotkey } from './hotkey.js';
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
+    VibeEvents.on('screenshot:error', ({ message }) => showInfoModal('Screenshot unavailable', message));
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { overlayOpen = false; isOverlayVisible = false; stopPolling(); });
@@ -655,6 +656,7 @@ import { isRecordableHotkey } from './hotkey.js';
           <span>Documentation</span>
           <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
         </button>
+        <button class="vibe-settings-link vibe-pair-server-btn" type="button">Pair server</button>
         <div class="vibe-settings-separator"></div>
         <div class="vibe-settings-item">
           <div class="vibe-settings-item-left">
@@ -698,6 +700,9 @@ import { isRecordableHotkey } from './hotkey.js';
     `;
 
     toolbarEl.appendChild(settingsDropdown);
+    settingsDropdown.querySelector('.vibe-pair-server-btn').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'openOptions' }).catch(() => {});
+    });
 
     // Clear on copy toggle
     settingsDropdown.querySelector('.vibe-clear-on-copy-toggle').addEventListener('click', async (e) => {
@@ -706,9 +711,7 @@ import { isRecordableHotkey } from './hotkey.js';
       await VibeAPI.saveClearOnCopy(clearOnCopy);
     });
 
-    // Screenshot toggle — turning ON requires the broad host permission that
-    // captureVisibleTab needs, so request it first (within this click gesture).
-    // If the user declines, leave the toggle off.
+    // Captures rely on activeTab granted by the extension icon or shortcut.
     settingsDropdown.querySelector('.vibe-screenshot-toggle').addEventListener('click', async (e) => {
       const toggle = e.currentTarget;
       if (!screenshotEnabled) {

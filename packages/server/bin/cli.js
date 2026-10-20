@@ -17,6 +17,25 @@ const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 
 
 const program = new Command();
 
+program.command('token')
+  .description('Show the local pairing token; paste it only into the extension options page')
+  .action(async () => {
+    const { getAuthToken } = await import('../lib/auth.js');
+    console.log(getAuthToken());
+  });
+
+program.command('mcp')
+  .description('Connect an MCP agent through authenticated local stdio')
+  .action(async () => {
+    try {
+      const { runStdioProxy } = await import('../lib/mcp-stdio.js');
+      await runStdioProxy();
+    } catch (error) {
+      console.error(`Unable to connect to the annotation server: ${error.message}`);
+      process.exitCode = 1;
+    }
+  });
+
 // Configuration paths
 const CONFIG_DIR = join(homedir(), '.vibe-annotations');
 const PID_FILE = join(CONFIG_DIR, 'server.pid');
