@@ -19,10 +19,8 @@ export default defineConfig({
       'Visual annotations for localhost dev projects. Send feedback to AI coding agents like Claude & Cursor via MCP.',
     author: 'Raphael Regnier - Spellbind Creative Studio',
     permissions: ['activeTab', 'storage', 'scripting'],
-    // '*://*/*' covers the "enable on all sites" annotation flow (http/https).
-    // '<all_urls>' is additionally required by chrome.tabs.captureVisibleTab for
-    // screenshots — it is NOT satisfied by '*://*/*' (which omits file://, etc.).
-    optional_host_permissions: ['*://*/*', '<all_urls>'],
+    // Only per-site opt-in uses optional hosts. Screenshots use activeTab.
+    optional_host_permissions: ['*://*/*'],
     host_permissions: [
       'http://localhost/*',
       'https://localhost/*',

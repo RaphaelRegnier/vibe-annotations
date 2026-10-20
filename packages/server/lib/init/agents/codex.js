@@ -3,7 +3,8 @@ import { homedir } from 'os';
 import { existsSync } from 'fs';
 import {
   hasBinary,
-  MCP_URL,
+  MCP_COMMAND,
+  MCP_ARGS,
   MCP_NAME,
   readText,
   writeText,
@@ -15,8 +16,8 @@ import {
 const USER_PATH = join(homedir(), '.codex', 'config.toml');
 const SECTION = `mcp_servers.${MCP_NAME}`;
 const TOML_BODY =
-  `transport = "http"\n` +
-  `url = "${MCP_URL}"`;
+  `command = ${JSON.stringify(MCP_COMMAND)}\n` +
+  `args = ${JSON.stringify(MCP_ARGS)}`;
 
 export default {
   id: 'codex',

@@ -2,6 +2,7 @@
   "name": "vibe-annotations",
   "private": true,
   "scripts": {
+    "test": "node --test",
     "dev:web": "pnpm --filter website dev",
     "build:web": "pnpm --filter website build",
     "lint": "pnpm --filter website lint"

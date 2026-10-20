@@ -1,3 +1,4 @@
+import { serverFetch } from './server-fetch.js';
 // API sync — health checks, bidirectional merge, individual CRUD sync
 import { isSupportedUrl } from './url-filter.js';
 import { updateAllBadges } from './badge.js';
@@ -34,6 +35,9 @@ async function probeConnection() {
     const response = await fetch(`${API_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(5000) });
     if (response.ok) {
       const data = await response.json();
+      if (data.authentication !== 'bearer') throw new Error('Update the annotation server before pairing.');
+      const paired = await serverFetch(`${API_URL}/api/watchers`, { signal: AbortSignal.timeout(5000) });
+      if (!paired.ok) throw new Error('Pair the server in extension Options.');
       connected = true;
       const extensionVersion = chrome.runtime.getManifest().version;
       let versionCompatible = true;
@@ -63,7 +67,7 @@ async function probeConnection() {
 
 export async function syncAll(annotations) {
   try {
-    const response = await fetch(`${API_URL}/api/annotations/sync`, {
+    const response = await serverFetch(`${API_URL}/api/annotations/sync`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ annotations })
     });
     if (!response.ok) throw new Error(`API sync error: ${response.status}`);
@@ -81,7 +85,7 @@ export async function saveOne(annotation) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`${API_URL}/api/annotations`, {
+    const response = await serverFetch(`${API_URL}/api/annotations`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(annotation), signal: controller.signal
     });
     clearTimeout(timeout);
@@ -103,7 +107,7 @@ export async function saveOne(annotation) {
 export async function uploadAttachment(id, blob, kind, mime) {
   const attempts = 5;
   for (let i = 0; i < attempts; i++) {
-    const response = await fetch(`${API_URL}/api/annotations/${id}/attachments`, {
+    const response = await serverFetch(`${API_URL}/api/annotations/${id}/attachments`, {
       method: 'POST',
       headers: { 'Content-Type': mime, 'X-Attachment-Kind': kind },
       body: blob,
@@ -119,14 +123,14 @@ export async function uploadAttachment(id, blob, kind, mime) {
 
 // Remove a single attachment (unlinks the file server-side).
 export async function deleteAttachment(id, attId) {
-  const response = await fetch(`${API_URL}/api/annotations/${id}/attachments/${attId}`, { method: 'DELETE' });
+  const response = await serverFetch(`${API_URL}/api/annotations/${id}/attachments/${attId}`, { method: 'DELETE' });
   if (!response.ok) throw new Error(`attachment delete error: ${response.status}`);
   return await response.json();
 }
 
 export async function deleteOne(id) {
   try {
-    const response = await fetch(`${API_URL}/api/annotations/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+    const response = await serverFetch(`${API_URL}/api/annotations/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
     if (!response.ok) throw new Error(`API delete error: ${response.status}`);
     const result = await response.json();
     if (!result.success) throw new Error(result.error || 'Failed to delete annotation from API');
@@ -139,7 +143,7 @@ export async function deleteOne(id) {
 export async function smartSync(storageLockFn) {
   let serverAnnotations;
   try {
-    const response = await fetch(`${API_URL}/api/annotations?limit=0`);
+    const response = await serverFetch(`${API_URL}/api/annotations?limit=0`);
     if (!response.ok) return;
     const serverResult = await response.json();
     if (!Array.isArray(serverResult.annotations)) return;
@@ -176,7 +180,8 @@ export async function smartSync(storageLockFn) {
 
       if (changed) {
         try {
-          await fetch(`${API_URL}/api/annotations/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ annotations: merged }) });
+          const pushed = await serverFetch(`${API_URL}/api/annotations/sync`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ annotations: merged }) });
+          if (!pushed.ok) throw new Error(`sync failed: ${pushed.status}`);
           let needsUpdate = false;
           for (const a of merged) { if (!a._synced) { a._synced = true; needsUpdate = true; } }
           if (needsUpdate) await chrome.storage.local.set({ annotations: merged });
@@ -203,7 +208,7 @@ export async function smartSync(storageLockFn) {
 // private-network rules block it — but the service worker holds the localhost
 // host permission and isn't subject to the page's origin, so it can.
 export async function fetchExport(urlPattern, format) {
-  const response = await fetch(
+  const response = await serverFetch(
     `${API_URL}/api/export?url=${encodeURIComponent(urlPattern)}&format=${encodeURIComponent(format)}`,
     { signal: AbortSignal.timeout(15000) }
   );
@@ -218,7 +223,7 @@ export async function fetchExport(urlPattern, format) {
 // fetchExport: keeps the page's own network log free of extension traffic.
 export async function fetchWatchers() {
   try {
-    const response = await fetch(`${API_URL}/api/watchers`, { signal: AbortSignal.timeout(2000) });
+    const response = await serverFetch(`${API_URL}/api/watchers`, { signal: AbortSignal.timeout(2000) });
     if (!response.ok) return { watchers: [], watching: false };
     return await response.json();
   } catch {
@@ -228,7 +233,7 @@ export async function fetchWatchers() {
 
 export async function stopWatchers() {
   try {
-    await fetch(`${API_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
+    await serverFetch(`${API_URL}/api/watchers/stop`, { method: 'POST', signal: AbortSignal.timeout(2000) });
   } catch { /* ignore */ }
 }
 
@@ -236,7 +241,7 @@ export async function fetchAnnotations(url) {
   try {
     let apiUrl = `${API_URL}/api/annotations`;
     if (url) apiUrl += `?url=${encodeURIComponent(url)}`;
-    const response = await fetch(apiUrl);
+    const response = await serverFetch(apiUrl);
     if (!response.ok) throw new Error(`API server error: ${response.status}`);
     const result = await response.json();
     return result.annotations || [];

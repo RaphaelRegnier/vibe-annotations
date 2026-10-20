@@ -20,6 +20,8 @@ npx vibe-annotations-server init
 
 One interactive command installs the global server, starts it in the background, and configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code). Prefer manual? See [Installation](https://vibe-annotations.com/docs/installation).
 
+Run `vibe-annotations-server token`, open the extension's **Options** page, and paste the token there. Pair again after restarting Chrome. When upgrading, update both components and rerun `init` to migrate agent configs to the authenticated local stdio proxy. See [SECURITY.md](SECURITY.md) for the security model and changes to page automation, screenshots, and public-site permissions.
+
 **3.** Open a localhost page, click **Annotate**. You can annotate multiple pages on your web app. Then:
 
 A (recommended) - [Use the MCP](https://vibe-annotations.com/docs/mcp-setup) to implement your Annotations

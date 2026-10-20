@@ -2,46 +2,29 @@ export const metadata = { title: 'MCP Setup' }
 
 # MCP Setup
 
-Connect your AI coding agent to the Vibe Annotations server so it can read, watch, and resolve annotations automatically.
+Start the updated server, then rerun the wizard to migrate old HTTP-only configurations:
 
-**Shortcut:** `npx vibe-annotations-server init` configures the agents below interactively in one step. Keep reading if you'd rather set it up manually.
+```bash
+vibe-annotations-server init
+vibe-annotations-server token
+```
 
-**Prerequisite (manual setup):** The server must be running. Run `vibe-annotations-server start` first.
+Open the extension's **Options** page from Chrome's extension menu or chrome://extensions and paste the pairing token there. Pair again after restarting Chrome. Never paste the token into a website or save it in project configuration.
+
+The wizard configures each supported agent with a local stdio proxy. The proxy reads the private token file and authenticates to the running HTTP server; agent configs contain no secret.
 
 ## Claude Code
 
-Run once from any directory — `--scope user` configures it globally across all projects.
-
 ```bash
-claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp
+claude mcp add --scope user --transport stdio vibe-annotations -- vibe-annotations-server mcp
 ```
 
-## Cursor
+## Cursor, Windsurf and OpenClaw
 
-Open Cursor Settings, go to Tools & Integrations, click "+ Add new global MCP server", and add:
-
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
-```
-
-## Windsurf
-
-Navigate to Settings, then Advanced Settings, scroll to the Cascade section, and add:
+Use this entry under your agent's `mcpServers` key:
 
 ```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "serverUrl": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
+{ "vibe-annotations": { "command": "vibe-annotations-server", "args": ["mcp"] } }
 ```
 
 ## Codex
@@ -50,36 +33,25 @@ Add to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.vibe-annotations]
-url = "http://127.0.0.1:3846/mcp"
-```
-
-## OpenClaw
-
-Add to `~/.openclaw/openclaw.json`:
-
-```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
+command = "vibe-annotations-server"
+args = ["mcp"]
 ```
 
 ## VS Code
 
-Install an AI extension that supports MCP, then add to your MCP settings:
+In your MCP configuration:
 
 ```json
-{
-  "mcpServers": {
-    "vibe-annotations": {
-      "url": "http://127.0.0.1:3846/mcp"
-    }
-  }
-}
+{ "servers": { "vibe-annotations": { "type": "stdio", "command": "vibe-annotations-server", "args": ["mcp"] } } }
 ```
+
+## OpenCode
+
+```json
+{ "mcp": { "vibe-annotations": { "type": "local", "command": ["vibe-annotations-server", "mcp"] } } }
+```
+
+The server listens only on `127.0.0.1:3846` and checks Host, Origin and bearer authentication. All data endpoints, including legacy SSE, require authentication. For an unpacked extension, set `VIBE_ANNOTATIONS_EXTENSION_ID` to its exact ID before starting the server. Cross-host or WSL setups require an explicitly secured tunnel.
 
 ## MCP Tools
 
@@ -96,4 +68,4 @@ The server exposes these tools to connected agents:
 
 ## SSE Transport (legacy)
 
-If you experience connection issues with the HTTP transport, you can use the SSE endpoint instead. Replace `/mcp` with `/sse` in any of the configurations above.
+Legacy `/sse` and `/messages` endpoints remain available to clients that explicitly send the pairing token in an Authorization header. The stdio configurations above use the authenticated HTTP proxy and need no endpoint substitution.

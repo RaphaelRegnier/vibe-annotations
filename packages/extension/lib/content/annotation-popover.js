@@ -26,8 +26,8 @@ import VibeShadowHost from './shadow-host.js';
 
   const VIBE_IMG_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
   const VIBE_X_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-  const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml', 'image/bmp', 'image/avif']);
-  const ATTACH_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/bmp,image/avif';
+  const ATTACH_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp', 'image/avif']);
+  const ATTACH_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif';
   const VIBE_PLUS_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
   const VIBE_PAPERCLIP_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
   const VIBE_CAMERA_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
@@ -279,7 +279,6 @@ import VibeShadowHost from './shadow-host.js';
     // --- Attachments (paste / pick / screenshot / clear) ---
     const attachInput = popover.querySelector('.vibe-attach-input');
     const attachmentsEl = popover.querySelector('.vibe-attachments');
-    const isLocal = VibeAPI.isLocalOrigin();
     // For a not-yet-saved annotation we buffer blobs and upload them on save.
     const pendingAttachments = []; // { blob, mime, url }
     // Object URLs for images added this session, keyed by server attachment id —
@@ -289,12 +288,20 @@ import VibeShadowHost from './shadow-host.js';
     let attachmentsDirty = false;
     const markAttachmentsChanged = () => { attachmentsDirty = true; popover._updateSave?.(); };
 
+    const attachmentReads = new Set();
     function renderAttachments() {
       const saved = (isEdit && Array.isArray(activeExistingAnnotation?.attachments)) ? activeExistingAnnotation.attachments : [];
       const tiles = [];
       saved.forEach(att => {
         const blobUrl = sessionBlobUrls.get(att.id);
-        const src = blobUrl || (isLocal ? VibeAPI.attachmentUrl(activeExistingAnnotation.id, att.id) : null);
+        const src = blobUrl || null;
+        if (!src && !attachmentReads.has(att.id)) {
+          attachmentReads.add(att.id);
+          VibeAPI.attachmentDataUrl(activeExistingAnnotation.id, att.id).then(dataUrl => {
+            sessionBlobUrls.set(att.id, dataUrl);
+            if (attachmentsEl.isConnected) renderAttachments();
+          }).catch(() => {});
+        }
         tiles.push(attachmentTileHTML({ src, attId: att.id, kind: att.kind }));
       });
       pendingAttachments.forEach((p, i) => tiles.push(attachmentTileHTML({ src: p.url, pendingIndex: i, kind: p.kind || 'user' })));
@@ -404,6 +411,14 @@ import VibeShadowHost from './shadow-host.js';
         if (webp) await handleAttach(webp, 'image/webp', 'capture');
       } catch (err) {
         console.warn('[Vibe] screenshot failed:', err);
+        let errorEl = popover.querySelector('.vibe-screenshot-error');
+        if (!errorEl) {
+          errorEl = document.createElement('p');
+          errorEl.className = 'vibe-screenshot-error';
+          errorEl.setAttribute('role', 'alert');
+          popover.appendChild(errorEl);
+        }
+        errorEl.textContent = err.message;
       } finally {
         capturing = false;
       }
@@ -441,7 +456,7 @@ import VibeShadowHost from './shadow-host.js';
       if (!tile) return;
       const attId = tile.getAttribute('data-att');
       const pendingIndex = tile.getAttribute('data-pending');
-      if (attId) window.open(VibeAPI.attachmentUrl(activeExistingAnnotation.id, attId), '_blank', 'noopener');
+      if (attId) await VibeAPI.openAttachment(activeExistingAnnotation.id, attId);
       else if (pendingIndex != null && pendingAttachments[Number(pendingIndex)]) window.open(pendingAttachments[Number(pendingIndex)].url, '_blank', 'noopener');
     });
     attachmentsEl.addEventListener('error', (e) => {
@@ -748,7 +763,7 @@ import VibeShadowHost from './shadow-host.js';
         close();
       } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !saveBtn.disabled) {
         e.preventDefault();
-        saveBtn.click();
+        if (e.isTrusted) doSave(e);
       }
     };
     document.addEventListener('keydown', escHandler);
@@ -778,8 +793,8 @@ import VibeShadowHost from './shadow-host.js';
 
     // Save
     let saving = false;
-    async function doSave() {
-      if (saving) return;
+    async function doSave(event) {
+      if (!event?.isTrusted || saving) return;
       saving = true;
       saveBtn.disabled = true;
 

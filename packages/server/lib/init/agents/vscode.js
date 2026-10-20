@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { homedir } from 'os';
 import { existsSync } from 'fs';
-import { hasBinary, MCP_URL, MCP_NAME } from './shared.js';
+import { hasBinary, mcpConfig, MCP_NAME } from './shared.js';
 
 function userSettingsDir() {
   if (process.platform === 'darwin') {
@@ -28,7 +28,7 @@ export default {
       path: USER_PATH,
       format: 'json',
       keyPath: ['servers', MCP_NAME],
-      value: { type: 'http', url: MCP_URL },
+      value: { type: 'stdio', ...mcpConfig() },
     };
   },
 
@@ -37,7 +37,7 @@ export default {
       path: join(cwd, '.vscode', 'mcp.json'),
       format: 'json',
       keyPath: ['servers', MCP_NAME],
-      value: { type: 'http', url: MCP_URL },
+      value: { type: 'stdio', ...mcpConfig() },
     };
   },
 };

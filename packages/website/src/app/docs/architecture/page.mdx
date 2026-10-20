@@ -2,7 +2,7 @@ export const metadata = { title: 'Architecture' }
 
 # Architecture
 
-Vibe Annotations is split into two independent pieces that communicate over HTTP.
+Vibe Annotations is split into two independent pieces that communicate over authenticated loopback HTTP. The extension background holds the pairing credential in trusted session storage; page scripts never receive it. Agents use a local stdio proxy that reads the private server token file. See [MCP setup](/docs/mcp-setup) for pairing and migration.
 
 ```
 Browser Extension  ← HTTP sync/CRUD →  MCP Server  ← MCP tools →  AI Agents
@@ -14,7 +14,7 @@ Browser Extension  ← HTTP sync/CRUD →  MCP Server  ← MCP tools →  AI Age
 
 A Chrome MV3 extension built with [WXT](https://wxt.dev/). The content scripts are ES modules that WXT bundles into the MV3 extension — `wxt dev` gives a live-reloading dev build, `wxt build` / `wxt zip` produce the loadable/publishable output.
 
-- **Content scripts** inject a floating toolbar overlay on localhost pages via a Shadow DOM root
+- **Content scripts** inject a floating toolbar overlay on localhost pages via a closed Shadow DOM root
 - **Inspection mode** lets users hover and click elements to annotate them, with a live selector hint on the highlight
 - **Annotation popover** provides comment input, design property editors (font, spacing, layout, colors), raw CSS editing, image attachments, and a variants intent
 - **Badge manager** renders numbered pins on annotated elements and rehydrates pending design changes
@@ -58,4 +58,4 @@ A global npm package (`vibe-annotations-server`) that runs as a background proce
 **Stylesheet annotations** (`type: 'stylesheet'`) apply broad CSS changes:
 - No selector or element context
 - Only a `css` field with raw CSS rules
-- Created by agents via the bridge API (`window.__vibeAnnotations.createStyleAnnotation()`)
+- Older stored/imported annotations may use this type. The unauthenticated page annotation API is removed.

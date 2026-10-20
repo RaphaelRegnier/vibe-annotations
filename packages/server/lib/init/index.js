@@ -5,7 +5,7 @@ import { installServer, startServer } from './server.js';
 import { AGENTS, findAgent, detectAll, applyAgent, removeAgent } from './agents/index.js';
 import { runExtensionStep, CWS_URL } from './extension.js';
 
-const MCP_URL = 'http://127.0.0.1:3846/mcp';
+const MANUAL_CONFIG = '{ "mcpServers": { "vibe-annotations": { "command": "vibe-annotations-server", "args": ["mcp"] } } }';
 
 export async function runInit(options = {}) {
   const interactive = resolveInteractive(options);
@@ -167,12 +167,7 @@ async function runAgentStep({ interactive, scope, cwd, preselected }) {
   }
 
   if (selected.length === 0) {
-    p.log.info('No agents selected. Manual config snippet:\n' +
-      '  {\n' +
-      `    "mcpServers": {\n` +
-      `      "vibe-annotations": { "transport": "http", "url": "${MCP_URL}" }\n` +
-      '    }\n' +
-      '  }');
+    p.log.info('No agents selected. Manual config snippet:\n' + MANUAL_CONFIG);
     return [];
   }
 
@@ -222,8 +217,7 @@ function reportAgentOutcome(agent, outcome, { detected }) {
   } else if (outcome.status === 'unreadable') {
     p.log.error(
       `${agent.label}: could not parse existing config at ${outcome.path}.\n` +
-      `  Add this entry manually:\n` +
-      `    { "mcpServers": { "vibe-annotations": { "transport": "http", "url": "${MCP_URL}" } } }`,
+      `  Add this entry manually:\n${MANUAL_CONFIG}`,
     );
   } else if (outcome.status === 'unsupported-scope') {
     p.log.warn(`${agent.label}: scope not supported for this agent — skipped.`);
@@ -311,8 +305,8 @@ function renderSummary({ serverOutcome, agentResults, extensionResult, scope }) 
 
   p.note(
     'Next steps:\n' +
-    '  1. Open your localhost dev server in Chrome\n' +
-    '  2. Click the Vibe Annotations icon in the toolbar\n' +
+    '  1. Run vibe-annotations-server token; paste it in extension Options\n' +
+    '  2. Open your localhost app and click the extension icon\n' +
     '  3. Start annotating — your agent will pick up feedback via MCP' +
     serverBlock + '\n\n' +
     '  vibe-annotations init --reset     reconfigure from scratch',

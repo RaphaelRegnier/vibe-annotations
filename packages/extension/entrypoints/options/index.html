@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vibe Annotations — Pair server</title>
+    <style>
+      body { font: 16px system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 1rem; }
+      input { display: block; width: 100%; box-sizing: border-box; padding: .6rem; margin: .5rem 0 1rem; }
+      button { padding: .6rem 1rem; margin-right: .5rem; }
+      #status { min-height: 2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Pair your local server</h1>
+    <p>Start the updated server, then run <code>vibe-annotations-server token</code> in your terminal.</p>
+    <p>Paste the token here. It stays inside the extension for this browser session. Pair again after restarting Chrome.</p>
+    <form id="pair-form">
+      <label for="token">Pairing token</label>
+      <input id="token" type="password" autocomplete="off" spellcheck="false" required minlength="64" maxlength="64" />
+      <button type="submit">Pair server</button>
+      <button type="button" id="disconnect">Disconnect</button>
+    </form>
+    <p id="status" role="status" aria-live="polite"></p>
+    <p>Screenshots use temporary access to the active tab. Click the extension icon or its keyboard shortcut before capturing.</p>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -23,7 +23,7 @@ function init() {
     overflow: visible !important;
   `;
 
-  shadowRoot = hostEl.attachShadow({ mode: 'open' });
+  shadowRoot = hostEl.attachShadow({ mode: 'closed' });
 
   // Inject styles synchronously
   const styleEl = document.createElement('style');
