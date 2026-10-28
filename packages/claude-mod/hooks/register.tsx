@@ -14,6 +14,9 @@ import type { VibeAnnotation } from '../types'
 // Claude sessions can run at once: the server routes each site to one session
 // (by the project serving its port, or where it was last sent), and the band,
 // Implement, auto-send and the pane only cover this session's sites.
+// When a session starts and the server is down, the mod starts it in the
+// background (off with the autoStartServer option), so installing the mod and
+// the extension is all the setup there is.
 
 const SERVER = 'http://127.0.0.1:3846'
 const POLL_MS = 2000
@@ -27,6 +30,9 @@ const sites = atom({ plugin: 'vibe-annotations', key: 'sites' } as const, [])
 const isScoped = atom({ plugin: 'vibe-annotations', key: 'isScoped' } as const, false)
 const sessionId = atom({ plugin: 'vibe-annotations', key: 'sessionId' } as const, '')
 const cwd = atom({ plugin: 'vibe-annotations', key: 'cwd' } as const, '')
+const serverStart = atom({ plugin: 'vibe-annotations', key: 'serverStart' } as const, 'idle')
+const isOutdated = atom({ plugin: 'vibe-annotations', key: 'isOutdated' } as const, false)
+const serverUpdate = atom({ plugin: 'vibe-annotations', key: 'serverUpdate' } as const, 'idle')
 
 type Raw = {
   id?: string
@@ -83,6 +89,9 @@ async function takeSends($: EngineInterface): Promise<string[]> {
   try {
     const qs = `session=${encodeURIComponent(await read($, sessionId))}&cwd=${encodeURIComponent(await read($, cwd))}`
     const res = await $.http.fetch(`${SERVER}/api/claude/inbox?${qs}`)
+    // A server older than the inbox route answers 404: it runs, but can't route
+    // sites or take sends from the extension until it's updated.
+    await update($, isOutdated, () => res.status === 404)
     if (!res.ok) throw new Error(String(res.status))
     const body: { sends?: { origin?: string }[], sites?: string[] } = JSON.parse(res.text)
     await update($, isScoped, () => Array.isArray(body.sites))
@@ -125,6 +134,92 @@ async function poll($: EngineInterface) {
   }
 }
 
+async function isServerUp($: EngineInterface): Promise<boolean> {
+  try { return (await $.http.fetch(`${SERVER}/health`)).ok } catch { return false }
+}
+
+const wait = ($: EngineInterface, ms: number) => new Promise<void>(resolve => { $.clock.after(ms, () => resolve()) })
+
+// Starts the server detached (`start --daemon`), so it outlives this session
+// and serves every other one. The global install `vibe-annotations-server
+// init` set up first, else the latest release through npx, then both again
+// through a login shell: an app opened from the Dock (the desktop app) doesn't
+// get the PATH where nvm & co put Node.
+async function vibeCli($: EngineInterface, args: string[]): Promise<string[][]> {
+  const global = ['vibe-annotations-server', ...args]
+  const npx = ['npx', '-y', 'vibe-annotations-server@latest', ...args]
+  const attempts = [global, npx]
+  const shell = await $.env.get('SHELL')
+  if (shell) attempts.push([shell, '-lc', `command -v vibe-annotations-server >/dev/null && ${global.join(' ')} || ${npx.join(' ')}`])
+  return attempts
+}
+
+// Runs the first of `attempts` that starts and exits 0.
+async function runFirst($: EngineInterface, attempts: string[][], timeoutMs = 120_000): Promise<boolean> {
+  for (const argv of attempts) {
+    try {
+      if ((await $.process.run(argv, { timeoutMs })).exitCode === 0) return true
+    } catch { /* not on PATH: try the next */ }
+  }
+  return false
+}
+
+// The same command directly, then through a login shell (see above).
+async function withShell($: EngineInterface, argv: string[]): Promise<string[][]> {
+  const shell = await $.env.get('SHELL')
+  return shell ? [argv, [shell, '-lc', argv.join(' ')]] : [argv]
+}
+
+let starting: Promise<boolean> | null = null
+
+function startServer($: EngineInterface): Promise<boolean> {
+  starting ??= (async () => {
+    await update($, serverStart, () => 'starting')
+    for (const argv of await vibeCli($, ['start', '--daemon'])) {
+      try { await $.process.run(argv, { timeoutMs: 120_000 }) } catch { continue }
+      for (let i = 0; i < 6; i++) {
+        if (await isServerUp($)) {
+          await update($, serverStart, () => 'idle')
+          $.ui.toast('Started the Vibe Annotations server')
+          await poll($)
+          return true
+        }
+        await wait($, 500)
+      }
+    }
+    await update($, serverStart, () => 'failed')
+    return false
+  })().finally(() => { starting = null })
+  return starting
+}
+
+// Brings an outdated server up to the latest release: updates the global
+// install if there is one (npx fetches the latest by itself), stops the old
+// server through its pid file, then starts the new one. A server started by
+// hand (`node server.js`) has no pid file: the band asks to stop it instead.
+let updating: Promise<void> | null = null
+
+function updateServer($: EngineInterface): Promise<void> {
+  updating ??= (async () => {
+    await update($, serverUpdate, () => 'updating')
+    const hasGlobal = await runFirst($, await withShell($, ['vibe-annotations-server', '--version']), 30_000)
+    if (hasGlobal) await runFirst($, await withShell($, ['npm', 'install', '-g', 'vibe-annotations-server@latest']), 300_000)
+    await runFirst($, await vibeCli($, ['stop']), 60_000)
+    for (let i = 0; i < 10 && await isServerUp($); i++) await wait($, 500)
+    if (await isServerUp($)) {
+      await update($, serverUpdate, () => 'stop-by-hand')
+      return
+    }
+    await update($, isOnline, () => false)
+    const started = await startServer($)
+    await poll($)
+    const ok = started && !(await read($, isOutdated))
+    await update($, serverUpdate, () => ok ? 'idle' : 'failed')
+    if (ok) $.ui.toast('Updated the Vibe Annotations server')
+  })().finally(() => { updating = null })
+  return updating
+}
+
 async function fresh($: EngineInterface): Promise<VibeAnnotation[]> {
   const sent = new Set(await read($, sentIds))
   return (await onSite($)).filter(a => !sent.has(a.id))
@@ -142,7 +237,28 @@ async function sendNew($: EngineInterface, why: 'auto' | 'press' | 'browser', or
   return list.length
 }
 
-export const register: Register = on => {
+// The band's row about an outdated server, or null when it's current.
+async function outdatedRow($: EngineInterface, e: Parameters<EngineInterface['ui']['resolve']>[0]) {
+  const state = await read($, serverUpdate)
+  if (!(await read($, isOutdated)) && state !== 'updating') return null
+  const { Box, Button, Text } = $.ui.resolve(e)
+  if (state === 'updating') return <Text dimColor>Vibe: updating the annotations server…</Text>
+  const text = state === 'stop-by-hand'
+    ? 'Vibe: stop the annotations server you started by hand, then press Update again'
+    : state === 'failed'
+      ? "Vibe: couldn't update the server. Run npm install -g vibe-annotations-server@latest, then vibe-annotations-server restart"
+      : 'Vibe: the annotations server is out of date. Update it to send from the browser'
+  return (
+    <Box flexDirection="row" gap={1}>
+      <Text color="yellow">{text}</Text>
+      <Button key="update" label="Update" onPress={() => { void updateServer($) }} />
+    </Box>
+  )
+}
+
+export const register: Register = (on, options) => {
+  const autoStart = options.autoStartServer !== false
+
   on('session.start', async ($, e, next) => {
     if (!(await read($, sessionId))) {
       await update($, sessionId, () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`)
@@ -150,10 +266,13 @@ export const register: Register = on => {
     await update($, cwd, () => e.cwd ?? '')
     await $.command.register({
       name: 'vibe',
-      description: 'Vibe Annotations: implement new ones, list them, or turn auto-send on/off (/vibe auto on)',
+      description: 'Vibe Annotations: implement new ones, list them (/vibe list), auto-send (/vibe auto on|off), start the server (/vibe start)',
     })
     await poll($)
     $.clock.every(POLL_MS, () => poll($))
+    // Once per session start, not on every drop: someone who stops the server
+    // on purpose shouldn't see it come back two seconds later.
+    if (autoStart && !(await read($, isOnline))) void startServer($)
     return next(e)
   })
 
@@ -165,13 +284,18 @@ export const register: Register = on => {
       if (isOn) await sendNew($, 'auto')
       return { text: `Vibe auto-send is ${isOn ? 'on: new annotations go to Claude as they arrive' : 'off'}.` }
     }
+    if (args === 'start') {
+      if (await isServerUp($)) return { text: `Vibe server is already running at ${SERVER}.` }
+      void startServer($)
+      return { text: 'Starting the Vibe server…' }
+    }
     if (args === 'list') {
       await $.ui.open({ id: PANE, title: 'Vibe Annotations' })
       return { text: 'Opened the Vibe Annotations pane.' }
     }
     await poll($)
     const n = await sendNew($, 'press')
-    if (!(await read($, isOnline))) return { text: `Vibe server is not reachable at ${SERVER}.` }
+    if (!(await read($, isOnline))) return { text: `Vibe server is not reachable at ${SERVER}. Run /vibe start to start it.` }
     return { text: n === 0 ? 'No new Vibe annotations.' : `Sent ${n} annotation${n === 1 ? '' : 's'} to Claude.` }
   })
 
@@ -187,16 +311,29 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
+    const start = await read($, serverStart)
+    if (start !== 'idle' && !(await read($, isOnline))) {
+      const { Box, Button, Text } = $.ui.resolve(e)
+      return start === 'starting'
+        ? <Text dimColor>Vibe: starting the annotations server…</Text>
+        : (
+          <Box flexDirection="row" gap={1}>
+            <Text color="yellow">Vibe: couldn't start the annotations server (it needs Node.js)</Text>
+            <Button key="start" label="Retry" onPress={() => { void startServer($) }} />
+          </Box>
+        )
+    }
     const list = await fresh($)
     const auto = await read($, autoSend)
-    if (list.length === 0 && !auto) return next(e)
+    const outdated = await outdatedRow($, e)
+    if (list.length === 0 && !auto) return outdated ?? next(e)
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const label = list.length === 0
       ? 'Vibe: watching for annotations'
       : `● ${list.length} new annotation${list.length === 1 ? '' : 's'} on ${hostOf(list)}`
 
-    return (
+    const row = (
       <Box flexDirection="row" gap={1}>
         <Text color={list.length ? 'magenta' : undefined} dimColor={list.length === 0}>{label}</Text>
         {list.length > 0 && (
@@ -212,6 +349,7 @@ export const register: Register = on => {
         />
       </Box>
     )
+    return outdated ? <Box flexDirection="column">{outdated}{row}</Box> : row
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

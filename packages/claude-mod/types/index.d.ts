@@ -24,6 +24,12 @@ declare module 'claude-code' {
       sessionId: string
       /** Working directory, matched against the folder serving each site's port. */
       cwd: string
+      /** The mod's own attempt to start the server: idle, starting, or failed. */
+      serverStart: 'idle' | 'starting' | 'failed'
+      /** The running server predates the routes this mod uses (inbox 404). */
+      isOutdated: boolean
+      /** The Update button's run: idle, updating, failed, or blocked on a server started by hand. */
+      serverUpdate: 'idle' | 'updating' | 'failed' | 'stop-by-hand'
     }
   }
 }

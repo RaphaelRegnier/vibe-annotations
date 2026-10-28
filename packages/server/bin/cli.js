@@ -70,6 +70,7 @@ program
   .option('--non-interactive', 'No prompts; use defaults. Auto-applied on CI or no TTY.')
   .option('--skip-extension', 'Skip the Chrome extension prompt')
   .option('--skip-server', 'Skip installing/starting the server')
+  .option('--skip-claude-mod', 'Skip installing the Claude Code mod')
   .option('--project', 'Configure MCP at project scope instead of user scope')
   .option('--reset', 'Remove existing vibe-annotations entries from known agent configs before configuring')
   .action(async (options) => {
@@ -79,6 +80,7 @@ program
       nonInteractive: !!options.nonInteractive,
       skipExtension: !!options.skipExtension,
       skipServer: !!options.skipServer,
+      skipClaudeMod: !!options.skipClaudeMod,
       project: !!options.project,
       reset: !!options.reset,
     });

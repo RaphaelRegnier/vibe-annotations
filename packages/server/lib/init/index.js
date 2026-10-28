@@ -4,6 +4,7 @@ import { checkEnvironment } from './environment.js';
 import { installServer, startServer } from './server.js';
 import { AGENTS, findAgent, detectAll, applyAgent, removeAgent } from './agents/index.js';
 import { runExtensionStep, CWS_URL } from './extension.js';
+import { canInstallClaudeMod, installClaudeMod, MOD_INSTALL_COMMAND } from './claude-mod.js';
 
 const MCP_URL = 'http://127.0.0.1:3846/mcp';
 
@@ -43,11 +44,44 @@ export async function runInit(options = {}) {
     preselected: normalizeAgentOption(options.agent),
   });
 
+  const modResult = options.skipClaudeMod
+    ? { status: 'skipped' }
+    : await runClaudeModStep({ agentResults, interactive });
+
   const extensionResult = options.skipExtension
     ? { status: 'link-only' }
     : await runExtensionStep({ interactive });
 
-  renderSummary({ serverOutcome, agentResults, extensionResult, scope });
+  renderSummary({ serverOutcome, agentResults, modResult, extensionResult, scope });
+}
+
+// Offered once Claude Code is configured: the mod gives it a band above the
+// prompt, one-press sending (also from the extension), and starts the server
+// when a session starts.
+async function runClaudeModStep({ agentResults, interactive }) {
+  const claude = agentResults.find(({ agent, outcome }) =>
+    agent.id === 'claude-code' && (outcome.status === 'ok' || outcome.status === 'noop'));
+  if (!claude) return { status: 'not-applicable' };
+  if (!canInstallClaudeMod()) {
+    p.log.info(`Claude Code mod: install it once the claude CLI is on your PATH:\n  ${MOD_INSTALL_COMMAND}`);
+    return { status: 'no-cli' };
+  }
+
+  if (interactive) {
+    const answer = await p.confirm({
+      message: 'Install the Vibe Annotations mod for Claude Code? It shows new annotations above the prompt, sends them to Claude in one press, and starts this server when a session starts.',
+      initialValue: true,
+    });
+    if (p.isCancel(answer) || !answer) return { status: 'declined' };
+  }
+
+  const result = await withSpinner('Installing the Claude Code mod', 'Claude Code mod installed', () => installClaudeMod());
+  if (!result.ok) {
+    p.log.warn(`Claude Code mod: install failed. Run it yourself:\n  ${MOD_INSTALL_COMMAND}` +
+      (result.output ? `\n${chalk.dim(result.output)}` : ''));
+    return { status: 'failed' };
+  }
+  return { status: 'installed' };
 }
 
 function resolveInteractive(options) {
@@ -282,7 +316,7 @@ function foreignPortMessage() {
   );
 }
 
-function renderSummary({ serverOutcome, agentResults, extensionResult, scope }) {
+function renderSummary({ serverOutcome, agentResults, modResult, extensionResult, scope }) {
   p.log.step('Step 3/3 — Done');
 
   const configured = agentResults
@@ -297,6 +331,8 @@ function renderSummary({ serverOutcome, agentResults, extensionResult, scope }) 
   lines.push(`Server:    ${serverStatusLine(serverOutcome)}`);
   lines.push(`MCP:       ${configured.length ? `${configured.join(', ')} (${scope} scope)` : 'no agents configured'}`);
   if (skipped.length) lines.push(`Skipped:   ${skipped.join(', ')}`);
+  if (modResult?.status === 'installed') lines.push('Mod:       Claude Code mod installed (user scope)');
+  else if (modResult?.status === 'failed' || modResult?.status === 'no-cli') lines.push(`Mod:       not installed — ${MOD_INSTALL_COMMAND}`);
   lines.push(`Extension: ${extensionSummary(extensionResult)}`);
 
   p.log.success(lines.join('\n'));
@@ -314,6 +350,9 @@ function renderSummary({ serverOutcome, agentResults, extensionResult, scope }) 
     '  1. Open your localhost dev server in Chrome\n' +
     '  2. Click the Vibe Annotations icon in the toolbar\n' +
     '  3. Start annotating — your agent will pick up feedback via MCP' +
+    (modResult?.status === 'installed'
+      ? '\n  4. In Claude Code, new annotations show above the prompt: press Implement,\n     or Send to Claude in the browser toolbar'
+      : '') +
     serverBlock + '\n\n' +
     '  vibe-annotations init --reset     reconfigure from scratch',
     'Next steps',

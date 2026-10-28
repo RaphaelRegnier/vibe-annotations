@@ -1,4 +1,4 @@
-# Vibe Annotations for Claude Code (prototype)
+# Vibe Annotations for Claude Code
 
 A Claude Code mod that turns Vibe Annotations into a hands-free loop without the
 `watch_annotations` MCP tool. It polls the local Vibe server in the background
@@ -26,29 +26,51 @@ and hands them to Claude as one prompt when you press **Implement**.
 - `/vibe` sends new annotations, `/vibe list` opens the pane, `/vibe auto on|off`
   toggles auto-send.
 
+- When a session starts and the Vibe server isn't running, the mod starts it in
+  the background (`vibe-annotations-server start --daemon`, or the latest
+  release through npx). Turn this off with the `autoStartServer` option in
+  `/plugin`. `/vibe start` starts it by hand.
+
 Claude Code only. MCP stays the base for every other agent; the prompt still
 tells Claude to use the MCP `delete_annotation` tool when it's connected.
 
-## Try it
+## Install
+
+`npx vibe-annotations-server init` offers it when you pick Claude Code. Or install
+it on its own, from a shell:
 
 ```bash
-npx vibe-annotations-server start          # or node packages/server/lib/server.js
-claude --plugin-dir /path/to/vibe-annotations/packages/claude-mod
+claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations
 ```
 
-Annotate something in the browser; the band appears within a few seconds.
+or at the prompt of a terminal session:
+
+```
+/plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations
+```
+
+In the desktop app, where `/plugin` doesn't run: click **+** next to the prompt
+box, then **Plugins**, **Add marketplace** with `RaphaelRegnier/vibe-annotations`,
+then **Add plugin**. A plugin installed from a terminal also loads in the
+desktop app's local sessions.
+
+Then install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof),
+open your localhost app and annotate: the band appears within a few seconds.
+Needs Claude Code 2.1.287 or newer, and Node.js for the server.
 
 ## Develop
 
 ```bash
+node packages/server/lib/server.js                       # this checkout's server
+claude --plugin-dir /path/to/vibe-annotations/packages/claude-mod
 claude plugin validate packages/claude-mod
-claude plugin test packages/claude-mod     # tests/vibe.test.tsx
+claude plugin test packages/claude-mod                   # tests/vibe.test.tsx
 ```
 
-Needs Claude Code 2.1.288 or newer (the mod API is early access and may change).
+The repo root's `.claude-plugin/marketplace.json` is what `--marketplace
+RaphaelRegnier/vibe-annotations` reads, from the default branch.
 
 ## Not done yet
 
-- Shipping it with `vibe-annotations-server init` as a Claude Code plugin.
 - Port matching needs the dev server to run locally; sites behind Docker or a
   proxy route by Send instead.
