@@ -535,6 +535,12 @@ class LocalAnnotationsServer {
       if (!origin || typeof origin !== 'string') {
         return res.status(400).json({ error: 'origin is required' });
       }
+      // Local dev sites only, the same set the extension treats as local.
+      let host = '';
+      try { host = new URL(origin).hostname; } catch { /* not a URL */ }
+      if (!/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) && !/\.(local|test|localhost)$/.test(host)) {
+        return res.status(400).json({ error: 'Send to Claude only works on local dev sites' });
+      }
       const live = this.liveClaudeSessions();
       if (live.length === 0) {
         return res.status(409).json({ error: 'Claude Code mod is not connected' });

@@ -1060,9 +1060,12 @@ import { isRecordableHotkey } from './hotkey.js';
     document.removeEventListener('click', closeSessionPicker);
   }
 
+  // Send to Claude is for local dev sites only: on any other page skip the
+  // check entirely, so the button never shows and the page never calls the server.
   async function refreshClaude() {
     const was = claudeConnected;
-    claudeConnected = serverOnline && (await VibeAPI.getClaudeStatus()).connected === true;
+    const isLocal = VibeAPI.isLocalOrigin() && !VibeAPI.isFileProtocol();
+    claudeConnected = isLocal && serverOnline && (await VibeAPI.getClaudeStatus()).connected === true;
     if (was !== claudeConnected) updateUI();
   }
 
