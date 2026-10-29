@@ -13,7 +13,7 @@ and hands them to Claude as one prompt when you press **Implement**.
 - **Implement** sends every new annotation (URL, selector, comment, id) as one
   prompt. Claude implements them and deletes each one when done.
 - **View** opens a side pane listing open annotations.
-- **Auto-send** sends new annotations as soon as they land, once the session is idle.
+- **Auto-send** sends new annotations as soon as they land, even mid-turn.
 - **Send to Claude** in the extension toolbar sends that site's new annotations
   right away. The button only shows while the server is up and this mod is
   polling it (the mod checks in at `/api/claude/inbox` every 2s).

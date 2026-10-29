@@ -2353,4 +2353,12 @@ export const VIBE_STYLES = `
 }
 .vibe-variant-row input { accent-color: var(--v-accent, #d97757); margin: 0; }
 
+/* Variant picker inside a View all card: the review rows, compact */
+.vibe-viewall-variants { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.vibe-variant-row.compact { padding: 7px 10px; gap: 8px; font-size: 12px; }
+.vibe-variant-row.compact:has(input:disabled) { cursor: default; opacity: 0.6; }
+.vibe-variant-chosen-mark { margin-left: auto; font: 600 10.5px/1 var(--v-font); color: var(--v-status-online); }
+.vibe-viewall-variants .vibe-btn { align-self: flex-start; padding: 5px 12px; font-size: 12px; }
+.vibe-viewall-variant-note { font-size: 11.5px; color: var(--v-text-secondary); }
+
 `;

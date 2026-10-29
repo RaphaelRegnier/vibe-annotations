@@ -9,6 +9,7 @@ import VibeShadowHost from './shadow-host.js';
 import VibeToolbarDocs from './toolbar-docs.js';
 import { renderAnnotationsMarkdown } from './export-markdown.js';
 import { isRecordableHotkey } from './hotkey.js';
+import { isReviewable, variantContext, currentVariant, variantElement, previewVariant, chooseVariant } from './variants.js';
 
   let toolbarEl = null;
   let settingsDropdown = null;
@@ -69,7 +70,7 @@ import { isRecordableHotkey } from './hotkey.js';
     robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
     book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
     layers: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12.75l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/><path d="M2 17.25l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/></svg>',
-    send: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
+    send: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>',
     eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
@@ -402,6 +403,7 @@ import { isRecordableHotkey } from './hotkey.js';
         // list is self-explanatory (esp. why a "deleted" variant lingers here).
         const vs = variantStatusLabel(a);
         const statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
+        const variantsHTML = variantPickerHTML(a);
         // A scaffolded variant can't be hard-deleted (it awaits agent cleanup), so
         // hide the trash for the discarded state to avoid a no-op button.
         const deleteHTML = a.status === 'variants-discarded'
@@ -414,6 +416,7 @@ import { isRecordableHotkey } from './hotkey.js';
               ${headerHTML}
               ${bodyHTML}
               ${statusHTML}
+              ${variantsHTML}
             </div>
             ${deleteHTML}
           </div>
@@ -578,10 +581,18 @@ import { isRecordableHotkey } from './hotkey.js';
       });
     });
 
+    // Variant pickers: same preview + choose as the badge's popover, for variants
+    // whose badge is hard to reach once a variant reshapes the page.
+    viewAllPanel.querySelectorAll('.vibe-viewall-variants').forEach(box => {
+      const a = annotations.find(x => x.id === box.dataset.id);
+      if (!a) return;
+      wireVariantPicker(box, a);
+    });
+
     // Click card to scroll to element
     viewAllPanel.querySelectorAll('.vibe-viewall-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.vibe-viewall-card-delete')) return;
+        if (e.target.closest('.vibe-viewall-card-delete, .vibe-viewall-variants')) return;
         const id = card.dataset.id;
         const a = annotations.find(x => x.id === id);
         if (a && a.selector) {
@@ -1509,12 +1520,76 @@ import { isRecordableHotkey } from './hotkey.js';
     return div.innerHTML;
   }
 
+  // Compact variant picker for a View all card: one radio row per variant, then
+  // Choose / Update selection. On another route the rows show but stay disabled.
+  function variantPickerHTML(a) {
+    if (!isReviewable(a)) return '';
+    const ctx = variantContext(a);
+    if (!ctx.variants.length) return '';
+    const current = currentVariant(ctx);
+    const rows = ctx.variants.map(v => {
+      const val = String(v.value);
+      const on = val === current;
+      return `<label class="vibe-variant-row compact${on ? ' active' : ''}">
+        <input type="radio" name="vibe-variant-${escapeHTML(a.id)}" value="${escapeHTML(val)}"${on ? ' checked' : ''}${ctx.container ? '' : ' disabled'}>
+        <span>${escapeHTML(v.name || val)}</span>
+        ${ctx.chosen === val ? '<span class="vibe-variant-chosen-mark">Chosen</span>' : ''}
+      </label>`;
+    }).join('');
+    const footer = ctx.container
+      ? `<button type="button" class="vibe-btn vibe-btn-primary vibe-viewall-variant-choose">${chooseLabel(ctx.chosen, current)}</button>`
+      : '<div class="vibe-viewall-variant-note">Open this page to preview and choose.</div>';
+    return `<div class="vibe-viewall-variants" data-id="${escapeHTML(a.id)}">
+      <div class="vibe-variant-list">${rows}</div>
+      ${footer}
+    </div>`;
+  }
+
+  function chooseLabel(chosen, selected) {
+    if (chosen != null && chosen === selected) return 'Chosen ✓';
+    return chosen != null ? 'Update selection' : 'Choose this variant';
+  }
+
+  function wireVariantPicker(box, a) {
+    const ctx = variantContext(a);
+    const chooseBtn = box.querySelector('.vibe-viewall-variant-choose');
+    let chosen = ctx.chosen;
+    const selected = () => box.querySelector('input[type="radio"]:checked')?.value ?? null;
+    const refresh = () => {
+      if (!chooseBtn) return;
+      chooseBtn.textContent = chooseLabel(chosen, selected());
+      chooseBtn.disabled = chosen != null && chosen === selected();
+    };
+    refresh();
+
+    // Preview live and bring it into view: the badge may have lost its anchor
+    // when a variant reshaped the page, but the variant itself is still there.
+    box.querySelectorAll('input[type="radio"]').forEach(input => {
+      input.addEventListener('change', () => {
+        previewVariant(a, ctx, input.value);
+        box.querySelectorAll('.vibe-variant-row').forEach(r => r.classList.toggle('active', r.contains(input)));
+        variantElement(ctx, input.value)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        refresh();
+      });
+    });
+
+    chooseBtn?.addEventListener('click', async () => {
+      const value = selected();
+      if (value == null) return;
+      try {
+        await chooseVariant(a, value);
+        chosen = value;
+        refresh();
+      } catch (err) { console.warn('[Vibe] choose variant failed:', err); }
+    });
+  }
+
   // Lifecycle chip for a variants annotation in a state that awaits agent action.
   // Returns null for normal annotations and for terminal 'resolved' (filtered out).
   function variantStatusLabel(a) {
     if (!a || a.mode !== 'variants') return null;
     switch (a.status) {
-      case 'variants-ready': return { text: 'Variants ready — click badge to review', cls: 'ready' };
+      case 'variants-ready': return { text: 'Variants ready — pick one below', cls: 'ready' };
       case 'variant-chosen': return { text: 'Chosen — awaiting agent finalize', cls: 'chosen' };
       case 'variants-discarded': return { text: 'Pending agent deletion', cls: 'discarded' };
       default: return null;

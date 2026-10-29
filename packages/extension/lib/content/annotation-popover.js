@@ -7,6 +7,7 @@ import VibeEvents, { vibeLocationPath } from './event-bus.js';
 import VibeInspectionMode from './inspection-mode.js';
 import VibePopoverPanels from './popover-panels.js';
 import VibeShadowHost from './shadow-host.js';
+import { variantContext, currentVariant, variantElement, previewVariant, chooseVariant } from './variants.js';
 
   let currentPopover = null;
   let currentTargetHighlight = null;
@@ -837,11 +838,9 @@ import VibeShadowHost from './shadow-host.js';
   // --- Variants review (browse + choose) ---
 
   function renderVariantsReview(anchor, popover, targetElement, annotation, clickX, clickY) {
-    const payload = annotation.variantsPayload || {};
-    const variants = Array.isArray(payload.variants) ? payload.variants : [];
-    const attribute = payload.attribute || 'data-vibe-active';
-    const container = payload.container ? document.querySelector(payload.container) : null;
-    let chosenValue = annotation.chosenVariant != null ? String(annotation.chosenVariant) : null;
+    const ctx = variantContext(annotation);
+    const { variants, attribute, container } = ctx;
+    let chosenValue = ctx.chosen;
     const title = P.escapeHTML(annotation.comment || 'Variants');
 
     const close = () => dismiss(true);
@@ -869,11 +868,8 @@ import VibeShadowHost from './shadow-host.js';
 
     // Restore the chosen variant into the live preview on open (the code hardcodes
     // data-vibe-active="1", so the page won't otherwise reflect a prior choice).
-    if (chosenValue) {
-      container.setAttribute(attribute, chosenValue);
-      VibeEvents.emit('variants:switched', { id: annotation.id, variant: chosenValue });
-    }
-    const current = chosenValue || container.getAttribute(attribute) || String(variants[0].value);
+    if (chosenValue) previewVariant(annotation, ctx, chosenValue);
+    const current = currentVariant(ctx);
     const rows = variants.map(v => {
       const val = P.escapeHTML(String(v.value));
       const on = String(v.value) === String(current);
@@ -905,12 +901,7 @@ import VibeShadowHost from './shadow-host.js';
     // display:contents and has an empty rect at (0,0) — positioning against it
     // would fling the popover to the top-left. Position against the active variant
     // child, which has a real box on the page.
-    let posEl = null;
-    try {
-      const esc = (window.CSS && CSS.escape) ? CSS.escape(current) : current;
-      posEl = container.querySelector(`:scope > [data-variant="${esc}"]`) || container.querySelector(':scope > [data-variant]');
-    } catch (_) {}
-    positionPopover(anchor, posEl || targetElement, clickX, clickY);
+    positionPopover(anchor, variantElement(ctx, current) || targetElement, clickX, clickY);
     wireDragHandle(popover.querySelector('.vibe-drag-handle'), popover);
 
     popover.querySelector('.vibe-cancel-btn').addEventListener('click', close);
@@ -936,9 +927,8 @@ import VibeShadowHost from './shadow-host.js';
     // Radio → flip the single attribute (THE ONLY DOM write) + refresh the CTA.
     popover.querySelectorAll('input[name="vibe-variant"]').forEach(input => {
       input.addEventListener('change', () => {
-        container.setAttribute(attribute, input.value);
+        previewVariant(annotation, ctx, input.value);
         popover.querySelectorAll('.vibe-variant-row').forEach(r => r.classList.toggle('active', r.contains(input)));
-        VibeEvents.emit('variants:switched', { id: annotation.id, variant: input.value });
         refreshChoose();
       });
     });
@@ -948,8 +938,7 @@ import VibeShadowHost from './shadow-host.js';
       const active = popover.querySelector('input[name="vibe-variant"]:checked')?.value
         || container.getAttribute(attribute) || String(variants[0].value);
       try {
-        await VibeAPI.updateAnnotation(annotation.id, { chosenVariant: active, status: 'variant-chosen' });
-        VibeAPI.forceSync(); // push to server so the agent can finalize right away
+        await chooseVariant(annotation, active);
         chosenValue = String(active);
         refreshChoose();
       } catch (err) { console.warn('[Vibe] choose variant failed:', err); }
@@ -962,9 +951,7 @@ import VibeShadowHost from './shadow-host.js';
     // is removed from view via annotation:deleted. Also revert the live preview to
     // the original (variant 1) so the page no longer shows the abandoned choice.
     popover.querySelector('.vibe-variants-delete').addEventListener('click', async () => {
-      const original = String(variants[0].value);
-      container.setAttribute(attribute, original);
-      VibeEvents.emit('variants:switched', { id: annotation.id, variant: original });
+      previewVariant(annotation, ctx, String(variants[0].value));
       try {
         await VibeAPI.updateAnnotation(annotation.id, { status: 'variants-discarded' });
         VibeAPI.forceSync();
