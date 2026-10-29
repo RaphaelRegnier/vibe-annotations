@@ -74,13 +74,32 @@ class LocalAnnotationsServer {
     this.claudeSessions = new Map(); // id → { cwd, lastSeenAt, sends: [{ origin, at }] }
     this.claudeRoutes = new Map(); // origin → session id, set by a send
     this.portCwdCache = new Map(); // port → { cwd, at }
-    this.claudeSent = this.loadClaudeSent(); // annotation id → { sentTo, sentAt, sentKey }
+    this.claudeSent = this.loadClaudeSent(); // annotation id → { sentTo, sentAt, sentKey, goneAt? }
+    this.CLAUDE_GONE_MS = 20_000; // longer than the extension's 10s sync
+    // Ids hard-deleted here (by an agent or the extension), and when. An
+    // extension sync replaces the whole list with its own copy, so one taken
+    // seconds before an agent's delete would bring the annotation back.
+    this.recentlyDeleted = new Map();
+    this.DELETED_MEMORY_MS = 10 * 60_000;
 
     this.setupExpress();
     this.setupMCP();
 
     // Periodic sweep: remove watchers whose grace period expired
     this.watcherSweepInterval = setInterval(() => this.pruneStaleWatchers(), 15_000);
+  }
+
+  rememberDeleted(ids) {
+    const now = Date.now();
+    for (const id of ids) this.recentlyDeleted.set(id, now);
+    for (const [id, at] of this.recentlyDeleted) {
+      if (now - at > this.DELETED_MEMORY_MS) this.recentlyDeleted.delete(id);
+    }
+  }
+
+  isRecentlyDeleted(id) {
+    const at = this.recentlyDeleted.get(id);
+    return at != null && Date.now() - at <= this.DELETED_MEMORY_MS;
   }
 
   liveClaudeSessions() {
@@ -123,16 +142,23 @@ class LocalAnnotationsServer {
     for (const a of annotations) {
       existing.add(a.id);
       const sent = this.claudeSent.get(a.id);
+      if (sent?.goneAt) delete sent.goneAt; // back after all
       if (!sent || a.status !== 'pending') continue;
       if (sent.sentKey !== this.annotationContentKey(a)) revised.push(a.id);
       else if (liveIds.has(sent.sentTo)) inProgress.push(a.id);
     }
-    // Forget annotations that are gone (Claude deleted them when done).
-    let pruned = false;
-    for (const id of this.claudeSent.keys()) {
-      if (!existing.has(id)) { this.claudeSent.delete(id); pruned = true; }
+    // Annotations that are gone: Claude deleted them when done. Keep listing
+    // them a little longer, until every extension has synced the deletion;
+    // otherwise its stale copy looks unsent and Send lights up for a moment.
+    let changed = false;
+    const now = Date.now();
+    for (const [id, sent] of this.claudeSent) {
+      if (existing.has(id)) continue;
+      if (!sent.goneAt) { sent.goneAt = now; changed = true; }
+      if (now - sent.goneAt > this.CLAUDE_GONE_MS) { this.claudeSent.delete(id); changed = true; }
+      else inProgress.push(id);
     }
-    if (pruned) void this.saveClaudeSent();
+    if (changed) void this.saveClaudeSent();
     return { inProgress, revised };
   }
 
@@ -302,6 +328,9 @@ class LocalAnnotationsServer {
         if (!annotation.id || !annotation.url) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
+        if (this.isRecentlyDeleted(annotation.id)) {
+          return res.json({ success: true, deleted: true, annotation });
+        }
 
         const annotations = await this.loadAnnotations();
         const existingIndex = annotations.findIndex(a => a.id === annotation.id);
@@ -342,7 +371,10 @@ class LocalAnnotationsServer {
         // annotation to keep the server's current attachment list, ignoring the
         // extension's copy, so a sync can never add/drop attachments.
         const currentById = new Map(currentAnnotations.map(a => [a.id, a]));
-        const merged = annotations.map(a => this.withServerAttachments(a, currentById.get(a.id)));
+        // A copy taken before a recent delete must not bring the annotation back.
+        const merged = annotations
+          .filter(a => !this.isRecentlyDeleted(a.id))
+          .map(a => this.withServerAttachments(a, currentById.get(a.id)));
 
         // Check if data is actually different to avoid redundant saves
         const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
@@ -362,8 +394,9 @@ class LocalAnnotationsServer {
 
         // Replace all annotations with the new set
         await this.saveAnnotations(merged);
-        console.log(`Sync completed: now have ${annotations.length} annotations`);
-        res.json({ success: true, count: annotations.length });
+        const dropped = annotations.length - merged.length;
+        console.log(`Sync completed: now have ${merged.length} annotations` + (dropped ? ` (ignored ${dropped} deleted moments ago)` : ''));
+        res.json({ success: true, count: merged.length });
       } catch (error) {
         console.error('Error syncing annotations:', error);
         res.status(500).json({ error: 'Failed to sync annotations' });
@@ -545,6 +578,7 @@ class LocalAnnotationsServer {
         annotations.splice(index, 1);
 
         await this.saveAnnotations(annotations);
+        this.rememberDeleted([id]);
         await this.removeAttachmentFiles(deletedAnnotation);
         res.json({
           success: true,
@@ -1840,6 +1874,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     annotations.splice(index, 1); // Remove the annotation completely
 
     await this.saveAnnotations(annotations);
+    this.rememberDeleted([id]);
     await this.removeAttachmentFiles(deletedAnnotation);
 
     return {
@@ -1984,6 +2019,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       .filter(a => !removeIds.has(a.id))
       .map(a => discardIds.has(a.id) ? { ...a, status: 'variants-discarded', updated_at: new Date().toISOString() } : a);
     await this.saveAnnotations(remainingAnnotations);
+    this.rememberDeleted(removeIds);
     for (const a of toRemove) await this.removeAttachmentFiles(a);
 
     const deletedInfo = matchingAnnotations.map(a => ({
