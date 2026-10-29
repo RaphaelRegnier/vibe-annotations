@@ -7,12 +7,18 @@ on:
       - 'packages/server/**'
   workflow_dispatch: # Allow manual triggering
 
+# Two merges seconds apart used to publish the same version twice and the
+# second run failed (409). Queue runs instead.
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Allow pushing commits and tags
-      id-token: write  # For NPM publishing
+      id-token: write  # npm trusted publishing (OIDC): no token to rotate
     
     steps:
     - name: Checkout code
@@ -28,6 +34,10 @@ jobs:
       with:
         node-version: '22'
         registry-url: 'https://registry.npmjs.org'
+
+    # Trusted publishing needs npm 11.5.1+; Node 22 ships npm 10.
+    - name: Update npm
+      run: npm install -g npm@latest
 
     - name: Configure Git
       run: |
@@ -59,8 +69,7 @@ jobs:
           npm version $PUBLISH_VERSION --no-git-tag-version
         fi
 
-        # Publish to NPM
+        # Publish to NPM. Authenticates through the trusted publisher set up on
+        # npmjs.com for this repo + workflow file (keep this filename), and
+        # attaches provenance automatically.
         npm publish
-
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

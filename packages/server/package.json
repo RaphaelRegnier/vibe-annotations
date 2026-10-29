@@ -46,7 +46,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RaphaelRegnier/vibe-annotations.git",
-    "directory": "annotations-server"
+    "directory": "packages/server"
   },
   "homepage": "https://github.com/RaphaelRegnier/vibe-annotations#readme",
   "bugs": {
