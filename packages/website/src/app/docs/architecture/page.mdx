@@ -33,6 +33,7 @@ A global npm package (`vibe-annotations-server`) that runs as a background proce
 - **Attachments** (`/api/annotations/:id/attachments`) — image files (auto element screenshots + user reference images) stored under `~/.vibe-annotations/attachments/`, deleted with their annotation
 - **Export** (`/api/export`) — renders a single self-contained `.html` with every image embedded as base64 (the `.md`/`.json` formats are produced client-side in the extension)
 - **Storage** — JSON file at `~/.vibe-annotations/annotations.json`, atomic writes with corruption recovery
+- **Claude Code mod API** (`/api/claude/*`) — see below
 
 ## Data Flow
 
@@ -42,6 +43,15 @@ A global npm package (`vibe-annotations-server`) that runs as a background proce
 4. Agent implements the changes in source code
 5. Agent calls `delete_annotation` to mark it as resolved
 6. Server deletion syncs back to the extension, removing the badge
+
+## Claude Code mod
+
+The [Claude Code mod](/docs/claude-code) is a Claude Code plugin (in `packages/claude-mod`) whose hooks run inside the Claude Code process. It talks to the server over the same HTTP API, never over MCP:
+
+- Every 2 seconds each session polls `/api/claude/inbox` with its id and working folder. That's its heartbeat, and the answer carries the sites routed to it, sends queued from the browser, and what's in progress.
+- The server routes each local site to one session: the one whose folder holds the process serving the site's port (looked up with `lsof`), else the one it was last sent to.
+- The extension reads `/api/claude` to show **Send to Claude** and the in-progress rings, and posts to `/api/claude/send`.
+- After handing annotations to Claude, the mod posts them to `/api/claude/sent`. The server keeps that record in `~/.vibe-annotations/claude-sent.json` with a fingerprint of each annotation, so an edit after sending makes it new again.
 
 ## Annotation Types
 

@@ -1,0 +1,74 @@
+export const metadata = { title: 'Claude Code mod' }
+
+# Claude Code mod
+
+The fastest way to use Vibe Annotations with Claude Code. One install gives you the whole loop: the annotation server starts on its own, new annotations show up right above your prompt, and **Send to Claude** in the browser hands them to your session in one click.
+
+## Install
+
+```bash
+claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations
+```
+
+Then install the [browser extension](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof), open your localhost app and annotate. That's the whole setup: the next Claude Code session starts the server for you.
+
+- **At the prompt of a session:** `/plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations`
+- **Desktop app:** click **+** next to the prompt box, then **Plugins**, **Add marketplace** with `RaphaelRegnier/vibe-annotations`, then **Add plugin**. A plugin installed from a terminal also loads in the desktop app's local sessions.
+- **Setup wizard:** `npx vibe-annotations-server init` offers to install it when you pick Claude Code.
+
+Needs Claude Code 2.1.287 or newer and Node.js (for the server).
+
+## How it works
+
+Annotate on your localhost app, then either:
+
+- **Send to Claude** from the browser: the send icon at the end of the toolbar hands this site's new annotations to your session.
+- **Implement** from Claude Code: new annotations show in a band above the prompt.
+
+```
+● 3 new annotations on localhost:3000  [ Implement ] [ View ] [ Auto-send: off ]
+> _
+```
+
+Claude gets every new annotation as one prompt, implements them, and deletes each one when it's done.
+
+| Control | What it does |
+|---|---|
+| **Implement** | Sends every new annotation as one prompt |
+| **View** | Opens a side pane listing this site's open annotations |
+| **Auto-send** | Sends new annotations as soon as you save them, even mid-turn |
+| `/vibe` | Same as Implement. `/vibe list` opens the pane, `/vibe auto on` and `/vibe auto off` toggle auto-send, `/vibe start` starts the server |
+
+## What's in progress
+
+While Claude works on an annotation, its badge shows a **circling ring** and **View all** marks it **In progress**. Send only counts what's left: write more annotations while Claude works and Send offers just those.
+
+Edit an annotation after you sent it and it becomes sendable again; Claude gets it marked as an update.
+
+## Several sessions, several apps
+
+Run one Claude Code session per app and each one only sees its own site. The server matches a site to the session working in the folder that serves its port (for example `localhost:3001` served from `~/code/shop` goes to the session started in `~/code/shop`, or in a folder above it in a monorepo).
+
+When no session matches (an app in Docker, behind a proxy, or a session started elsewhere), the first **Send** asks which session to use, and the site stays with that session.
+
+Send to Claude works on local dev sites only (`localhost`, `127.0.0.1`, `*.local`, `*.test`).
+
+## The server
+
+You don't need to start it. When a session starts and the server isn't running, the mod starts it in the background (your global `vibe-annotations-server`, or the latest release through npx). It keeps running for every other session and for the extension.
+
+- When the running server is too old for the mod, the band offers **Update**: it updates your global install, stops the old server and starts the new one.
+- To turn auto-start off, set **autoStartServer** to off in `/plugin`.
+
+## Compared to watch mode
+
+[Watch mode](/docs/workflows/watch-mode) keeps your agent in a loop of MCP calls, which costs tokens while it waits. The mod checks for annotations in the background without any model turns, and only talks to Claude when there's something to do. Watch mode remains the hands-free option for other agents.
+
+The [MCP server](/docs/mcp-setup) stays useful alongside the mod: it lets Claude read design edits, screenshots and project context in full.
+
+## Uninstall
+
+```bash
+claude plugin uninstall vibe-annotations@vibe-annotations
+claude plugin marketplace remove vibe-annotations
+```

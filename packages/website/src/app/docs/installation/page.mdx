@@ -12,7 +12,17 @@ Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/gko
 
 Go to `chrome://extensions/`, enable Developer mode, click "Load unpacked", and select the `/packages/extension` directory.
 
-## 2. Run the Setup Wizard (recommended)
+## 2. Using Claude Code? Install the mod
+
+```bash
+claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations
+```
+
+That's all Claude Code needs: the mod starts the server when a session starts, shows new annotations above your prompt, and adds **Send to Claude** to the browser toolbar. See [Claude Code mod](/docs/claude-code), then skip to [Start Annotating](#4-start-annotating).
+
+For other agents, or to also connect Claude Code over MCP, use the wizard below.
+
+## 2b. Run the Setup Wizard
 
 The MCP server enables AI coding agents to read your annotations automatically. It's optional — you can always copy/paste annotations instead.
 
@@ -25,9 +35,10 @@ One interactive command that:
 - Installs `vibe-annotations-server` globally
 - Starts the server in the background on port 3846
 - Configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code)
+- For Claude Code, offers to install the Vibe Annotations mod
 - Points you to the Chrome Web Store if the extension isn't installed yet
 
-Useful flags: `--agent <name>` (repeatable), `--project` (project scope instead of user), `--non-interactive`, `--skip-server`, `--skip-extension`, `--reset`.
+Useful flags: `--agent <name>` (repeatable), `--project` (project scope instead of user), `--non-interactive`, `--skip-server`, `--skip-extension`, `--skip-claude-mod`, `--reset`.
 
 ## 3. Manual Install (alternative)
 
@@ -49,6 +60,7 @@ The server runs on port 3846 and provides:
 
 Open any localhost page, click **Annotate** in the toolbar, and click any element to leave feedback. Then:
 
+- **Claude Code**: Click the send icon at the end of the toolbar, or **Implement** above your prompt
 - **Copy & paste**: Click **Copy** in the toolbar and paste into any AI chat
 - **MCP (automatic)**: Tell your agent to read and implement vibe annotations
 - **Watch mode (hands-free)**: Tell your agent "Start watching Vibe Annotations"
@@ -75,6 +87,9 @@ vibe-annotations-server restart   # Restart
 ## Uninstallation
 
 ```bash
+# Remove the Claude Code mod
+claude plugin uninstall vibe-annotations@vibe-annotations
+
 # Remove MCP from your agent (e.g. Claude Code)
 claude mcp remove vibe-annotations
 

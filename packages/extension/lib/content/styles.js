@@ -1063,7 +1063,7 @@ export const VIBE_STYLES = `
   top: calc(100% + 8px);
   right: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   max-width: 440px;
   padding: 8px 10px 8px 12px;
@@ -1082,10 +1082,21 @@ export const VIBE_STYLES = `
   animation: vibe-update-banner-out 0.18s ease both;
 }
 
-.vibe-update-text {
+.vibe-update-body {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vibe-update-text {
   color: var(--v-text-secondary);
 }
+
+.vibe-update-cmd { margin-bottom: 0; }
+/* The banner exists for this command: show all of it, wrapped, not scrolled */
+.vibe-update-banner .vibe-update-cmd code { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 
 .vibe-update-text strong {
   color: var(--v-text-primary);

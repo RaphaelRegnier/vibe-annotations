@@ -234,20 +234,35 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
       const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
       if (!updateInfo || !updateInfo.hasUpdate || !toolbarEl) return;
 
-      const version = updateInfo.currentVersion || '';
-      const releaseUrl = updateInfo.releaseUrl
-        || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
+      const docsUrl = 'https://vibe-annotations.com/docs/claude-code';
+      const installCmd = 'claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations';
 
+      // 2.2.0: nudge Claude Code users to the mod — one command gives them the
+      // server, the band above the prompt and Send to Claude out of the box.
       const banner = document.createElement('div');
       banner.className = 'vibe-update-banner';
       banner.innerHTML = `
-        <span class="vibe-update-text">
-          <strong>Vibe Annotations${version ? ` ${version}` : ''}</strong>
-          — no more DevTools noise, and the toolbar stays where you put it. Update your MCP server for the latest Claude Code.
-        </span>
-        <a class="vibe-update-link" href="${releaseUrl}" target="_blank" rel="noopener">See what's new</a>
+        <div class="vibe-update-body">
+          <span class="vibe-update-text">
+            <strong>New: send your annotations to Claude Code in one click</strong>,
+            and see what it's working on. Install the Claude Code mod:
+          </span>
+          <div class="vibe-guide-cmd vibe-update-cmd">
+            <code>${installCmd}</code>
+            <button class="vibe-guide-copy" type="button" title="Copy">${ICONS.clipboard}</button>
+          </div>
+        </div>
+        <a class="vibe-update-link" href="${docsUrl}" target="_blank" rel="noopener">How it works</a>
         <button class="vibe-update-dismiss" title="Dismiss">${ICONS.close}</button>
       `;
+
+      const copyBtn = banner.querySelector('.vibe-update-cmd .vibe-guide-copy');
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try { await navigator.clipboard.writeText(installCmd); } catch { /* clipboard blocked */ }
+        copyBtn.innerHTML = ICONS.check;
+        setTimeout(() => { copyBtn.innerHTML = ICONS.clipboard; }, 1500);
+      });
 
       const dismiss = () => {
         banner.classList.add('vibe-update-banner-out');
@@ -259,7 +274,7 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
         e.stopPropagation();
         dismiss();
       });
-      // Opening the release note also clears the "NEW" state.
+      // Opening the docs also clears the "NEW" state.
       banner.querySelector('.vibe-update-link').addEventListener('click', () => {
         chrome.runtime.sendMessage({ action: 'dismissUpdate' }).catch(() => {});
       });
