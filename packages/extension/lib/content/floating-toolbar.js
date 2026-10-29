@@ -25,7 +25,12 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
   let watcherActive = false;
   let isOverlayVisible = true;
   let claudeConnected = false; // Claude Code mod is polling the server
-  let inProgressIds = new Set(); // handed to a Claude session, being worked on
+  let inProgressIds = new Set(); // shown in progress: the server's list plus justSent
+  let serverProgressIds = new Set(); // handed to a live Claude session, per the server
+  // What this page just sent, shown in progress until the server confirms it
+  // (the mod picks a send up on its next poll) or the window runs out.
+  let justSent = { ids: new Set(), until: 0 };
+  const JUST_SENT_MS = 20000;
   let unsentCount = 0; // this site's annotations Send would hand over
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
@@ -1027,9 +1032,16 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     sendBtn.classList.add(r.success ? 'sent' : 'failed');
     sendBtn.innerHTML = r.success ? ICONS.check : ICONS.send;
     showSendChip(r.success ? `Sent to ${r.session.name}` : 'Claude not connected');
-    // The mod picks the send up within ~2s and reports it back; check sooner
-    // than the 10s poll so the in-progress rings show right away.
-    if (r.success) [2500, 5000].forEach(ms => setTimeout(refreshClaude, ms));
+    // Show what was just sent in progress right away: the server only confirms
+    // once the mod picked the send up (its next poll) and reported it back, so
+    // re-check sooner than the 10s status poll until it does.
+    if (r.success) {
+      const sent = (await VibeAPI.loadProjectAnnotations()).filter(isSendable).map(a => a.id);
+      justSent = { ids: new Set(sent), until: Date.now() + JUST_SENT_MS };
+      applyProgress();
+      await refreshUnsent();
+      [2500, 5000, 9000, 15000, JUST_SENT_MS + 500].forEach(ms => setTimeout(refreshClaude, ms));
+    }
     setTimeout(() => {
       sendBtn.classList.remove('sending', 'sent', 'failed');
       sendBtn.innerHTML = ICONS.send;
@@ -1086,13 +1098,8 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     const isLocal = VibeAPI.isLocalOrigin() && !VibeAPI.isFileProtocol();
     const status = isLocal && serverOnline ? await VibeAPI.getClaudeStatus() : { connected: false };
     claudeConnected = status.connected === true;
-    const ids = claudeConnected && Array.isArray(status.inProgress) ? status.inProgress : [];
-    const progressChanged = ids.length !== inProgressIds.size || ids.some(id => !inProgressIds.has(id));
-    if (progressChanged) {
-      inProgressIds = new Set(ids);
-      VibeEvents.emit('claude:progress', { ids });
-      if (viewAllPanel) openViewAll();
-    }
+    serverProgressIds = new Set(claudeConnected && Array.isArray(status.inProgress) ? status.inProgress : []);
+    const progressChanged = applyProgress();
     await refreshUnsent();
     if (was !== claudeConnected || progressChanged) updateUI();
   }
@@ -1100,10 +1107,25 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
   // What Send would hand over: the same annotations the mod sends (pending
   // comments and design edits, not stylesheets or variants), minus those in progress.
   async function refreshUnsent() {
-    const list = await VibeAPI.loadProjectAnnotations();
-    const next = list.filter(a => a.status === 'pending' && a.type !== 'stylesheet'
-      && a.mode !== 'variants' && !inProgressIds.has(a.id)).length;
+    const next = (await VibeAPI.loadProjectAnnotations()).filter(isSendable).length;
     if (next !== unsentCount) { unsentCount = next; updateUI(); }
+  }
+
+  function isSendable(a) {
+    return a.status === 'pending' && a.type !== 'stylesheet' && a.mode !== 'variants' && !inProgressIds.has(a.id);
+  }
+
+  // Recompute what shows in progress; tell the badges and the list when it changed.
+  function applyProgress() {
+    const confirmed = [...justSent.ids].every(id => serverProgressIds.has(id));
+    if (justSent.ids.size && (confirmed || Date.now() > justSent.until)) justSent = { ids: new Set(), until: 0 };
+    const next = new Set([...serverProgressIds, ...justSent.ids]);
+    const changed = next.size !== inProgressIds.size || [...next].some(id => !inProgressIds.has(id));
+    if (!changed) return false;
+    inProgressIds = next;
+    VibeEvents.emit('claude:progress', { ids: [...next] });
+    if (viewAllPanel) openViewAll();
+    return true;
   }
 
   async function refreshWatchers() {
