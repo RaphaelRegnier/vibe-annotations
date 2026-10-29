@@ -62,6 +62,18 @@ If the extension doesn't load on local files:
 - The extension syncs every 10 seconds when the server is online
 - Look for sync errors in the background service worker console (`chrome://extensions/` → Vibe Annotations → "Inspect views: service worker")
 
+## Claude Code mod
+
+**No band above the prompt.** The band only shows when there's something new for this session. Check the session is connected with `curl 127.0.0.1:3846/api/claude`: it lists the live sessions by folder name. A site shows in a session's band once it's matched to it: start Claude Code in the folder that serves the app, or click **Send to Claude** once from that site. A session started before you installed the mod doesn't run it: start a new one.
+
+**No Send to Claude button.** It shows on local dev sites only, while the server runs and a Claude Code session with the mod is open. It stays greyed out when there's nothing new to send.
+
+**"Couldn't start the annotations server".** The mod starts the server with Node.js. Install Node, or start the server yourself (`vibe-annotations-server start`), then press **Retry**.
+
+**"The annotations server is out of date".** Press **Update** in the band, or run `npm install -g vibe-annotations-server@latest` then `vibe-annotations-server restart`. If you started the server by hand (`node .../server.js`), stop it first: the mod won't stop a server it didn't start.
+
+**An annotation stays In progress.** It stays in progress while the session it was sent to is alive and the annotation is unchanged. Edit it to make it sendable again, or close that session.
+
 ## Still stuck?
 
 Check [GitHub Issues](https://github.com/RaphaelRegnier/vibe-annotations/issues) or create a new one.

@@ -72,12 +72,16 @@ claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3
 
 Tools: `read_annotations`, `delete_annotation`, `watch_annotations`, `get_project_context`.
 
+## Claude Code mod
+
+Claude Code users get the mod (`packages/claude-mod`) instead of watch mode: `claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations`. The extension's side of it lives in `floating-toolbar.js` (Send to Claude button, session picker, in-progress state) and `badge-manager.js` (the in-progress ring), and talks to the server's `/api/claude*` routes. Send to Claude is shown on local dev sites only.
+
 ## Releasing (Chrome Web Store)
 
 1. Bump `version` in `package.json`.
 2. **Rewrite the release banner copy** in `floating-toolbar.js` (`injectUpdateBanner`) — it's hardcoded and shown to every user after the update.
 3. `pnpm --filter vibe-annotations-extension zip` → `.output/vibe-annotations-extension-<version>-chrome.zip`.
-4. Draft the GitHub release `v<version>` — the banner's "See what's new" links to that tag, and the website's release notes page reads from GitHub Releases.
+4. Draft the GitHub release `v<version>` — the website's release notes page reads from GitHub Releases. (The banner's button points wherever its copy needs: in 2.2.0, the Claude Code docs page instead of the release tag.)
 
 ## Testing
 

@@ -18,7 +18,13 @@ For more features explanations (like collaboration via file sharing, AI-assisted
 npx vibe-annotations-server init
 ```
 
-One interactive command installs the global server, starts it in the background, and configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code). Prefer manual? See [Installation](https://vibe-annotations.com/docs/installation).
+One interactive command installs the global server, starts it in the background, and configures your AI coding agent (Claude Code, Cursor, Windsurf, Codex, OpenClaw, VS Code). For Claude Code it also offers the [Vibe Annotations mod](packages/claude-mod): new annotations show above the prompt and go to Claude in one press. Prefer manual? See [Installation](https://vibe-annotations.com/docs/installation).
+
+Using only Claude Code? The mod alone is enough, since it starts the server for you:
+
+```bash
+claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations
+```
 
 **3.** Open a localhost page, click **Annotate**. You can annotate multiple pages on your web app. Then:
 

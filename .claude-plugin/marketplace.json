@@ -1,0 +1,12 @@
+{
+  "name": "vibe-annotations",
+  "owner": { "name": "Raphael Regnier" },
+  "description": "Visual annotations for localhost dev projects, sent to your coding agent.",
+  "plugins": [
+    {
+      "name": "vibe-annotations",
+      "source": "./packages/claude-mod",
+      "description": "Shows new Vibe Annotations above the Claude Code prompt and sends them to Claude in one press. Starts the Vibe server for you."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "vibe-annotations",
+  "version": "1.0.0",
+  "description": "Shows new Vibe Annotations above the Claude Code prompt and sends them to Claude in one press, with no watch loop.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Raphael Regnier"
+  },
+  "userConfig": {
+    "autoStartServer": {
+      "type": "boolean",
+      "title": "Start the Vibe server automatically",
+      "description": "When a session starts and the Vibe Annotations server isn't running, start it in the background (npx vibe-annotations-server start --daemon).",
+      "default": true
+    }
+  }
+}

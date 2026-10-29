@@ -205,6 +205,23 @@ export const VIBE_STYLES = `
   animation: vibe-watch-pulse 2s ease-in-out infinite;
 }
 
+/* In progress: a ring circling the badge while Claude works on it */
+.vibe-badge.in-progress::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 30%, var(--v-badge-bg));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: vibe-badge-spin 1.1s linear infinite;
+  pointer-events: none;
+}
+@keyframes vibe-badge-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vibe-badge.in-progress::after { animation-duration: 4s; }
+}
+
 @keyframes vibe-watch-pulse {
   0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
   50% { box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 3px rgba(59,130,246,0.3); }
@@ -1046,7 +1063,7 @@ export const VIBE_STYLES = `
   top: calc(100% + 8px);
   right: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   max-width: 440px;
   padding: 8px 10px 8px 12px;
@@ -1065,10 +1082,21 @@ export const VIBE_STYLES = `
   animation: vibe-update-banner-out 0.18s ease both;
 }
 
-.vibe-update-text {
+.vibe-update-body {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vibe-update-text {
   color: var(--v-text-secondary);
 }
+
+.vibe-update-cmd { margin-bottom: 0; }
+/* The banner exists for this command: show all of it, wrapped, not scrolled */
+.vibe-update-banner .vibe-update-cmd code { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
 
 .vibe-update-text strong {
   color: var(--v-text-primary);
@@ -1236,6 +1264,90 @@ export const VIBE_STYLES = `
   justify-content: center;
   padding: 0 4px;
   pointer-events: none;
+}
+
+/* Send to Claude — primary icon button at the end of the bar */
+.vibe-toolbar-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0;
+  border-radius: 8px;
+  border: none;
+  background: var(--v-pill-gradient);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 6px rgba(208, 61, 104, 0.35);
+  transition: filter 0.15s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+  animation: vibe-send-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.vibe-toolbar-send:hover { filter: brightness(1.1); }
+.vibe-toolbar-send:active { transform: scale(0.92); }
+
+.vibe-toolbar-send svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.vibe-toolbar-send:disabled {
+  background: var(--v-toolbar-btn-active);
+  color: var(--v-instruction-text);
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
+.vibe-toolbar-send.sending:disabled {
+  background: var(--v-pill-gradient);
+  color: #fff;
+  cursor: progress;
+}
+
+.vibe-toolbar-send.sending svg { animation: vibe-send-fly 0.6s ease-in-out infinite alternate; }
+.vibe-toolbar-send.sent:disabled { background: var(--v-status-online); box-shadow: 0 1px 6px rgba(16, 185, 129, 0.35); cursor: default; }
+.vibe-toolbar-send.sent svg { animation: none; }
+.vibe-toolbar-send.failed:disabled { background: var(--v-toolbar-btn-active); color: var(--v-toolbar-text); box-shadow: none; }
+.vibe-toolbar-send.failed svg { animation: none; }
+
+@keyframes vibe-send-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes vibe-send-fly {
+  from { transform: translate(0, 0); }
+  to { transform: translate(2px, -2px); }
+}
+
+/* Floating confirmation under the bar (keeps the toolbar width stable) */
+.vibe-send-chip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--v-panel-bg);
+  box-shadow: var(--v-panel-shadow);
+  color: var(--v-toolbar-text-active);
+  font: 500 12px/1 var(--v-font);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: vibe-send-chip-in 0.18s ease both;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.vibe-send-chip.above { top: auto; bottom: calc(100% + 8px); }
+.vibe-send-chip.out { opacity: 0; transform: translateY(-4px); }
+
+@keyframes vibe-send-chip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* MCP status in toolbar */
@@ -1558,6 +1670,11 @@ export const VIBE_STYLES = `
   color: var(--v-status-online);
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.28);
+}
+.vibe-viewall-status.progress {
+  color: var(--v-badge-bg);
+  background: color-mix(in srgb, var(--v-badge-bg) 12%, transparent);
+  border-color: color-mix(in srgb, var(--v-badge-bg) 32%, transparent);
 }
 .vibe-viewall-status.ready {
   color: var(--v-status-watching);
@@ -2268,5 +2385,13 @@ export const VIBE_STYLES = `
     var(--v-pill-gradient) border-box;
 }
 .vibe-variant-row input { accent-color: var(--v-accent, #d97757); margin: 0; }
+
+/* Variant picker inside a View all card: the review rows, compact */
+.vibe-viewall-variants { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.vibe-variant-row.compact { padding: 7px 10px; gap: 8px; font-size: 12px; }
+.vibe-variant-row.compact:has(input:disabled) { cursor: default; opacity: 0.6; }
+.vibe-variant-chosen-mark { margin-left: auto; font: 600 10.5px/1 var(--v-font); color: var(--v-status-online); }
+.vibe-viewall-variants .vibe-btn { align-self: flex-start; padding: 5px 12px; font-size: 12px; }
+.vibe-viewall-variant-note { font-size: 11.5px; color: var(--v-text-secondary); }
 
 `;

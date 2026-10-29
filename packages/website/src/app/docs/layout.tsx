@@ -30,6 +30,7 @@ type NavItem = { href: string; label: string; children?: NavItem[] }
 const NAV: NavItem[] = [
   { href: '/docs', label: 'Overview' },
   { href: '/docs/installation', label: 'Installation' },
+  { href: '/docs/claude-code', label: 'Claude Code mod' },
   { href: '/docs/mcp-setup', label: 'MCP Setup' },
   {
     href: '/docs/workflows', label: 'Workflows', children: [

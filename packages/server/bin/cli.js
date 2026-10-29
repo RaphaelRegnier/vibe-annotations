@@ -70,6 +70,7 @@ program
   .option('--non-interactive', 'No prompts; use defaults. Auto-applied on CI or no TTY.')
   .option('--skip-extension', 'Skip the Chrome extension prompt')
   .option('--skip-server', 'Skip installing/starting the server')
+  .option('--skip-claude-mod', 'Skip installing the Claude Code mod')
   .option('--project', 'Configure MCP at project scope instead of user scope')
   .option('--reset', 'Remove existing vibe-annotations entries from known agent configs before configuring')
   .action(async (options) => {
@@ -79,6 +80,7 @@ program
       nonInteractive: !!options.nonInteractive,
       skipExtension: !!options.skipExtension,
       skipServer: !!options.skipServer,
+      skipClaudeMod: !!options.skipClaudeMod,
       project: !!options.project,
       reset: !!options.reset,
     });
@@ -86,6 +88,49 @@ program
 
 function collectAgent(value, previous) {
   return previous.concat(value);
+}
+
+// Starts the server in the background (detached, logging to LOG_FILE) and
+// waits until it answers. Uses the node running this CLI, not whichever one
+// PATH finds first (apps launched from the Dock don't get the shell's PATH).
+async function startDaemon() {
+  const serverPath = join(dirname(__dirname), 'lib', 'server.js');
+  const out = fs.openSync(LOG_FILE, 'a');
+  const err = fs.openSync(LOG_FILE, 'a');
+  const child = spawn(process.execPath, [serverPath], {
+    detached: true,
+    stdio: ['ignore', out, err],
+    env: { ...process.env, NODE_ENV: 'production' }
+  });
+  child.unref();
+  writeFileSync(PID_FILE, child.pid.toString());
+
+  for (let attempts = 0; attempts < 10; attempts++) {
+    if (await checkPort()) {
+      console.log(chalk.green('✅ Vibe Annotations server running on http://127.0.0.1:3846/sse'));
+      console.log(chalk.gray(`   PID: ${child.pid}`));
+      console.log(chalk.gray(`   Logs: ${LOG_FILE}`));
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  console.log(chalk.red('❌ Failed to start server. Check logs at:'));
+  console.log(chalk.gray(`   ${LOG_FILE}`));
+  return false;
+}
+
+// Stops the server started from the pid file, then waits until the port stops
+// answering: the server shuts down gracefully, and a start in the meantime
+// would mistake the old one for the new.
+async function stopServer() {
+  if (!isServerRunning()) return false;
+  const pid = readFileSync(PID_FILE, 'utf8').trim();
+  process.kill(parseInt(pid), 'SIGTERM');
+  if (existsSync(PID_FILE)) unlinkSync(PID_FILE);
+  for (let i = 0; i < 20 && await checkPort(); i++) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  return true;
 }
 
 program
@@ -102,48 +147,18 @@ program
 
     console.log(chalk.blue('Starting Vibe Annotations server...'));
 
-    const serverPath = join(dirname(__dirname), 'lib', 'server.js');
-    
     if (options.daemon) {
-      // Run as daemon
-      const out = fs.openSync(LOG_FILE, 'a');
-      const err = fs.openSync(LOG_FILE, 'a');
-      
-      const child = spawn('node', [serverPath], {
-        detached: true,
-        stdio: ['ignore', out, err],
-        env: { ...process.env, NODE_ENV: 'production' }
-      });
-      
-      child.unref();
-      writeFileSync(PID_FILE, child.pid.toString());
-      
-      // Wait for server to start
-      let attempts = 0;
-      while (attempts < 10) {
-        if (await checkPort()) {
-          console.log(chalk.green('✅ Vibe Annotations server running on http://127.0.0.1:3846/sse'));
-          console.log(chalk.gray(`   PID: ${child.pid}`));
-          console.log(chalk.gray(`   Logs: ${LOG_FILE}`));
-          break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-      
-      if (attempts >= 10) {
-        console.log(chalk.red('❌ Failed to start server. Check logs at:'));
-        console.log(chalk.gray(`   ${LOG_FILE}`));
-      }
+      await startDaemon();
     } else {
       // Run in foreground
-      const child = spawn('node', [serverPath], {
+      const serverPath = join(dirname(__dirname), 'lib', 'server.js');
+      const child = spawn(process.execPath, [serverPath], {
         stdio: 'inherit',
         env: { ...process.env, NODE_ENV: 'production' }
       });
-      
+
       writeFileSync(PID_FILE, child.pid.toString());
-      
+
       child.on('exit', () => {
         if (existsSync(PID_FILE)) {
           unlinkSync(PID_FILE);
@@ -155,21 +170,10 @@ program
 program
   .command('stop')
   .description('Stop the Vibe Annotations server')
-  .action(() => {
-    if (!isServerRunning()) {
-      console.log(chalk.yellow('Server is not running'));
-      return;
-    }
-    
+  .action(async () => {
     try {
-      const pid = readFileSync(PID_FILE, 'utf8').trim();
-      process.kill(parseInt(pid), 'SIGTERM');
-      
-      if (existsSync(PID_FILE)) {
-        unlinkSync(PID_FILE);
-      }
-      
-      console.log(chalk.green('✅ Server stopped'));
+      if (await stopServer()) console.log(chalk.green('✅ Server stopped'));
+      else console.log(chalk.yellow('Server is not running'));
     } catch (error) {
       console.log(chalk.red('❌ Failed to stop server:'), error.message);
     }
@@ -180,26 +184,17 @@ program
   .description('Restart the Vibe Annotations server')
   .action(async () => {
     console.log(chalk.blue('Restarting server...'));
-    
-    // Stop if running
-    if (isServerRunning()) {
-      try {
-        const pid = readFileSync(PID_FILE, 'utf8').trim();
-        process.kill(parseInt(pid), 'SIGTERM');
-        
-        if (existsSync(PID_FILE)) {
-          unlinkSync(PID_FILE);
-        }
-        
-        // Wait for process to stop
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.log(chalk.yellow('Warning:'), error.message);
-      }
+    try {
+      await stopServer();
+    } catch (error) {
+      console.log(chalk.yellow('Warning:'), error.message);
     }
-    
-    // Start with daemon flag
-    program.parse(['node', 'cli.js', 'start', '--daemon'], { from: 'user' });
+    if (await checkPort()) {
+      console.log(chalk.red(`❌ Something else still answers on port ${PORT} (a server started by hand?). Stop it, then run start.`));
+      process.exitCode = 1;
+      return;
+    }
+    await startDaemon();
   });
 
 program

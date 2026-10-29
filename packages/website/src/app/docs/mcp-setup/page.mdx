@@ -10,7 +10,9 @@ Connect your AI coding agent to the Vibe Annotations server so it can read, watc
 
 ## Claude Code
 
-Run once from any directory — `--scope user` configures it globally across all projects.
+**Recommended:** install the [Vibe Annotations mod](/docs/claude-code) instead of watch mode. It starts the server, shows new annotations above the prompt, and adds **Send to Claude** in the browser, without spending tokens while it waits.
+
+To connect over MCP as well, run once from any directory — `--scope user` configures it globally across all projects.
 
 ```bash
 claude mcp add --scope user --transport http vibe-annotations http://127.0.0.1:3846/mcp

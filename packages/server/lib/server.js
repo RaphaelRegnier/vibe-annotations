@@ -16,6 +16,8 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import chalk from 'chalk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +30,9 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 const PORT = 3846;
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
+// What the Claude Code mod handed to which session. Kept apart from the
+// annotations: an extension sync replaces that whole list with its own copy.
+const CLAUDE_SENT_FILE = path.join(DATA_DIR, 'claude-sent.json');
 // Image attachments (auto element captures + user paste/upload) are stored as
 // files here, one per attachment, named by annotation id + attachment id. The
 // annotation carries only lightweight metadata ({ id, kind, mime }); the absolute
@@ -62,12 +67,140 @@ class LocalAnnotationsServer {
     this.saveLock = Promise.resolve(); // Serialize save operations to prevent race conditions
     this.watchers = new Map(); // watcherId → { url, registeredAt, lastSeenAt, polling, abort }
     this.WATCHER_GRACE_MS = 120_000; // Watcher stays "active" for 2min after last seen (covers agent processing)
+    // Claude Code mod (packages/claude-mod): each Claude session polls
+    // /api/claude/inbox with its id and cwd, which doubles as a heartbeat. Every
+    // site (origin) routes to one session; see claudeSessionFor.
+    this.CLAUDE_SEEN_MS = 10_000;
+    this.claudeSessions = new Map(); // id → { cwd, lastSeenAt, sends: [{ origin, at }] }
+    this.claudeRoutes = new Map(); // origin → session id, set by a send
+    this.portCwdCache = new Map(); // port → { cwd, at }
+    this.claudeSent = this.loadClaudeSent(); // annotation id → { sentTo, sentAt, sentKey, goneAt? }
+    this.CLAUDE_GONE_MS = 20_000; // longer than the extension's 10s sync
+    // Ids hard-deleted here (by an agent or the extension), and when. An
+    // extension sync replaces the whole list with its own copy, so one taken
+    // seconds before an agent's delete would bring the annotation back.
+    this.recentlyDeleted = new Map();
+    this.DELETED_MEMORY_MS = 10 * 60_000;
 
     this.setupExpress();
     this.setupMCP();
 
     // Periodic sweep: remove watchers whose grace period expired
     this.watcherSweepInterval = setInterval(() => this.pruneStaleWatchers(), 15_000);
+  }
+
+  rememberDeleted(ids) {
+    const now = Date.now();
+    for (const id of ids) this.recentlyDeleted.set(id, now);
+    for (const [id, at] of this.recentlyDeleted) {
+      if (now - at > this.DELETED_MEMORY_MS) this.recentlyDeleted.delete(id);
+    }
+  }
+
+  isRecentlyDeleted(id) {
+    const at = this.recentlyDeleted.get(id);
+    return at != null && Date.now() - at <= this.DELETED_MEMORY_MS;
+  }
+
+  liveClaudeSessions() {
+    const now = Date.now();
+    for (const [id, s] of this.claudeSessions) {
+      if (now - s.lastSeenAt > this.CLAUDE_SEEN_MS) this.claudeSessions.delete(id);
+    }
+    return [...this.claudeSessions].map(([id, s]) => ({ id, name: path.basename(s.cwd || '') || id, cwd: s.cwd }));
+  }
+
+  loadClaudeSent() {
+    try {
+      return new Map(Object.entries(JSON.parse(readFileSync(CLAUDE_SENT_FILE, 'utf8'))));
+    } catch {
+      return new Map();
+    }
+  }
+
+  async saveClaudeSent() {
+    try {
+      await writeFile(CLAUDE_SENT_FILE, JSON.stringify(Object.fromEntries(this.claudeSent)));
+    } catch (e) {
+      console.warn('Could not save claude-sent.json:', e.message);
+    }
+  }
+
+  // What Claude acts on: an edit to any of it after a send makes the annotation
+  // new again (sent as an update).
+  annotationContentKey(a) {
+    return JSON.stringify([a.comment || '', a.selector || '', a.pending_changes || null, a.css || '']);
+  }
+
+  // Pending annotations being worked on: handed to a session that is still
+  // alive, and unchanged since. `revised`: handed over before, edited since.
+  claudeProgress(annotations, live) {
+    const liveIds = new Set(live.map(s => s.id));
+    const inProgress = [];
+    const revised = [];
+    const existing = new Set();
+    for (const a of annotations) {
+      existing.add(a.id);
+      const sent = this.claudeSent.get(a.id);
+      if (sent?.goneAt) delete sent.goneAt; // back after all
+      if (!sent || a.status !== 'pending') continue;
+      if (sent.sentKey !== this.annotationContentKey(a)) revised.push(a.id);
+      else if (liveIds.has(sent.sentTo)) inProgress.push(a.id);
+    }
+    // Annotations that are gone: Claude deleted them when done. Keep listing
+    // them a little longer, until every extension has synced the deletion;
+    // otherwise its stale copy looks unsent and Send lights up for a moment.
+    let changed = false;
+    const now = Date.now();
+    for (const [id, sent] of this.claudeSent) {
+      if (existing.has(id)) continue;
+      if (!sent.goneAt) { sent.goneAt = now; changed = true; }
+      if (now - sent.goneAt > this.CLAUDE_GONE_MS) { this.claudeSent.delete(id); changed = true; }
+      else inProgress.push(id);
+    }
+    if (changed) void this.saveClaudeSent();
+    return { inProgress, revised };
+  }
+
+  // Working directory of the local process listening on a port (the app's dev
+  // server), so a site can be matched to the Claude session in that project.
+  // Uses lsof: macOS and Linux only; elsewhere sites route by send instead.
+  async portCwd(port) {
+    const hit = this.portCwdCache.get(port);
+    if (hit && Date.now() - hit.at < 10_000) return hit.cwd;
+    let cwd = null;
+    if (process.platform !== 'win32') {
+      try {
+        const run = promisify(execFile);
+        const { stdout: pids } = await run('lsof', ['-tiTCP:' + port, '-sTCP:LISTEN'], { timeout: 2000 });
+        const pid = pids.split('\n')[0].trim();
+        if (pid) {
+          const { stdout } = await run('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { timeout: 2000 });
+          cwd = stdout.split('\n').find(l => l.startsWith('n'))?.slice(1) || null;
+        }
+      } catch { /* no listener, or lsof missing */ }
+    }
+    this.portCwdCache.set(port, { cwd, at: Date.now() });
+    return cwd;
+  }
+
+  // Which live Claude session a site belongs to: the one working in the project
+  // that serves the site's port, else the one it was last sent to. null when
+  // neither applies (the extension then asks, if several sessions are open).
+  async claudeSessionFor(origin, live) {
+    let url = null;
+    try { url = new URL(origin); } catch { /* not a URL */ }
+    const local = url && /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(url.hostname) && url.port;
+    if (local) {
+      const appCwd = await this.portCwd(url.port);
+      const inside = (a, b) => a === b || a.startsWith(b + path.sep);
+      const match = appCwd && live
+        .filter(s => s.cwd && (inside(appCwd, s.cwd) || inside(s.cwd, appCwd)))
+        .sort((a, b) => b.cwd.length - a.cwd.length)[0];
+      if (match) return match.id;
+    }
+    const routed = this.claudeRoutes.get(origin);
+    return live.some(s => s.id === routed) ? routed : null;
   }
 
   pruneStaleWatchers() {
@@ -195,6 +328,9 @@ class LocalAnnotationsServer {
         if (!annotation.id || !annotation.url) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
+        if (this.isRecentlyDeleted(annotation.id)) {
+          return res.json({ success: true, deleted: true, annotation });
+        }
 
         const annotations = await this.loadAnnotations();
         const existingIndex = annotations.findIndex(a => a.id === annotation.id);
@@ -235,7 +371,10 @@ class LocalAnnotationsServer {
         // annotation to keep the server's current attachment list, ignoring the
         // extension's copy, so a sync can never add/drop attachments.
         const currentById = new Map(currentAnnotations.map(a => [a.id, a]));
-        const merged = annotations.map(a => this.withServerAttachments(a, currentById.get(a.id)));
+        // A copy taken before a recent delete must not bring the annotation back.
+        const merged = annotations
+          .filter(a => !this.isRecentlyDeleted(a.id))
+          .map(a => this.withServerAttachments(a, currentById.get(a.id)));
 
         // Check if data is actually different to avoid redundant saves
         const currentJson = JSON.stringify(currentAnnotations.sort((a, b) => a.id.localeCompare(b.id)));
@@ -255,8 +394,9 @@ class LocalAnnotationsServer {
 
         // Replace all annotations with the new set
         await this.saveAnnotations(merged);
-        console.log(`Sync completed: now have ${annotations.length} annotations`);
-        res.json({ success: true, count: annotations.length });
+        const dropped = annotations.length - merged.length;
+        console.log(`Sync completed: now have ${merged.length} annotations` + (dropped ? ` (ignored ${dropped} deleted moments ago)` : ''));
+        res.json({ success: true, count: merged.length });
       } catch (error) {
         console.error('Error syncing annotations:', error);
         res.status(500).json({ error: 'Failed to sync annotations' });
@@ -438,6 +578,7 @@ class LocalAnnotationsServer {
         annotations.splice(index, 1);
 
         await this.saveAnnotations(annotations);
+        this.rememberDeleted([id]);
         await this.removeAttachmentFiles(deletedAnnotation);
         res.json({
           success: true,
@@ -461,6 +602,88 @@ class LocalAnnotationsServer {
     this.app.post('/api/watchers/stop', (req, res) => {
       this.stopAllWatchers();
       res.json({ success: true });
+    });
+
+    // Claude Code mod status (for the extension's "Send to Claude" button)
+    this.app.get('/api/claude', async (req, res) => {
+      const live = this.liveClaudeSessions();
+      let inProgress = [];
+      try { ({ inProgress } = this.claudeProgress(await this.loadAnnotations(), live)); } catch { /* storage unreadable */ }
+      res.json({ connected: live.length > 0, sessions: live.map(({ id, name }) => ({ id, name })), inProgress });
+    });
+
+    // Mod → server: these annotations were just handed to Claude in `session`.
+    this.app.post('/api/claude/sent', async (req, res) => {
+      const { session, ids } = req.body || {};
+      if (typeof session !== 'string' || !Array.isArray(ids)) {
+        return res.status(400).json({ error: 'session and ids are required' });
+      }
+      const byId = new Map((await this.loadAnnotations()).map(a => [a.id, a]));
+      const sentAt = new Date().toISOString();
+      for (const id of ids) {
+        const a = byId.get(id);
+        if (a) this.claudeSent.set(id, { sentTo: session, sentAt, sentKey: this.annotationContentKey(a) });
+      }
+      await this.saveClaudeSent();
+      res.json({ success: true });
+    });
+
+    // Extension → mod: send this origin's open annotations to Claude now. Goes
+    // to the session the site belongs to, the only session, or the one passed
+    // as `session`; otherwise answers { choose: sessions } so the user picks.
+    this.app.post('/api/claude/send', async (req, res) => {
+      const { origin, session } = req.body || {};
+      if (!origin || typeof origin !== 'string') {
+        return res.status(400).json({ error: 'origin is required' });
+      }
+      // Local dev sites only, the same set the extension treats as local.
+      let host = '';
+      try { host = new URL(origin).hostname; } catch { /* not a URL */ }
+      if (!/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(host) && !/\.(local|test|localhost)$/.test(host)) {
+        return res.status(400).json({ error: 'Send to Claude only works on local dev sites' });
+      }
+      const live = this.liveClaudeSessions();
+      if (live.length === 0) {
+        return res.status(409).json({ error: 'Claude Code mod is not connected' });
+      }
+      const target = live.find(s => s.id === session)?.id
+        ?? await this.claudeSessionFor(origin, live)
+        ?? (live.length === 1 ? live[0].id : null);
+      if (!target) {
+        return res.json({ success: false, choose: live.map(({ id, name }) => ({ id, name })) });
+      }
+      this.claudeRoutes.set(origin, target);
+      const s = this.claudeSessions.get(target);
+      if (!s.sends.some(x => x.origin === origin)) s.sends.push({ origin, at: new Date().toISOString() });
+      res.json({ success: true, session: { id: target, name: live.find(x => x.id === target).name } });
+    });
+
+    // Each mod session polls this with ?session=<id>&cwd=<dir>: records the
+    // heartbeat, takes its queued sends, and lists the sites routed to it.
+    this.app.get('/api/claude/inbox', async (req, res) => {
+      const id = typeof req.query.session === 'string' && req.query.session ? req.query.session : 'default';
+      const cwd = typeof req.query.cwd === 'string' ? req.query.cwd : '';
+      const s = this.claudeSessions.get(id) || { sends: [] };
+      this.claudeSessions.set(id, { ...s, cwd, lastSeenAt: Date.now() });
+      const sends = s.sends;
+      this.claudeSessions.get(id).sends = [];
+
+      const live = this.liveClaudeSessions();
+      const origins = new Set();
+      let progress = { inProgress: [], revised: [] };
+      try {
+        const annotations = await this.loadAnnotations();
+        for (const a of annotations) {
+          if (a.status !== 'pending') continue;
+          try { origins.add(new URL(a.url).origin); } catch { /* skip */ }
+        }
+        progress = this.claudeProgress(annotations, live);
+      } catch { /* storage unreadable: no sites */ }
+      const sites = [];
+      for (const origin of origins) {
+        if (await this.claudeSessionFor(origin, live) === id) sites.push(origin);
+      }
+      res.json({ sends, sites, ...progress });
     });
 
     // SSE endpoint for MCP connection (proper MCP SSE transport)
@@ -1651,6 +1874,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
     annotations.splice(index, 1); // Remove the annotation completely
 
     await this.saveAnnotations(annotations);
+    this.rememberDeleted([id]);
     await this.removeAttachmentFiles(deletedAnnotation);
 
     return {
@@ -1795,6 +2019,7 @@ figcaption{padding:4px 8px;font-size:11px;color:#6b7280;background:#fafafa}
       .filter(a => !removeIds.has(a.id))
       .map(a => discardIds.has(a.id) ? { ...a, status: 'variants-discarded', updated_at: new Date().toISOString() } : a);
     await this.saveAnnotations(remainingAnnotations);
+    this.rememberDeleted(removeIds);
     for (const a of toRemove) await this.removeAttachmentFiles(a);
 
     const deletedInfo = matchingAnnotations.map(a => ({

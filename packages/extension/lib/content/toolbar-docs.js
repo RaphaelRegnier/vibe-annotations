@@ -51,6 +51,11 @@
         <span>Get started</span>
         <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
       </button>
+      <button class="vibe-settings-link vibe-workflow-btn" data-workflow="claude-code" type="button">
+        ${ICONS.send}
+        <span>Claude Code mod</span>
+        <span style="margin-left:auto;color:var(--v-text-secondary);">${ICONS.chevronRight}</span>
+      </button>
       <button class="vibe-settings-link vibe-mcp-server-btn" type="button">
         ${ICONS.server}
         <span>MCP Server</span>
@@ -151,7 +156,16 @@
         </div>
 
         <div class="vibe-guide-section">
-          <div class="vibe-guide-label">3. Install MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
+          <div class="vibe-guide-label">3. Using Claude Code? <span style="font-weight:400;color:var(--v-text-secondary);">(recommended)</span></div>
+          <p class="vibe-guide-text">One command sets up everything: the server starts on its own, new annotations show above your prompt, and the send icon in this toolbar hands them to Claude.</p>
+          <div class="vibe-guide-cmd" data-cmd="claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations">
+            <code>claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations</code>
+            <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+          </div>
+        </div>
+
+        <div class="vibe-guide-section">
+          <div class="vibe-guide-label">4. Other agents: MCP server <span style="font-weight:400;color:var(--v-text-secondary);">(optional)</span></div>
           <p class="vibe-guide-text">Let your coding agent fetch and resolve annotations automatically. One command does it all:</p>
           <div class="vibe-guide-cmd" data-cmd="npx vibe-annotations-server init">
             <code>npx vibe-annotations-server init</code>
@@ -480,12 +494,39 @@
           </div>
         `
       },
+      'claude-code': {
+        title: 'Claude Code mod',
+        content: `
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">One install, the whole loop</div>
+            <p class="vibe-guide-text">The Vibe Annotations mod for Claude Code starts the server on its own, shows new annotations above your prompt, and lets you send them from this toolbar.</p>
+            <div class="vibe-guide-cmd" data-cmd="claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations">
+              <code>claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations</code>
+              <button class="vibe-guide-copy" type="button">${ICONS.clipboard}</button>
+            </div>
+            <p class="vibe-guide-text" style="margin-top:6px;">Desktop app: <strong>+</strong> next to the prompt, then <strong>Plugins</strong>, <strong>Add marketplace</strong> <code>RaphaelRegnier/vibe-annotations</code>, then <strong>Add plugin</strong>.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Workflow</div>
+            <p class="vibe-guide-text"><strong>1.</strong> Annotate as usual.</p>
+            <p class="vibe-guide-text"><strong>2.</strong> Click the <strong>send icon</strong> at the end of this toolbar, or <strong>Implement</strong> above your Claude Code prompt.</p>
+            <p class="vibe-guide-text"><strong>3.</strong> Claude implements them and deletes each one when done. A <strong>circling ring</strong> marks the ones in progress.</p>
+          </div>
+          <div class="vibe-guide-section">
+            <div class="vibe-guide-label">Tips</div>
+            <p class="vibe-guide-text">Keep annotating while Claude works: Send only hands over what's new. Edit a sent annotation and it goes out again as an update.</p>
+            <p class="vibe-guide-text">Several apps at once? Start one Claude Code session in each app's folder: each session only gets its own site.</p>
+            <p class="vibe-guide-text">Turn on <strong>Auto-send</strong> in Claude Code to send each annotation as soon as you save it.</p>
+          </div>
+        `
+      },
       'watch-mode': {
         title: 'Watch mode',
         content: `
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Hands-free annotation processing</div>
             <p class="vibe-guide-text">Your coding agent automatically picks up and implements annotations as you drop them. No copy-paste, no manual triggering. Requires the MCP server.</p>
+            <p class="vibe-guide-text">On Claude Code, use the <strong>Claude Code mod</strong> instead: same loop with Auto-send, without spending tokens while it waits.</p>
           </div>
           <div class="vibe-guide-section">
             <div class="vibe-guide-label">Start watching</div>

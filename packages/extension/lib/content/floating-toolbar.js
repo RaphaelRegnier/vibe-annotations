@@ -9,6 +9,7 @@ import VibeShadowHost from './shadow-host.js';
 import VibeToolbarDocs from './toolbar-docs.js';
 import { renderAnnotationsMarkdown } from './export-markdown.js';
 import { isRecordableHotkey } from './hotkey.js';
+import { isReviewable, variantContext, currentVariant, variantElement, previewVariant, chooseVariant } from './variants.js';
 
   let toolbarEl = null;
   let settingsDropdown = null;
@@ -23,6 +24,14 @@ import { isRecordableHotkey } from './hotkey.js';
   let badgeColor = '#D03D68';
   let watcherActive = false;
   let isOverlayVisible = true;
+  let claudeConnected = false; // Claude Code mod is polling the server
+  let inProgressIds = new Set(); // shown in progress: the server's list plus justSent
+  let serverProgressIds = new Set(); // handed to a live Claude session, per the server
+  // What this page just sent, shown in progress until the server confirms it
+  // (the mod picks a send up on its next poll) or the window runs out.
+  let justSent = { ids: new Set(), until: 0 };
+  const JUST_SENT_MS = 20000;
+  let unsentCount = 0; // this site's annotations Send would hand over
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -68,6 +77,7 @@ import { isRecordableHotkey } from './hotkey.js';
     robot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>',
     book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
     layers: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12.75l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/><path d="M2 17.25l8.6 3.9a2 2 0 0 0 1.65 0l8.58-3.9"/></svg>',
+    send: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"/><path d="M6 12h16"/></svg>',
     eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
@@ -90,7 +100,7 @@ import { isRecordableHotkey } from './hotkey.js';
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); refreshUnsent(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { overlayOpen = false; isOverlayVisible = false; stopPolling(); });
     VibeEvents.on('overlay:shown', async () => { overlayOpen = true; isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
@@ -185,6 +195,9 @@ import { isRecordableHotkey } from './hotkey.js';
           <button class="vibe-toolbar-status vibe-tb-status" title="Offline" style="margin-left:4px;">
             ${ICONS.serverRack}
           </button>
+          <button class="vibe-toolbar-send vibe-tb-send" title="Send to Claude Code" aria-label="Send to Claude Code" style="display:none">
+            ${ICONS.send}
+          </button>
         </div>
         <div class="vibe-toolbar-annotating">
           <span class="vibe-toolbar-instruction">Click to capture</span>
@@ -221,20 +234,35 @@ import { isRecordableHotkey } from './hotkey.js';
       const { updateInfo } = await chrome.storage.local.get(['updateInfo']);
       if (!updateInfo || !updateInfo.hasUpdate || !toolbarEl) return;
 
-      const version = updateInfo.currentVersion || '';
-      const releaseUrl = updateInfo.releaseUrl
-        || 'https://github.com/RaphaelRegnier/vibe-annotations/releases';
+      const docsUrl = 'https://vibe-annotations.com/docs/claude-code';
+      const installCmd = 'claude plugin install vibe-annotations --marketplace RaphaelRegnier/vibe-annotations';
 
+      // 2.2.0: nudge Claude Code users to the mod — one command gives them the
+      // server, the band above the prompt and Send to Claude out of the box.
       const banner = document.createElement('div');
       banner.className = 'vibe-update-banner';
       banner.innerHTML = `
-        <span class="vibe-update-text">
-          <strong>Vibe Annotations${version ? ` ${version}` : ''}</strong>
-          — no more DevTools noise, and the toolbar stays where you put it. Update your MCP server for the latest Claude Code.
-        </span>
-        <a class="vibe-update-link" href="${releaseUrl}" target="_blank" rel="noopener">See what's new</a>
+        <div class="vibe-update-body">
+          <span class="vibe-update-text">
+            <strong>New: send your annotations to Claude Code in one click</strong>,
+            and see what it's working on. Install the Claude Code mod:
+          </span>
+          <div class="vibe-guide-cmd vibe-update-cmd">
+            <code>${installCmd}</code>
+            <button class="vibe-guide-copy" type="button" title="Copy">${ICONS.clipboard}</button>
+          </div>
+        </div>
+        <a class="vibe-update-link" href="${docsUrl}" target="_blank" rel="noopener">How it works</a>
         <button class="vibe-update-dismiss" title="Dismiss">${ICONS.close}</button>
       `;
+
+      const copyBtn = banner.querySelector('.vibe-update-cmd .vibe-guide-copy');
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        try { await navigator.clipboard.writeText(installCmd); } catch { /* clipboard blocked */ }
+        copyBtn.innerHTML = ICONS.check;
+        setTimeout(() => { copyBtn.innerHTML = ICONS.clipboard; }, 1500);
+      });
 
       const dismiss = () => {
         banner.classList.add('vibe-update-banner-out');
@@ -246,7 +274,7 @@ import { isRecordableHotkey } from './hotkey.js';
         e.stopPropagation();
         dismiss();
       });
-      // Opening the release note also clears the "NEW" state.
+      // Opening the docs also clears the "NEW" state.
       banner.querySelector('.vibe-update-link').addEventListener('click', () => {
         chrome.runtime.sendMessage({ action: 'dismissUpdate' }).catch(() => {});
       });
@@ -269,6 +297,13 @@ import { isRecordableHotkey } from './hotkey.js';
     toolbarEl.querySelector('.vibe-tb-viewall').addEventListener('click', (e) => {
       e.stopPropagation();
       toggleViewAll();
+    });
+
+    // Send to Claude — the Claude Code mod picks it up on its next poll
+    toolbarEl.querySelector('.vibe-tb-send').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (sessionPicker) closeSessionPicker();
+      else sendToClaude();
     });
 
     // Settings
@@ -388,8 +423,10 @@ import { isRecordableHotkey } from './hotkey.js';
 
         // Variant lifecycle chip — signals states that need agent action so the
         // list is self-explanatory (esp. why a "deleted" variant lingers here).
-        const vs = variantStatusLabel(a);
+        const vs = variantStatusLabel(a)
+          || (inProgressIds.has(a.id) ? { text: 'In progress', cls: 'progress' } : null);
         const statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
+        const variantsHTML = variantPickerHTML(a);
         // A scaffolded variant can't be hard-deleted (it awaits agent cleanup), so
         // hide the trash for the discarded state to avoid a no-op button.
         const deleteHTML = a.status === 'variants-discarded'
@@ -402,6 +439,7 @@ import { isRecordableHotkey } from './hotkey.js';
               ${headerHTML}
               ${bodyHTML}
               ${statusHTML}
+              ${variantsHTML}
             </div>
             ${deleteHTML}
           </div>
@@ -566,10 +604,18 @@ import { isRecordableHotkey } from './hotkey.js';
       });
     });
 
+    // Variant pickers: same preview + choose as the badge's popover, for variants
+    // whose badge is hard to reach once a variant reshapes the page.
+    viewAllPanel.querySelectorAll('.vibe-viewall-variants').forEach(box => {
+      const a = annotations.find(x => x.id === box.dataset.id);
+      if (!a) return;
+      wireVariantPicker(box, a);
+    });
+
     // Click card to scroll to element
     viewAllPanel.querySelectorAll('.vibe-viewall-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.closest('.vibe-viewall-card-delete')) return;
+        if (e.target.closest('.vibe-viewall-card-delete, .vibe-viewall-variants')) return;
         const id = card.dataset.id;
         const a = annotations.find(x => x.id === id);
         if (a && a.selector) {
@@ -934,6 +980,21 @@ import { isRecordableHotkey } from './hotkey.js';
       }
     }
 
+    // --- Send to Claude: only while the server and the Claude Code mod are up ---
+    const sendEl = toolbarEl.querySelector('.vibe-tb-send');
+    if (sendEl) {
+      sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
+      if (!sendEl.classList.contains('sending')) {
+        sendEl.disabled = unsentCount === 0;
+        sendEl.title = unsentCount > 0
+          ? `Send ${unsentCount} annotation${unsentCount === 1 ? '' : 's'} to Claude Code`
+          : inProgressIds.size > 0
+            ? 'Claude is working on everything here'
+            : 'Add annotations to send them to Claude Code';
+        sendEl.setAttribute('aria-label', sendEl.title);
+      }
+    }
+
     // --- Status indicator (icon-only, label in tooltip) ---
     const statusEl = toolbarEl.querySelector('.vibe-tb-status');
     if (statusEl) {
@@ -965,7 +1026,125 @@ import { isRecordableHotkey } from './hotkey.js';
     if (changed) updateUI();
   }
 
+  // --- Send to Claude ---
+
+  let sessionPicker = null;
+
+  async function sendToClaude(sessionId) {
+    closeSessionPicker();
+    const sendBtn = toolbarEl.querySelector('.vibe-tb-send');
+    sendBtn.disabled = true;
+    sendBtn.classList.add('sending');
+    let r = { success: false };
+    try { r = await VibeAPI.sendToClaude(sessionId); } catch { /* server gone */ }
+    if (r.choose) {
+      sendBtn.classList.remove('sending');
+      sendBtn.disabled = false;
+      openSessionPicker(r.choose);
+      return;
+    }
+    // Icon-only button: confirm with a check + a floating chip, so the bar keeps its width
+    sendBtn.classList.add(r.success ? 'sent' : 'failed');
+    sendBtn.innerHTML = r.success ? ICONS.check : ICONS.send;
+    showSendChip(r.success ? `Sent to ${r.session.name}` : 'Claude not connected');
+    // Show what was just sent in progress right away: the server only confirms
+    // once the mod picked the send up (its next poll) and reported it back, so
+    // re-check sooner than the 10s status poll until it does.
+    if (r.success) {
+      const sent = (await VibeAPI.loadProjectAnnotations()).filter(isSendable).map(a => a.id);
+      justSent = { ids: new Set(sent), until: Date.now() + JUST_SENT_MS };
+      applyProgress();
+      await refreshUnsent();
+      [2500, 5000, 9000, 15000, JUST_SENT_MS + 500].forEach(ms => setTimeout(refreshClaude, ms));
+    }
+    setTimeout(() => {
+      sendBtn.classList.remove('sending', 'sent', 'failed');
+      sendBtn.innerHTML = ICONS.send;
+      if (!r.success) refreshClaude();
+      updateUI();
+    }, 1800);
+  }
+
+  function showSendChip(text) {
+    toolbarEl.querySelector('.vibe-send-chip')?.remove();
+    const rect = toolbarEl.getBoundingClientRect();
+    const chip = document.createElement('div');
+    chip.className = 'vibe-send-chip' + (rect.top > window.innerHeight / 2 ? ' above' : '');
+    chip.textContent = text;
+    toolbarEl.appendChild(chip);
+    setTimeout(() => {
+      chip.classList.add('out');
+      setTimeout(() => chip.remove(), 200);
+    }, 1800);
+  }
+
+  // Several Claude sessions are open and none works in this site's project:
+  // ask which one. The server remembers the pick for this site.
+  function openSessionPicker(sessions) {
+    closeSettings();
+    closeViewAll();
+    const rect = toolbarEl.getBoundingClientRect();
+    sessionPicker = document.createElement('div');
+    sessionPicker.className = 'vibe-settings-dropdown' + (rect.top > window.innerHeight / 2 ? ' above' : '');
+    sessionPicker.innerHTML = `
+      <div class="vibe-settings-header"><span class="vibe-settings-title">Send to which Claude session?</span></div>
+      <div class="vibe-settings-body">
+        ${sessions.map(s => `<button class="vibe-settings-link" type="button" data-session="${escapeHTML(s.id)}">${ICONS.send}<span>${escapeHTML(s.name)}</span></button>`).join('')}
+      </div>
+    `;
+    sessionPicker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pick = e.target.closest('[data-session]');
+      if (pick) sendToClaude(pick.dataset.session);
+    });
+    toolbarEl.appendChild(sessionPicker);
+    setTimeout(() => document.addEventListener('click', closeSessionPicker), 0);
+  }
+
+  function closeSessionPicker() {
+    if (sessionPicker) { sessionPicker.remove(); sessionPicker = null; }
+    document.removeEventListener('click', closeSessionPicker);
+  }
+
+  // Send to Claude is for local dev sites only: on any other page skip the
+  // check entirely, so the button never shows and the page never calls the server.
+  async function refreshClaude() {
+    const was = claudeConnected;
+    const isLocal = VibeAPI.isLocalOrigin() && !VibeAPI.isFileProtocol();
+    const status = isLocal && serverOnline ? await VibeAPI.getClaudeStatus() : { connected: false };
+    claudeConnected = status.connected === true;
+    serverProgressIds = new Set(claudeConnected && Array.isArray(status.inProgress) ? status.inProgress : []);
+    const progressChanged = applyProgress();
+    await refreshUnsent();
+    if (was !== claudeConnected || progressChanged) updateUI();
+  }
+
+  // What Send would hand over: the same annotations the mod sends (pending
+  // comments and design edits, not stylesheets or variants), minus those in progress.
+  async function refreshUnsent() {
+    const next = (await VibeAPI.loadProjectAnnotations()).filter(isSendable).length;
+    if (next !== unsentCount) { unsentCount = next; updateUI(); }
+  }
+
+  function isSendable(a) {
+    return a.status === 'pending' && a.type !== 'stylesheet' && a.mode !== 'variants' && !inProgressIds.has(a.id);
+  }
+
+  // Recompute what shows in progress; tell the badges and the list when it changed.
+  function applyProgress() {
+    const confirmed = [...justSent.ids].every(id => serverProgressIds.has(id));
+    if (justSent.ids.size && (confirmed || Date.now() > justSent.until)) justSent = { ids: new Set(), until: 0 };
+    const next = new Set([...serverProgressIds, ...justSent.ids]);
+    const changed = next.size !== inProgressIds.size || [...next].some(id => !inProgressIds.has(id));
+    if (!changed) return false;
+    inProgressIds = next;
+    VibeEvents.emit('claude:progress', { ids: [...next] });
+    if (viewAllPanel) openViewAll();
+    return true;
+  }
+
   async function refreshWatchers() {
+    refreshClaude();
     if (!serverOnline) {
       if (watcherActive) {
         watcherActive = false;
@@ -1404,12 +1583,76 @@ import { isRecordableHotkey } from './hotkey.js';
     return div.innerHTML;
   }
 
+  // Compact variant picker for a View all card: one radio row per variant, then
+  // Choose / Update selection. On another route the rows show but stay disabled.
+  function variantPickerHTML(a) {
+    if (!isReviewable(a)) return '';
+    const ctx = variantContext(a);
+    if (!ctx.variants.length) return '';
+    const current = currentVariant(ctx);
+    const rows = ctx.variants.map(v => {
+      const val = String(v.value);
+      const on = val === current;
+      return `<label class="vibe-variant-row compact${on ? ' active' : ''}">
+        <input type="radio" name="vibe-variant-${escapeHTML(a.id)}" value="${escapeHTML(val)}"${on ? ' checked' : ''}${ctx.container ? '' : ' disabled'}>
+        <span>${escapeHTML(v.name || val)}</span>
+        ${ctx.chosen === val ? '<span class="vibe-variant-chosen-mark">Chosen</span>' : ''}
+      </label>`;
+    }).join('');
+    const footer = ctx.container
+      ? `<button type="button" class="vibe-btn vibe-btn-primary vibe-viewall-variant-choose">${chooseLabel(ctx.chosen, current)}</button>`
+      : '<div class="vibe-viewall-variant-note">Open this page to preview and choose.</div>';
+    return `<div class="vibe-viewall-variants" data-id="${escapeHTML(a.id)}">
+      <div class="vibe-variant-list">${rows}</div>
+      ${footer}
+    </div>`;
+  }
+
+  function chooseLabel(chosen, selected) {
+    if (chosen != null && chosen === selected) return 'Chosen ✓';
+    return chosen != null ? 'Update selection' : 'Choose this variant';
+  }
+
+  function wireVariantPicker(box, a) {
+    const ctx = variantContext(a);
+    const chooseBtn = box.querySelector('.vibe-viewall-variant-choose');
+    let chosen = ctx.chosen;
+    const selected = () => box.querySelector('input[type="radio"]:checked')?.value ?? null;
+    const refresh = () => {
+      if (!chooseBtn) return;
+      chooseBtn.textContent = chooseLabel(chosen, selected());
+      chooseBtn.disabled = chosen != null && chosen === selected();
+    };
+    refresh();
+
+    // Preview live and bring it into view: the badge may have lost its anchor
+    // when a variant reshaped the page, but the variant itself is still there.
+    box.querySelectorAll('input[type="radio"]').forEach(input => {
+      input.addEventListener('change', () => {
+        previewVariant(a, ctx, input.value);
+        box.querySelectorAll('.vibe-variant-row').forEach(r => r.classList.toggle('active', r.contains(input)));
+        variantElement(ctx, input.value)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        refresh();
+      });
+    });
+
+    chooseBtn?.addEventListener('click', async () => {
+      const value = selected();
+      if (value == null) return;
+      try {
+        await chooseVariant(a, value);
+        chosen = value;
+        refresh();
+      } catch (err) { console.warn('[Vibe] choose variant failed:', err); }
+    });
+  }
+
   // Lifecycle chip for a variants annotation in a state that awaits agent action.
   // Returns null for normal annotations and for terminal 'resolved' (filtered out).
   function variantStatusLabel(a) {
     if (!a || a.mode !== 'variants') return null;
     switch (a.status) {
-      case 'variants-ready': return { text: 'Variants ready — click badge to review', cls: 'ready' };
+      case 'variants-ready': return { text: 'Variants ready — pick one below', cls: 'ready' };
       case 'variant-chosen': return { text: 'Chosen — awaiting agent finalize', cls: 'chosen' };
       case 'variants-discarded': return { text: 'Pending agent deletion', cls: 'discarded' };
       default: return null;
