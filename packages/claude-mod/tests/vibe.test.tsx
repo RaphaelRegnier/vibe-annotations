@@ -293,3 +293,57 @@ test('asks to stop a server started by hand instead of starting a second one', a
   expect(await desktop.find({ type: 'Text', text: /stop the annotations server you started by hand/ })).toBeDefined()
   await desktop.unmount()
 })
+
+// A current server that tracks what's in progress. `progress` is what its
+// inbox reports; `sentPosts` collects what the mod tells /api/claude/sent.
+function trackingServer(on: Parameters<TestBody>[1], progress: { inProgress: string[], revised: string[] }) {
+  const prompts: string[] = []
+  const sentPosts: { session: string, ids: string[] }[] = []
+  on('http.fetch', async ($, e) => {
+    if (e.url.includes('/api/claude/sent')) {
+      sentPosts.push(JSON.parse(String(e.init?.body)))
+      return { value: { status: 200, ok: true, headers: {}, text: '{"success":true}' } } as never
+    }
+    const body = e.url.includes('/api/claude/inbox')
+      ? { sends: [], sites: ['http://localhost:3000'], ...progress }
+      : { annotations: ANNOTATIONS }
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify(body) } } as never
+  })
+  on('ui.render', async ($, e) => { const { Text } = $.ui.resolve(e); return <Text>engine</Text> })
+  on('prompt.submit', async ($, e) => { prompts.push(e.text); return { text: e.text } })
+  on('command.register', async () => ({ value: undefined }) as never)
+  on('ui.toast', async () => ({ value: undefined }) as never)
+  on('session.start', async ($, e) => ({ cwd: e.cwd }) as never)
+  return { prompts, sentPosts }
+}
+
+test('annotations in progress per the server stay out of the band, even in a new session', async ($, on) => {
+  // A fresh session (nothing sent from here) while a1 is being worked on.
+  const { prompts, sentPosts } = trackingServer(on, { inProgress: ['a1'], revised: [] })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  const ui = await $.ui.mount({ plugin: 'vibe-annotations', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: /1 new annotation on localhost:3000/ })).toBeDefined()
+  await ui.press({ key: 'implement' })
+  await clock.advance(1)
+  await ui.unmount()
+  expect(prompts.length).toBe(1)
+  expect(prompts[0]).toContain('[a2]')
+  expect(prompts[0]).not.toContain('[a1]')
+  // The hand-off is reported to the server with this session's id.
+  expect(sentPosts.length).toBe(1)
+  expect(sentPosts[0]?.ids).toEqual(['a2'])
+  expect(sentPosts[0]?.session).toMatch(/.+/)
+})
+
+test('an annotation edited after it was sent goes out again, marked as an update', async ($, on) => {
+  const { prompts } = trackingServer(on, { inProgress: ['a2'], revised: ['a1'] })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/tmp', surface: 'terminal', isInteractive: true } as never)
+  await $.command.run({ command: 'vibe', args: '' } as never)
+  await clock.advance(1)
+  expect(prompts.length).toBe(1)
+  expect(prompts[0]).toContain('[a1]')
+  expect(prompts[0]).toContain('UPDATED: you were sent an earlier version')
+  expect(prompts[0]).not.toContain('[a2]')
+})

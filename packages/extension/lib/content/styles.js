@@ -205,6 +205,23 @@ export const VIBE_STYLES = `
   animation: vibe-watch-pulse 2s ease-in-out infinite;
 }
 
+/* In progress: a ring circling the badge while Claude works on it */
+.vibe-badge.in-progress::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 30%, var(--v-badge-bg));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: vibe-badge-spin 1.1s linear infinite;
+  pointer-events: none;
+}
+@keyframes vibe-badge-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vibe-badge.in-progress::after { animation-duration: 4s; }
+}
+
 @keyframes vibe-watch-pulse {
   0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
   50% { box-shadow: 0 2px 8px rgba(0,0,0,0.18), 0 0 0 3px rgba(59,130,246,0.3); }
@@ -1642,6 +1659,11 @@ export const VIBE_STYLES = `
   color: var(--v-status-online);
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.28);
+}
+.vibe-viewall-status.progress {
+  color: var(--v-badge-bg);
+  background: color-mix(in srgb, var(--v-badge-bg) 12%, transparent);
+  border-color: color-mix(in srgb, var(--v-badge-bg) 32%, transparent);
 }
 .vibe-viewall-status.ready {
   color: var(--v-status-watching);

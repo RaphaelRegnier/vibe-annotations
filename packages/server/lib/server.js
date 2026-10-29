@@ -30,6 +30,9 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 const PORT = 3846;
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.vibe-annotations');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
+// What the Claude Code mod handed to which session. Kept apart from the
+// annotations: an extension sync replaces that whole list with its own copy.
+const CLAUDE_SENT_FILE = path.join(DATA_DIR, 'claude-sent.json');
 // Image attachments (auto element captures + user paste/upload) are stored as
 // files here, one per attachment, named by annotation id + attachment id. The
 // annotation carries only lightweight metadata ({ id, kind, mime }); the absolute
@@ -71,6 +74,7 @@ class LocalAnnotationsServer {
     this.claudeSessions = new Map(); // id → { cwd, lastSeenAt, sends: [{ origin, at }] }
     this.claudeRoutes = new Map(); // origin → session id, set by a send
     this.portCwdCache = new Map(); // port → { cwd, at }
+    this.claudeSent = this.loadClaudeSent(); // annotation id → { sentTo, sentAt, sentKey }
 
     this.setupExpress();
     this.setupMCP();
@@ -85,6 +89,51 @@ class LocalAnnotationsServer {
       if (now - s.lastSeenAt > this.CLAUDE_SEEN_MS) this.claudeSessions.delete(id);
     }
     return [...this.claudeSessions].map(([id, s]) => ({ id, name: path.basename(s.cwd || '') || id, cwd: s.cwd }));
+  }
+
+  loadClaudeSent() {
+    try {
+      return new Map(Object.entries(JSON.parse(readFileSync(CLAUDE_SENT_FILE, 'utf8'))));
+    } catch {
+      return new Map();
+    }
+  }
+
+  async saveClaudeSent() {
+    try {
+      await writeFile(CLAUDE_SENT_FILE, JSON.stringify(Object.fromEntries(this.claudeSent)));
+    } catch (e) {
+      console.warn('Could not save claude-sent.json:', e.message);
+    }
+  }
+
+  // What Claude acts on: an edit to any of it after a send makes the annotation
+  // new again (sent as an update).
+  annotationContentKey(a) {
+    return JSON.stringify([a.comment || '', a.selector || '', a.pending_changes || null, a.css || '']);
+  }
+
+  // Pending annotations being worked on: handed to a session that is still
+  // alive, and unchanged since. `revised`: handed over before, edited since.
+  claudeProgress(annotations, live) {
+    const liveIds = new Set(live.map(s => s.id));
+    const inProgress = [];
+    const revised = [];
+    const existing = new Set();
+    for (const a of annotations) {
+      existing.add(a.id);
+      const sent = this.claudeSent.get(a.id);
+      if (!sent || a.status !== 'pending') continue;
+      if (sent.sentKey !== this.annotationContentKey(a)) revised.push(a.id);
+      else if (liveIds.has(sent.sentTo)) inProgress.push(a.id);
+    }
+    // Forget annotations that are gone (Claude deleted them when done).
+    let pruned = false;
+    for (const id of this.claudeSent.keys()) {
+      if (!existing.has(id)) { this.claudeSent.delete(id); pruned = true; }
+    }
+    if (pruned) void this.saveClaudeSent();
+    return { inProgress, revised };
   }
 
   // Working directory of the local process listening on a port (the app's dev
@@ -522,9 +571,27 @@ class LocalAnnotationsServer {
     });
 
     // Claude Code mod status (for the extension's "Send to Claude" button)
-    this.app.get('/api/claude', (req, res) => {
-      const sessions = this.liveClaudeSessions().map(({ id, name }) => ({ id, name }));
-      res.json({ connected: sessions.length > 0, sessions });
+    this.app.get('/api/claude', async (req, res) => {
+      const live = this.liveClaudeSessions();
+      let inProgress = [];
+      try { ({ inProgress } = this.claudeProgress(await this.loadAnnotations(), live)); } catch { /* storage unreadable */ }
+      res.json({ connected: live.length > 0, sessions: live.map(({ id, name }) => ({ id, name })), inProgress });
+    });
+
+    // Mod → server: these annotations were just handed to Claude in `session`.
+    this.app.post('/api/claude/sent', async (req, res) => {
+      const { session, ids } = req.body || {};
+      if (typeof session !== 'string' || !Array.isArray(ids)) {
+        return res.status(400).json({ error: 'session and ids are required' });
+      }
+      const byId = new Map((await this.loadAnnotations()).map(a => [a.id, a]));
+      const sentAt = new Date().toISOString();
+      for (const id of ids) {
+        const a = byId.get(id);
+        if (a) this.claudeSent.set(id, { sentTo: session, sentAt, sentKey: this.annotationContentKey(a) });
+      }
+      await this.saveClaudeSent();
+      res.json({ success: true });
     });
 
     // Extension → mod: send this origin's open annotations to Claude now. Goes
@@ -569,17 +636,20 @@ class LocalAnnotationsServer {
 
       const live = this.liveClaudeSessions();
       const origins = new Set();
+      let progress = { inProgress: [], revised: [] };
       try {
-        for (const a of await this.loadAnnotations()) {
+        const annotations = await this.loadAnnotations();
+        for (const a of annotations) {
           if (a.status !== 'pending') continue;
           try { origins.add(new URL(a.url).origin); } catch { /* skip */ }
         }
+        progress = this.claudeProgress(annotations, live);
       } catch { /* storage unreadable: no sites */ }
       const sites = [];
       for (const origin of origins) {
         if (await this.claudeSessionFor(origin, live) === id) sites.push(origin);
       }
-      res.json({ sends, sites });
+      res.json({ sends, sites, ...progress });
     });
 
     // SSE endpoint for MCP connection (proper MCP SSE transport)

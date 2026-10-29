@@ -26,6 +26,10 @@ declare module 'claude-code' {
       cwd: string
       /** The mod's own attempt to start the server: idle, starting, or failed. */
       serverStart: 'idle' | 'starting' | 'failed'
+      /** Annotations being worked on (handed to a live session, unchanged since), per the server. */
+      inProgress: string[]
+      /** Annotations handed over before and edited since: sent again as updates. */
+      revised: string[]
       /** The running server predates the routes this mod uses (inbox 404). */
       isOutdated: boolean
       /** The Update button's run: idle, updating, failed, or blocked on a server started by hand. */

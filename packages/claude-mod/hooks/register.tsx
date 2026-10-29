@@ -31,6 +31,8 @@ const isScoped = atom({ plugin: 'vibe-annotations', key: 'isScoped' } as const, 
 const sessionId = atom({ plugin: 'vibe-annotations', key: 'sessionId' } as const, '')
 const cwd = atom({ plugin: 'vibe-annotations', key: 'cwd' } as const, '')
 const serverStart = atom({ plugin: 'vibe-annotations', key: 'serverStart' } as const, 'idle')
+const inProgress = atom({ plugin: 'vibe-annotations', key: 'inProgress' } as const, [])
+const revised = atom({ plugin: 'vibe-annotations', key: 'revised' } as const, [])
 const isOutdated = atom({ plugin: 'vibe-annotations', key: 'isOutdated' } as const, false)
 const serverUpdate = atom({ plugin: 'vibe-annotations', key: 'serverUpdate' } as const, 'idle')
 
@@ -62,9 +64,9 @@ export function hostOf(list: VibeAnnotation[]): string {
   return hosts.length === 1 ? (hosts[0] ?? '') : `${hosts.length} sites`
 }
 
-export function buildPrompt(list: VibeAnnotation[]): string {
+export function buildPrompt(list: VibeAnnotation[], updated: ReadonlySet<string> = new Set()): string {
   const lines = list.map((a, i) =>
-    `${i + 1}. [${a.id}] ${a.url}\n   element: ${a.selector}\n   feedback: ${a.comment || '(design edit, see read_annotations)'}`,
+    `${i + 1}. [${a.id}] ${a.url}${updated.has(a.id) ? '\n   UPDATED: you were sent an earlier version; apply it as now written' : ''}\n   element: ${a.selector}\n   feedback: ${a.comment || '(design edit, see read_annotations)'}`,
   )
   return [
     `Implement these ${list.length} Vibe Annotation${list.length === 1 ? '' : 's'} left in the browser:`,
@@ -93,9 +95,13 @@ async function takeSends($: EngineInterface): Promise<string[]> {
     // sites or take sends from the extension until it's updated.
     await update($, isOutdated, () => res.status === 404)
     if (!res.ok) throw new Error(String(res.status))
-    const body: { sends?: { origin?: string }[], sites?: string[] } = JSON.parse(res.text)
+    const body: { sends?: { origin?: string }[], sites?: string[], inProgress?: string[], revised?: string[] } = JSON.parse(res.text)
     await update($, isScoped, () => Array.isArray(body.sites))
     await update($, sites, () => body.sites ?? [])
+    // What's being worked on comes from the server, so it survives a restart of
+    // this session and drops an annotation as soon as it's edited.
+    await update($, inProgress, () => body.inProgress ?? [])
+    await update($, revised, () => body.revised ?? [])
     return (body.sends ?? []).map(s => s.origin ?? '').filter(Boolean)
   } catch {
     await update($, isScoped, () => false)
@@ -220,9 +226,23 @@ function updateServer($: EngineInterface): Promise<void> {
   return updating
 }
 
+// Not handed to Claude yet: the server's in-progress list where it keeps one,
+// else (an older server) what this session sent.
 async function fresh($: EngineInterface): Promise<VibeAnnotation[]> {
-  const sent = new Set(await read($, sentIds))
-  return (await onSite($)).filter(a => !sent.has(a.id))
+  const busy = new Set((await read($, isScoped)) ? await read($, inProgress) : await read($, sentIds))
+  return (await onSite($)).filter(a => !busy.has(a.id))
+}
+
+// Tell the server, so the extension shows them in progress and the next
+// session doesn't send them again.
+async function markSent($: EngineInterface, ids: string[]) {
+  try {
+    await $.http.fetch(`${SERVER}/api/claude/sent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: await read($, sessionId), ids }),
+    })
+  } catch { /* older server or offline: this session's own list still holds them */ }
 }
 
 // $.prompt.submit can't run inside a command.run hook (it would wait on the
@@ -230,9 +250,12 @@ async function fresh($: EngineInterface): Promise<VibeAnnotation[]> {
 async function sendNew($: EngineInterface, why: 'auto' | 'press' | 'browser', origins?: string[]): Promise<number> {
   const list = (await fresh($)).filter(a => !origins || origins.includes(originOf(a.url)))
   if (list.length === 0) return 0
-  await update($, sentIds, ids => [...ids, ...list.map(a => a.id)])
+  const ids = list.map(a => a.id)
+  await update($, sentIds, prev => [...prev, ...ids])
+  await update($, inProgress, prev => [...prev, ...ids]) // until the next poll confirms
   if (why !== 'press') $.ui.toast(`Sending ${list.length} annotation${list.length === 1 ? '' : 's'} to Claude`)
-  const text = buildPrompt(list)
+  const text = buildPrompt(list, new Set(await read($, revised)))
+  void markSent($, ids)
   $.clock.after(0, () => { void $.prompt.submit({ text }) })
   return list.length
 }

@@ -25,6 +25,8 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
   let watcherActive = false;
   let isOverlayVisible = true;
   let claudeConnected = false; // Claude Code mod is polling the server
+  let inProgressIds = new Set(); // handed to a Claude session, being worked on
+  let unsentCount = 0; // this site's annotations Send would hand over
 
   const BADGE_COLORS = ['#D03D68', '#4b5563', '#3b82f6', '#22c55e', '#a855f7'];
 
@@ -93,7 +95,7 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     // Listen for events
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
-    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); });
+    VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); refreshUnsent(); });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { overlayOpen = false; isOverlayVisible = false; stopPolling(); });
     VibeEvents.on('overlay:shown', async () => { overlayOpen = true; isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
@@ -401,7 +403,8 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
 
         // Variant lifecycle chip — signals states that need agent action so the
         // list is self-explanatory (esp. why a "deleted" variant lingers here).
-        const vs = variantStatusLabel(a);
+        const vs = variantStatusLabel(a)
+          || (inProgressIds.has(a.id) ? { text: 'In progress', cls: 'progress' } : null);
         const statusHTML = vs ? `<div class="vibe-viewall-status ${vs.cls}">${vs.text}</div>` : '';
         const variantsHTML = variantPickerHTML(a);
         // A scaffolded variant can't be hard-deleted (it awaits agent cleanup), so
@@ -962,10 +965,12 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     if (sendEl) {
       sendEl.style.display = serverOnline && claudeConnected ? '' : 'none';
       if (!sendEl.classList.contains('sending')) {
-        sendEl.disabled = totalCount === 0;
-        sendEl.title = totalCount === 0
-          ? 'Add annotations to send them to Claude Code'
-          : `Send ${totalCount} annotation${totalCount === 1 ? '' : 's'} to Claude Code`;
+        sendEl.disabled = unsentCount === 0;
+        sendEl.title = unsentCount > 0
+          ? `Send ${unsentCount} annotation${unsentCount === 1 ? '' : 's'} to Claude Code`
+          : inProgressIds.size > 0
+            ? 'Claude is working on everything here'
+            : 'Add annotations to send them to Claude Code';
         sendEl.setAttribute('aria-label', sendEl.title);
       }
     }
@@ -1022,6 +1027,9 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     sendBtn.classList.add(r.success ? 'sent' : 'failed');
     sendBtn.innerHTML = r.success ? ICONS.check : ICONS.send;
     showSendChip(r.success ? `Sent to ${r.session.name}` : 'Claude not connected');
+    // The mod picks the send up within ~2s and reports it back; check sooner
+    // than the 10s poll so the in-progress rings show right away.
+    if (r.success) [2500, 5000].forEach(ms => setTimeout(refreshClaude, ms));
     setTimeout(() => {
       sendBtn.classList.remove('sending', 'sent', 'failed');
       sendBtn.innerHTML = ICONS.send;
@@ -1076,8 +1084,26 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
   async function refreshClaude() {
     const was = claudeConnected;
     const isLocal = VibeAPI.isLocalOrigin() && !VibeAPI.isFileProtocol();
-    claudeConnected = isLocal && serverOnline && (await VibeAPI.getClaudeStatus()).connected === true;
-    if (was !== claudeConnected) updateUI();
+    const status = isLocal && serverOnline ? await VibeAPI.getClaudeStatus() : { connected: false };
+    claudeConnected = status.connected === true;
+    const ids = claudeConnected && Array.isArray(status.inProgress) ? status.inProgress : [];
+    const progressChanged = ids.length !== inProgressIds.size || ids.some(id => !inProgressIds.has(id));
+    if (progressChanged) {
+      inProgressIds = new Set(ids);
+      VibeEvents.emit('claude:progress', { ids });
+      if (viewAllPanel) openViewAll();
+    }
+    await refreshUnsent();
+    if (was !== claudeConnected || progressChanged) updateUI();
+  }
+
+  // What Send would hand over: the same annotations the mod sends (pending
+  // comments and design edits, not stylesheets or variants), minus those in progress.
+  async function refreshUnsent() {
+    const list = await VibeAPI.loadProjectAnnotations();
+    const next = list.filter(a => a.status === 'pending' && a.type !== 'stylesheet'
+      && a.mode !== 'variants' && !inProgressIds.has(a.id)).length;
+    if (next !== unsentCount) { unsentCount = next; updateUI(); }
   }
 
   async function refreshWatchers() {

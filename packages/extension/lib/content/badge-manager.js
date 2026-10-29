@@ -46,6 +46,7 @@ import VibeShadowHost from './shadow-host.js';
   }
 
   let badges = []; // { el, annotation, targetElement }
+  let inProgressIds = new Set(); // handed to a Claude Code session, being worked on
   let styleInjections = []; // { styleEl, annotation } for stylesheet annotations
   let rafId = null;
   let provisionalBadge = null;
@@ -67,10 +68,19 @@ import VibeShadowHost from './shadow-host.js';
     VibeEvents.on('inspection:elementClicked', onProvisionalPin);
     VibeEvents.on('popover:cancelled', removeProvisional);
     VibeEvents.on('watch:changed', onWatchChanged);
+    VibeEvents.on('claude:progress', onProgress);
     // Variant preview switches the active child via CSS only (no size/scroll
     // change), so nudge the badges to re-anchor to the newly-visible variant.
     VibeEvents.on('variants:switched', scheduleReposition);
     startDOMObserver();
+  }
+
+  // A circling ring on badges whose annotation Claude is working on.
+  function onProgress({ ids }) {
+    inProgressIds = new Set(ids);
+    badges.forEach(entry => {
+      entry.el.classList.toggle('in-progress', inProgressIds.has(entry.annotation?.id));
+    });
   }
 
   function onWatchChanged({ active }) {
@@ -316,7 +326,7 @@ import VibeShadowHost from './shadow-host.js';
     if (!root) return;
 
     const badge = document.createElement('div');
-    badge.className = 'vibe-badge' + (watchMode ? ' watching' : '');
+    badge.className = 'vibe-badge' + (watchMode ? ' watching' : '') + (inProgressIds.has(annotation.id) ? ' in-progress' : '');
     badge.dataset.annotationId = annotation.id;
 
     // Label span (number or eye)
