@@ -339,6 +339,21 @@ function isServerOutdated(version) {
     } catch { /* ignore */ }
   }
 
+  async function getCopyAllShortcut() {
+    try {
+      const r = await chrome.storage.local.get(['vibeCopyAllShortcut']);
+      return r.vibeCopyAllShortcut || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function saveCopyAllShortcut(shortcut) {
+    try {
+      await chrome.storage.local.set({ vibeCopyAllShortcut: shortcut });
+    } catch { /* ignore */ }
+  }
+
   // Fetch a shareable export (markdown or self-contained HTML) from the server.
   // A direct fetch only works on local origins: from an https:// page, reaching
   // http://127.0.0.1 is blocked by mixed-content / private-network rules before
@@ -448,6 +463,8 @@ const VibeAPI = {
   saveSkipDeleteConfirm,
   getCustomShortcut,
   saveCustomShortcut,
+  getCopyAllShortcut,
+  saveCopyAllShortcut,
   getWatchers,
   stopWatchers,
   getClaudeStatus,
