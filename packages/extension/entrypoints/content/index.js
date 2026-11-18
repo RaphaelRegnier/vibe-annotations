@@ -286,12 +286,17 @@ function setupStorageListener() {
 // --- Keyboard shortcuts ---
 function setupKeyboardShortcuts() {
   let customShortcut = null;
+  let copyAllShortcut = null;
 
   VibeAPI.getCustomShortcut().then((s) => { customShortcut = s; }).catch(() => {});
+  VibeAPI.getCopyAllShortcut().then((s) => { copyAllShortcut = s; }).catch(() => {});
 
   chrome.storage.onChanged.addListener((changes, ns) => {
     if (ns === 'local' && changes.vibeCustomShortcut) {
       customShortcut = changes.vibeCustomShortcut.newValue || null;
+    }
+    if (ns === 'local' && changes.vibeCopyAllShortcut) {
+      copyAllShortcut = changes.vibeCopyAllShortcut.newValue || null;
     }
   });
 
@@ -308,6 +313,9 @@ function setupKeyboardShortcuts() {
       } else {
         VibeEvents.emit('inspection:start');
       }
+    } else if (shouldTriggerHotkey(e, copyAllShortcut)) {
+      e.preventDefault();
+      VibeEvents.emit('annotations:copy-all');
     }
   });
 }

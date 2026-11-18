@@ -43,6 +43,7 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
   const defaultShortcutHint = isMac ? '\u2318\u21E7,' : 'Ctrl+Shift+,';
   let shortcutHint = defaultShortcutHint;
   let customShortcut = null;
+  let copyAllShortcut = null;
 
   const ICONS = {
     annotate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>',
@@ -91,6 +92,7 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     applyBadgeColor(badgeColor);
     customShortcut = await VibeAPI.getCustomShortcut();
     if (customShortcut) shortcutHint = formatShortcut(customShortcut);
+    copyAllShortcut = await VibeAPI.getCopyAllShortcut();
     await refreshServerStatus();
 
     buildToolbar(root);
@@ -101,6 +103,10 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     VibeEvents.on('inspection:started', () => { isAnnotating = true; updateUI(); });
     VibeEvents.on('inspection:stopped', () => { isAnnotating = false; updateUI(); });
     VibeEvents.on('badges:rendered', ({ count, total, styleCount }) => { annotationCount = total; styleAnnotationCount = 0; updateUI(); refreshUnsent(); });
+    VibeEvents.on('annotations:copy-all', async () => {
+      const count = await copyAllAnnotations();
+      if (count) showSendChip(`Copied ${count} annotation${count === 1 ? '' : 's'}`);
+    });
     VibeEvents.on('annotations:cleared', () => { annotationCount = 0; styleAnnotationCount = 0; updateUI(); });
     VibeEvents.on('overlay:closed', () => { overlayOpen = false; isOverlayVisible = false; stopPolling(); });
     VibeEvents.on('overlay:shown', async () => { overlayOpen = true; isOverlayVisible = true; startPolling(); await restorePosition(); animateToolbarIn(); });
@@ -483,25 +489,12 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     // Copy all (project-wide)
     const copyBtn = viewAllPanel.querySelector('.vibe-viewall-copy');
     copyBtn.addEventListener('click', async () => {
-      const all = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
-      if (!all.length) return;
-      const text = renderAnnotationsMarkdown(all, window.location.host);
-      try { await navigator.clipboard.writeText(text); } catch {
-        const ta = document.createElement('textarea'); ta.value = text;
-        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
-      }
+      if (!(await copyAllAnnotations())) return;
       // Flash checkmark feedback
       const origHTML = copyBtn.innerHTML;
       copyBtn.innerHTML = ICONS.check;
       copyBtn.style.color = 'var(--v-status-online)';
       setTimeout(() => { copyBtn.innerHTML = origHTML; copyBtn.style.color = ''; }, 1500);
-
-      if (clearOnCopy) {
-        for (const a of all) await VibeAPI.deleteAnnotation(a.id);
-        annotationCount = 0;
-        VibeEvents.emit('annotations:cleared', { count: all.length });
-        openViewAll(); // refresh
-      }
     });
 
     // Share / Export — dropdown with .md (agent), .html (human share), and .json
@@ -649,6 +642,25 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
     };
   }
 
+  // Copy all unresolved project annotations to the clipboard (View All button
+  // and copy-all hotkey). Returns how many were copied.
+  async function copyAllAnnotations() {
+    const all = (await VibeAPI.loadProjectAnnotations()).filter(a => a.status !== 'resolved');
+    if (!all.length) return 0;
+    const text = renderAnnotationsMarkdown(all, window.location.host);
+    try { await navigator.clipboard.writeText(text); } catch {
+      const ta = document.createElement('textarea'); ta.value = text;
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    if (clearOnCopy) {
+      for (const a of all) await VibeAPI.deleteAnnotation(a.id);
+      annotationCount = 0;
+      VibeEvents.emit('annotations:cleared', { count: all.length });
+      if (viewAllPanel) openViewAll(); // refresh
+    }
+    return all.length;
+  }
+
   function closeViewAll() {
     if (viewAllPanel) {
       if (viewAllPanel._cleanupEvents) viewAllPanel._cleanupEvents();
@@ -735,6 +747,13 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
           </div>
           <button class="vibe-shortcut-btn" type="button">${escapeHTML(shortcutHint)}</button>
         </div>
+        <div class="vibe-settings-item">
+          <div class="vibe-settings-item-left">
+            ${ICONS.clipboard}
+            <span>Copy all hotkey</span>
+          </div>
+          <button class="vibe-shortcut-btn vibe-copy-all-shortcut-btn" type="button">${escapeHTML(copyAllShortcut ? formatShortcut(copyAllShortcut) : 'Not set')}</button>
+        </div>
         <div class="vibe-settings-separator"></div>
         <button class="vibe-settings-link vibe-import-btn" type="button">
           ${ICONS.download}
@@ -766,62 +785,70 @@ import { isReviewable, variantContext, currentVariant, variantElement, previewVa
       await VibeAPI.saveScreenshotEnabled(screenshotEnabled);
     });
 
-    // Shortcut key recorder
-    const shortcutBtn = settingsDropdown.querySelector('.vibe-shortcut-btn');
-    let recording = false;
-    shortcutBtn.addEventListener('click', () => {
-      if (recording) {
-        // Cancel recording
-        cancelRecording();
-        return;
-      }
-      recording = true;
-      shortcutBtn.textContent = 'Press keys\u2026';
-      shortcutBtn.classList.add('recording');
-
-      function onKey(e) {
-        // Ignore lone modifier keys — keep waiting for the actual key.
-        if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
-
-        // Reject hotkeys that would hijack typing (no modifier, or an editing
-        // key) and cancel recording instead of swallowing the next keystroke,
-        // so the user can try again. See hotkey.js for the exact rules.
-        if (!isRecordableHotkey(e)) {
+    // Shortcut key recorders
+    function wireShortcutRecorder(shortcutBtn, getHint, save) {
+      let recording = false;
+      shortcutBtn.addEventListener('click', () => {
+        if (recording) {
+          // Cancel recording
           cancelRecording();
           return;
         }
+        recording = true;
+        shortcutBtn.textContent = 'Press keys\u2026';
+        shortcutBtn.classList.add('recording');
 
-        e.preventDefault();
-        e.stopPropagation();
+        function onKey(e) {
+          // Ignore lone modifier keys — keep waiting for the actual key.
+          if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
 
-        const sc = {
-          key: e.key,
-          ctrlKey: e.ctrlKey,
-          metaKey: e.metaKey,
-          shiftKey: e.shiftKey,
-          altKey: e.altKey
-        };
+          // Reject hotkeys that would hijack typing (no modifier, or an editing
+          // key) and cancel recording instead of swallowing the next keystroke,
+          // so the user can try again. See hotkey.js for the exact rules.
+          if (!isRecordableHotkey(e)) {
+            cancelRecording();
+            return;
+          }
 
-        customShortcut = sc;
-        shortcutHint = formatShortcut(sc);
-        shortcutBtn.textContent = shortcutHint;
-        shortcutBtn.classList.remove('recording');
-        recording = false;
-        document.removeEventListener('keydown', onKey, true);
-        activeRecordingCleanup = null;
-        VibeAPI.saveCustomShortcut(sc);
-      }
+          e.preventDefault();
+          e.stopPropagation();
 
-      function cancelRecording() {
-        recording = false;
-        shortcutBtn.textContent = shortcutHint;
-        shortcutBtn.classList.remove('recording');
-        document.removeEventListener('keydown', onKey, true);
-        activeRecordingCleanup = null;
-      }
+          const sc = {
+            key: e.key,
+            ctrlKey: e.ctrlKey,
+            metaKey: e.metaKey,
+            shiftKey: e.shiftKey,
+            altKey: e.altKey
+          };
 
-      document.addEventListener('keydown', onKey, true);
-      activeRecordingCleanup = () => document.removeEventListener('keydown', onKey, true);
+          save(sc);
+          shortcutBtn.textContent = getHint();
+          shortcutBtn.classList.remove('recording');
+          recording = false;
+          document.removeEventListener('keydown', onKey, true);
+          activeRecordingCleanup = null;
+        }
+
+        function cancelRecording() {
+          recording = false;
+          shortcutBtn.textContent = getHint();
+          shortcutBtn.classList.remove('recording');
+          document.removeEventListener('keydown', onKey, true);
+          activeRecordingCleanup = null;
+        }
+
+        document.addEventListener('keydown', onKey, true);
+        activeRecordingCleanup = () => document.removeEventListener('keydown', onKey, true);
+      });
+    }
+    wireShortcutRecorder(settingsDropdown.querySelector('.vibe-shortcut-btn'), () => shortcutHint, (sc) => {
+      customShortcut = sc;
+      shortcutHint = formatShortcut(sc);
+      VibeAPI.saveCustomShortcut(sc);
+    });
+    wireShortcutRecorder(settingsDropdown.querySelector('.vibe-copy-all-shortcut-btn'), () => (copyAllShortcut ? formatShortcut(copyAllShortcut) : 'Not set'), (sc) => {
+      copyAllShortcut = sc;
+      VibeAPI.saveCopyAllShortcut(sc);
     });
 
     // Badge color picker
